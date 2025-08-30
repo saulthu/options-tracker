@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User } from "lucide-react";
 
 interface SidebarProps {
@@ -10,6 +12,8 @@ interface SidebarProps {
 export default function Sidebar({ children }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  const router = useRouter();
+  const { user } = useAuth();
 
   const toggleSidebar = () => {
     console.log('Toggle clicked, toggling sidebar');
@@ -67,13 +71,14 @@ export default function Sidebar({ children }: SidebarProps) {
                       </button>
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                {/* Overview */}
-                      <button 
-                        className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                          isCollapsed ? 'w-14 mx-auto' : 'w-full'
-                        }`}
-                        onMouseEnter={() => isCollapsed && setHoveredButton('overview')}
-                        onMouseLeave={() => setHoveredButton(null)}
-                      >
+                                             <button 
+                         className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
+                           isCollapsed ? 'w-14 mx-auto' : 'w-full'
+                         }`}
+                         onMouseEnter={() => isCollapsed && setHoveredButton('overview')}
+                         onMouseLeave={() => setHoveredButton(null)}
+                         onClick={() => router.push('/')}
+                       >
                         <div className={`${
                           isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
                         }`}>
@@ -92,13 +97,14 @@ export default function Sidebar({ children }: SidebarProps) {
                       </button>
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                {/* Weekly Report */}
-                    <button 
-                      className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                        isCollapsed ? 'w-14 mx-auto' : 'w-full'
-                      }`}
-                      onMouseEnter={() => isCollapsed && setHoveredButton('weekly-report')}
-                      onMouseLeave={() => setHoveredButton(null)}
-                    >
+                                         <button 
+                       className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
+                         isCollapsed ? 'w-14 mx-auto' : 'w-full'
+                       }`}
+                       onMouseEnter={() => isCollapsed && setHoveredButton('weekly-report')}
+                       onMouseLeave={() => setHoveredButton(null)}
+                       onClick={() => router.push('/weekly-report')}
+                     >
                       <div className={`${
                         isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
                       }`}>
@@ -188,11 +194,12 @@ export default function Sidebar({ children }: SidebarProps) {
                 </button>
 
                                                                                                                                                                                                                                                        {/* Settings */}
-                 <button 
-                   className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
-                   onMouseEnter={() => isCollapsed && setHoveredButton('settings')}
-                   onMouseLeave={() => setHoveredButton(null)}
-                 >
+                                 <button 
+                  className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
+                  onMouseEnter={() => isCollapsed && setHoveredButton('settings')}
+                  onMouseLeave={() => setHoveredButton(null)}
+                  onClick={() => router.push('/settings')}
+                >
                   <div className={`${
                     isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
                   }`}>
@@ -218,12 +225,16 @@ export default function Sidebar({ children }: SidebarProps) {
                <div className="w-8 h-8 bg-[#404040] rounded-full flex items-center justify-center flex-shrink-0">
                  <User size={20} className="text-[#b3b3b3]" />
                </div>
-               <div className={`flex-1 min-w-0 ${
-                 isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-               }`}>
-                 <div className="text-white text-sm font-medium truncate">codoo</div>
-                 <div className="text-[#b3b3b3] text-xs truncate">codoo@codoo.ai</div>
-               </div>
+                                <div className={`flex-1 min-w-0 ${
+                   isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+                 }`}>
+                   <div className="text-white text-sm font-medium truncate">
+                     {user?.email?.split('@')[0] || 'User'}
+                   </div>
+                   <div className="text-[#b3b3b3] text-xs truncate">
+                     {user?.email || 'Loading...'}
+                   </div>
+                 </div>
              </div>
            </div>
         </div>
