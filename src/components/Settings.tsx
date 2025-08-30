@@ -68,6 +68,7 @@ export default function Settings() {
                     type="text"
                     value={tempName}
                     onChange={(e) => setTempName(e.target.value)}
+                    required
                     className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white placeholder-[#666666] focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your display name"
                   />

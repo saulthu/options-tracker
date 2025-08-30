@@ -1,253 +1,245 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User } from "lucide-react";
 
 interface SidebarProps {
   children: React.ReactNode;
+  onViewChange: (view: 'overview' | 'weekly-report' | 'settings') => void;
+  currentView: 'overview' | 'weekly-report' | 'settings';
 }
 
-export default function Sidebar({ children }: SidebarProps) {
+export default function Sidebar({ children, onViewChange, currentView }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
-  const router = useRouter();
-  const { user } = useAuth();
 
   const toggleSidebar = () => {
     console.log('Toggle clicked, toggling sidebar');
     setIsCollapsed(!isCollapsed);
   };
 
-
-
-
+  const handleViewChange = (view: 'overview' | 'weekly-report' | 'settings') => {
+    onViewChange(view);
+  };
 
   return (
-         <div className="flex h-screen bg-[#0f0f0f]">
-       {/* Sidebar */}
-               <div className={`bg-[#1a1a1a] text-white ${
-          isCollapsed ? 'w-16' : 'w-64'
-        }`}>
-                                                                           {/* Header */}
-            <div className="flex items-center border-b border-[#2d2d2d] py-4 px-2">
-              <div className="flex items-center">
-                <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
-                  <img src="/td.avif" alt="TD Logo" className="w-full h-full object-contain rounded-full" />
-                </div>
-                                                           <span className={`text-white font-semibold text-xl ml-3 ${
-                    isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                  }`}>Tracker</span>
-              </div>
+    <div className="flex h-screen bg-[#0f0f0f]">
+      {/* Sidebar */}
+      <div className={`bg-[#1a1a1a] text-white ${
+        isCollapsed ? 'w-16' : 'w-64'
+      }`}>
+        {/* Header */}
+        <div className="flex items-center border-b border-[#2d2d2d] py-4 px-2">
+          <div className="flex items-center">
+            <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
+              <img src="/td.avif" alt="TD Logo" className="w-full h-full object-contain rounded-full" />
             </div>
-
-                                                         {/* Navigation */}
-                                                                                                                                                                                               <div className={`${isCollapsed ? 'px-1 pt-4' : 'p-4'}`}>
-                <nav>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               {/* Quick Add */}
-                      <button 
-                        className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                          isCollapsed ? 'w-14 mx-auto' : 'w-full'
-                        }`}
-                        onMouseEnter={() => isCollapsed && setHoveredButton('quick-add')}
-                        onMouseLeave={() => setHoveredButton(null)}
-                      >
-                        <div className={`${
-                          isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-                        }`}>
-                          <Plus size={20} className="flex-shrink-0" />
-                        </div>
-                        <span className={`ml-3 ${
-                          isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                        }`}>Quick Add</span>
-                        
-                        {/* Hover tooltip for collapsed state */}
-                        {isCollapsed && hoveredButton === 'quick-add' && (
-                          <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                            Quick Add
-                          </div>
-                        )}
-                      </button>
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               {/* Overview */}
-                                             <button 
-                         className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                           isCollapsed ? 'w-14 mx-auto' : 'w-full'
-                         }`}
-                         onMouseEnter={() => isCollapsed && setHoveredButton('overview')}
-                         onMouseLeave={() => setHoveredButton(null)}
-                         onClick={() => router.push('/')}
-                       >
-                        <div className={`${
-                          isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-                        }`}>
-                          <Grid3X3 size={20} className="flex-shrink-0" />
-                        </div>
-                        <span className={`ml-3 ${
-                          isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                        }`}>Overview</span>
-                        
-                        {/* Hover tooltip for collapsed state */}
-                        {isCollapsed && hoveredButton === 'overview' && (
-                          <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                            Overview
-                          </div>
-                        )}
-                      </button>
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               {/* Weekly Report */}
-                                         <button 
-                       className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                         isCollapsed ? 'w-14 mx-auto' : 'w-full'
-                       }`}
-                       onMouseEnter={() => isCollapsed && setHoveredButton('weekly-report')}
-                       onMouseLeave={() => setHoveredButton(null)}
-                       onClick={() => router.push('/weekly-report')}
-                     >
-                      <div className={`${
-                        isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-                      }`}>
-                        <Calendar size={20} className="flex-shrink-0" />
-                      </div>
-                                      <span className={`ml-3 ${
-                        isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                      }`}>Weekly Report</span>
-                      
-                      {/* Hover tooltip for collapsed state */}
-                      {isCollapsed && hoveredButton === 'weekly-report' && (
-                        <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                          Weekly Report
-                        </div>
-                      )}
-                    </button>
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               {/* Transactions */}
-                     <button 
-                       className={`flex items-center text-left text-white bg-[#2d2d2d] hover:bg-[#404040] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                         isCollapsed ? 'w-14 mx-auto' : 'w-full'
-                       }`}
-                       onMouseEnter={() => isCollapsed && setHoveredButton('transactions')}
-                       onMouseLeave={() => setHoveredButton(null)}
-                     >
-                      <div className={`${
-                        isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-                      }`}>
-                        <BarChart3 size={20} className="flex-shrink-0" />
-                      </div>
-                                      <span className={`ml-3 ${
-                        isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                      }`}>Transactions</span>
-                      
-                      {/* Hover tooltip for collapsed state */}
-                      {isCollapsed && hoveredButton === 'transactions' && (
-                        <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                          Transactions
-                        </div>
-                      )}
-                     </button>
-
-                                                                                                                                                                                                                                                       {/* Assigned Shares */}
-                 <button 
-                   className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
-                   onMouseEnter={() => isCollapsed && setHoveredButton('assigned-shares')}
-                   onMouseLeave={() => setHoveredButton(null)}
-                 >
-                  <div className={`${
-                    isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-                  }`}>
-                    <FileText size={20} className="flex-shrink-0" />
-                  </div>
-                                    <span className={`ml-3 ${
-                     isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                   }`}>Assigned Shares</span>
-                  
-                  {/* Hover tooltip for collapsed state */}
-                  {isCollapsed && hoveredButton === 'assigned-shares' && (
-                    <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                      Assigned Shares
-                    </div>
-                  )}
-                </button>
-
-                                                                                                                                                                                                                                                       {/* AI Assistant */}
-                 <button 
-                   className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
-                   onMouseEnter={() => isCollapsed && setHoveredButton('ai-assistant')}
-                   onMouseLeave={() => setHoveredButton(null)}
-                 >
-                  <div className={`${
-                    isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-                  }`}>
-                    <Brain size={20} className="flex-shrink-0" />
-                  </div>
-                                    <span className={`ml-3 ${
-                     isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                   }`}>AI Assistant</span>
-                  
-                  {/* Hover tooltip for collapsed state */}
-                  {isCollapsed && hoveredButton === 'ai-assistant' && (
-                    <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                      AI Assistant
-                    </div>
-                  )}
-                </button>
-
-                                                                                                                                                                                                                                                       {/* Settings */}
-                                 <button 
-                  className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
-                  onMouseEnter={() => isCollapsed && setHoveredButton('settings')}
-                  onMouseLeave={() => setHoveredButton(null)}
-                  onClick={() => router.push('/settings')}
-                >
-                  <div className={`${
-                    isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-                  }`}>
-                    <Settings size={20} className="flex-shrink-0" />
-                  </div>
-                                    <span className={`ml-3 ${
-                     isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                   }`}>Settings</span>
-                  
-                  {/* Hover tooltip for collapsed state */}
-                  {isCollapsed && hoveredButton === 'settings' && (
-                    <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                      Settings
-                    </div>
-                  )}
-                </button>
-             </nav>
-           </div>
-
-                   {/* User Info */}
-           <div className="absolute bottom-0 left-0 right-0 p-4">
-             <div className="flex items-center space-x-3">
-               <div className="w-8 h-8 bg-[#404040] rounded-full flex items-center justify-center flex-shrink-0">
-                 <User size={20} className="text-[#b3b3b3]" />
-               </div>
-                                <div className={`flex-1 min-w-0 ${
-                   isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-                 }`}>
-                   <div className="text-white text-sm font-medium truncate">
-                     {user?.email?.split('@')[0] || 'User'}
-                   </div>
-                   <div className="text-[#b3b3b3] text-xs truncate">
-                     {user?.email || 'Loading...'}
-                   </div>
-                 </div>
-             </div>
-           </div>
+            <span className={`text-white font-semibold text-xl ml-3 ${
+              isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+            }`}>Tracker</span>
+          </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-                                        
+        {/* Navigation */}
+        <div className={`${isCollapsed ? 'px-1 pt-4' : 'p-4'}`}>
+          <nav>
+            {/* Quick Add */}
+            <button 
+              className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
+                isCollapsed ? 'w-14 mx-auto' : 'w-full'
+              }`}
+              onMouseEnter={() => isCollapsed && setHoveredButton('quick-add')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              <div className={`${
+                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
+              }`}>
+                <Plus size={20} className="flex-shrink-0" />
+              </div>
+              <span className={`ml-3 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>Quick Add</span>
+              
+              {/* Hover tooltip for collapsed state */}
+              {isCollapsed && hoveredButton === 'quick-add' && (
+                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
+                  Quick Add
+                </div>
+              )}
+            </button>
 
-          {/* Page Content */}
-          <div className="flex-1 overflow-auto bg-[#0f0f0f]">
-            {children}
+            {/* Overview */}
+            <button 
+              className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
+                isCollapsed ? 'w-14 mx-auto' : 'w-full'
+              } ${currentView === 'overview' ? 'bg-[#2d2d2d] text-white' : ''}`}
+              onMouseEnter={() => isCollapsed && setHoveredButton('overview')}
+              onMouseLeave={() => setHoveredButton(null)}
+              onClick={() => handleViewChange('overview')}
+            >
+              <div className={`${
+                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
+              }`}>
+                <Grid3X3 size={20} className="flex-shrink-0" />
+              </div>
+              <span className={`ml-3 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>Overview</span>
+              
+              {/* Hover tooltip for collapsed state */}
+              {isCollapsed && hoveredButton === 'overview' && (
+                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
+                  Overview
+                </div>
+              )}
+            </button>
+
+            {/* Weekly Report */}
+            <button 
+              className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
+                isCollapsed ? 'w-14 mx-auto' : 'w-full'
+              } ${currentView === 'weekly-report' ? 'bg-[#2d2d2d] text-white' : ''}`}
+              onMouseEnter={() => isCollapsed && setHoveredButton('weekly-report')}
+              onMouseLeave={() => setHoveredButton(null)}
+              onClick={() => handleViewChange('weekly-report')}
+            >
+              <div className={`${
+                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
+              }`}>
+                <Calendar size={20} className="flex-shrink-0" />
+              </div>
+              <span className={`ml-3 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>Weekly Report</span>
+              
+              {/* Hover tooltip for collapsed state */}
+              {isCollapsed && hoveredButton === 'weekly-report' && (
+                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
+                  Weekly Report
+                </div>
+              )}
+            </button>
+
+            {/* Transactions */}
+            <button 
+              className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
+              onMouseEnter={() => isCollapsed && setHoveredButton('transactions')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              <div className={`${
+                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
+              }`}>
+                <BarChart3 size={20} className="flex-shrink-0" />
+              </div>
+              <span className={`ml-3 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>Transactions</span>
+              
+              {/* Hover tooltip for collapsed state */}
+              {isCollapsed && hoveredButton === 'transactions' && (
+                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
+                  Transactions
+                </div>
+              )}
+            </button>
+
+            {/* Assigned Shares */}
+            <button 
+              className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
+              onMouseEnter={() => isCollapsed && setHoveredButton('assigned-shares')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              <div className={`${
+                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
+              }`}>
+                <FileText size={20} className="flex-shrink-0" />
+              </div>
+              <span className={`ml-3 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>Assigned Shares</span>
+              
+              {/* Hover tooltip for collapsed state */}
+              {isCollapsed && hoveredButton === 'assigned-shares' && (
+                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
+                  Assigned Shares
+                </div>
+              )}
+            </button>
+
+            {/* AI Assistant */}
+            <button 
+              className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
+              onMouseEnter={() => isCollapsed && setHoveredButton('ai-assistant')}
+              onMouseLeave={() => setHoveredButton(null)}
+            >
+              <div className={`${
+                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
+              }`}>
+                <Brain size={20} className="flex-shrink-0" />
+              </div>
+              <span className={`ml-3 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>AI Assistant</span>
+              
+              {/* Hover tooltip for collapsed state */}
+              {isCollapsed && hoveredButton === 'ai-assistant' && (
+                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
+                  AI Assistant
+                </div>
+              )}
+            </button>
+
+            {/* Settings */}
+            <button 
+              className={`w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
+                currentView === 'settings' ? 'bg-[#2d2d2d] text-white' : ''
+              }`}
+              onMouseEnter={() => isCollapsed && setHoveredButton('settings')}
+              onMouseLeave={() => setHoveredButton(null)}
+              onClick={() => handleViewChange('settings')}
+            >
+              <div className={`${
+                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
+              }`}>
+                <Settings size={20} className="flex-shrink-0" />
+              </div>
+              <span className={`ml-3 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>Settings</span>
+              
+              {/* Hover tooltip for collapsed state */}
+              {isCollapsed && hoveredButton === 'settings' && (
+                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
+                  Settings
+                </div>
+              )}
+            </button>
+          </nav>
+        </div>
+
+        {/* User Info */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-[#404040] rounded-full flex items-center justify-center flex-shrink-0">
+              <User size={20} className="text-[#b3b3b3]" />
+            </div>
+            <div className={`flex-1 min-w-0 ${
+              isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+            }`}>
+              <div className="text-white text-sm font-medium truncate">User</div>
+              <div className="text-[#b3b3b3] text-xs truncate">user@example.com</div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Page Content */}
+        <div className="flex-1 overflow-auto bg-[#0f0f0f]">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }
