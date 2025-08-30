@@ -64,9 +64,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
             <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
               <img src="/td.avif" alt="TD Logo" className="w-full h-full object-contain rounded-full" />
             </div>
-            <span className={`text-white font-semibold text-xl ml-3 ${
-              isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-            }`}>Tracker</span>
+            
           </div>
         </div>
 
