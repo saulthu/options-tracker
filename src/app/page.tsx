@@ -8,6 +8,8 @@ import { Plus, TrendingUp, DollarSign, Activity } from "lucide-react";
 import NewPositionForm from "@/components/NewPositionForm";
 import PnLChart from "@/components/PnLChart";
 import Sidebar from "@/components/Sidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import LoginForm from "@/components/LoginForm";
 
 interface Position {
   id: number;
@@ -23,6 +25,7 @@ interface Position {
 }
 
 export default function Home() {
+  const { user, loading, error, signOut } = useAuth();
   const [positions, setPositions] = useState<Position[]>([
     {
       id: 1,
@@ -86,25 +89,64 @@ export default function Home() {
     setPositions([...positions, newPosition]);
   };
 
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
+        <div className="text-center">
+          <div className="text-red-400 text-xl mb-4">Authentication Error</div>
+          <div className="text-white mb-4">{error}</div>
+          <div className="text-[#b3b3b3] text-sm">
+            Please check your Supabase configuration and restart the app.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated
+  if (!user) {
+    return <LoginForm />;
+  }
+
   return (
     <Sidebar>
       <div className="min-h-screen bg-[#0f0f0f]">
         {/* Header */}
         <header className="bg-[#1a1a1a] shadow-sm border-b border-[#2d2d2d]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-2.5">
-              <div>
-                <h1 className="text-3xl font-bold text-white">Options Tracker</h1>
-                <p className="text-[#b3b3b3]">Track your options positions and performance</p>
+                          <div className="flex justify-between items-center py-2.5">
+                <div>
+                  <h1 className="text-3xl font-bold text-white">Options Tracker</h1>
+                  <p className="text-[#b3b3b3]">Track your options positions and performance</p>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <span className="text-[#b3b3b3]">Welcome, {user.email}</span>
+                  <Button 
+                    className="bg-[#2d2d2d] hover:bg-[#404040] text-white border-0"
+                    onClick={() => setIsFormOpen(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Position
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="border-[#404040] text-[#b3b3b3] hover:bg-[#2d2d2d]"
+                    onClick={signOut}
+                  >
+                    Sign Out
+                  </Button>
+                </div>
               </div>
-              <Button 
-                className="bg-[#2d2d2d] hover:bg-[#404040] text-white border-0"
-                onClick={() => setIsFormOpen(true)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Position
-              </Button>
-            </div>
           </div>
         </header>
 
