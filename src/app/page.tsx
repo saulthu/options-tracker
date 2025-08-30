@@ -145,39 +145,20 @@ export default function Home() {
         return (
           <div className="min-h-screen bg-[#0f0f0f]">
             {/* Header */}
-            <header className="bg-[#1a1a1a] shadow-sm border-b border-[#2d2d2d]">
+            <header className="py-8">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center py-2.5">
-                  <div>
-                    <h1 className="text-3xl font-bold text-white">Options Tracker</h1>
-                    <p className="text-[#b3b3b3]">Track your options positions and performance</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-[#b3b3b3]">Welcome, {user.email}</span>
-                    <Button 
-                      className="bg-[#2d2d2d] hover:bg-[#404040] text-white border-0"
-                      onClick={() => setIsFormOpen(true)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Position
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="border-[#404040] text-[#b3b3b3] hover:bg-[#2d2d2d]"
-                      onClick={signOut}
-                    >
-                      Sign Out
-                    </Button>
-                  </div>
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-white mb-2">Options Tracker</h1>
+                  <p className="text-[#b3b3b3]">Track your options positions and performance</p>
                 </div>
               </div>
             </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               {/* Summary Cards */}
-              <div className="overflow-x-auto mb-8">
-                <div className="flex gap-6 min-w-max pb-2">
-                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
+              <div className="mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium text-[#b3b3b3]">Total P&L</CardTitle>
                       <DollarSign className="h-4 w-4 text-[#b3b3b3]" />
@@ -194,7 +175,7 @@ export default function Home() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
+                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium text-[#b3b3b3]">Open Positions</CardTitle>
                       <Activity className="h-4 w-4 text-[#b3b3b3]" />
@@ -207,7 +188,7 @@ export default function Home() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
+                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium text-[#b3b3b3]">Portfolio Value</CardTitle>
                       <TrendingUp className="h-4 w-4 text-[#b3b3b3]" />
@@ -220,7 +201,7 @@ export default function Home() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
+                  <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium text-[#b3b3b3]">Win Rate</CardTitle>
                       <TrendingUp className="h-4 w-4 text-[#b3b3b3]" />

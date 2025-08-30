@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User, LogOut } from "lucide-react";
 
 interface SidebarProps {
@@ -14,6 +14,24 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Handle clicking outside the user menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
 
   const toggleSidebar = () => {
     console.log('Toggle clicked, toggling sidebar');
@@ -223,7 +241,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
 
             {/* User Menu Popup */}
             {showUserMenu && (
-              <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#2d2d2d] border border-[#404040] rounded-lg shadow-lg z-50">
+              <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#2d2d2d] border border-[#404040] rounded-lg shadow-lg z-50" ref={userMenuRef}>
                 <div className="py-2">
                   {/* Settings Button */}
                   <button
