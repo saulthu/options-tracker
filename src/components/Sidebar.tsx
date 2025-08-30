@@ -1,20 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
-  Grid3X3, 
-  BarChart3, 
-  FileText, 
-  Brain, 
-  Settings,
-  Calendar,
-  User,
-  PanelLeftClose,
-  PanelLeftOpen
-} from "lucide-react";
+import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User } from "lucide-react";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -29,17 +16,9 @@ export default function Sidebar({ children }: SidebarProps) {
     setIsCollapsed(!isCollapsed);
   };
 
-  const expandSidebar = () => {
-    if (isCollapsed) {
-      console.log('Icon clicked, expanding sidebar');
-      setIsCollapsed(false);
-    }
-  };
 
-  // Dynamic sidebar icon - shows close when open, open when collapsed
-  const SidebarCollapseIcon = () => (
-    isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />
-  );
+
+
 
   return (
          <div className="flex h-screen bg-[#0f0f0f]">
