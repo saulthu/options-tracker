@@ -310,7 +310,7 @@ export default function Home() {
   };
 
   return (
-    <Sidebar onViewChange={handleViewChange} currentView={currentView}>
+    <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut}>
       {renderViewContent()}
 
       <NewPositionForm

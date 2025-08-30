@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User } from "lucide-react";
+import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User, LogOut } from "lucide-react";
 
 interface SidebarProps {
   children: React.ReactNode;
   onViewChange: (view: 'overview' | 'weekly-report' | 'settings') => void;
   currentView: 'overview' | 'weekly-report' | 'settings';
+  onLogout: () => void;
 }
 
-export default function Sidebar({ children, onViewChange, currentView }: SidebarProps) {
+export default function Sidebar({ children, onViewChange, currentView, onLogout }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const toggleSidebar = () => {
     console.log('Toggle clicked, toggling sidebar');
@@ -20,6 +22,16 @@ export default function Sidebar({ children, onViewChange, currentView }: Sidebar
 
   const handleViewChange = (view: 'overview' | 'weekly-report' | 'settings') => {
     onViewChange(view);
+    setShowUserMenu(false); // Close menu when navigating
+  };
+
+  const handleLogout = () => {
+    onLogout();
+    setShowUserMenu(false);
+  };
+
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
   };
 
   return (
@@ -188,47 +200,54 @@ export default function Sidebar({ children, onViewChange, currentView }: Sidebar
                 </div>
               )}
             </button>
-
-            {/* Settings */}
-            <button 
-              className={`w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                currentView === 'settings' ? 'bg-[#2d2d2d] text-white' : ''
-              }`}
-              onMouseEnter={() => isCollapsed && setHoveredButton('settings')}
-              onMouseLeave={() => setHoveredButton(null)}
-              onClick={() => handleViewChange('settings')}
-            >
-              <div className={`${
-                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-              }`}>
-                <Settings size={20} className="flex-shrink-0" />
-              </div>
-              <span className={`ml-3 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>Settings</span>
-              
-              {/* Hover tooltip for collapsed state */}
-              {isCollapsed && hoveredButton === 'settings' && (
-                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                  Settings
-                </div>
-              )}
-            </button>
           </nav>
         </div>
 
-        {/* User Info */}
+        {/* User Info with Popup Menu */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-[#404040] rounded-full flex items-center justify-center flex-shrink-0">
-              <User size={20} className="text-[#b3b3b3]" />
+          <div className="relative">
+            <div className="flex items-center space-x-3">
+              <div 
+                className="w-8 h-8 bg-[#404040] rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-[#505050] transition-colors"
+                onClick={toggleUserMenu}
+              >
+                <User size={20} className="text-[#b3b3b3]" />
+              </div>
+              <div className={`flex-1 min-w-0 ${
+                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+              }`}>
+                <div className="text-white text-sm font-medium truncate">User</div>
+                <div className="text-[#b3b3b3] text-xs truncate">user@example.com</div>
+              </div>
             </div>
-            <div className={`flex-1 min-w-0 ${
-              isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-            }`}>
-              <div className="text-white text-sm font-medium truncate">User</div>
-              <div className="text-[#b3b3b3] text-xs truncate">user@example.com</div>
-            </div>
+
+            {/* User Menu Popup */}
+            {showUserMenu && (
+              <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#2d2d2d] border border-[#404040] rounded-lg shadow-lg z-50">
+                <div className="py-2">
+                  {/* Settings Button */}
+                  <button
+                    className="w-full flex items-center px-4 py-2 text-left text-[#b3b3b3] hover:text-white hover:bg-[#404040] transition-colors"
+                    onClick={() => handleViewChange('settings')}
+                  >
+                    <Settings size={16} className="mr-3" />
+                    Settings
+                  </button>
+                  
+                  {/* Divider */}
+                  <div className="border-t border-[#404040] my-1"></div>
+                  
+                  {/* Logout Button */}
+                  <button
+                    className="w-full flex items-center px-4 py-2 text-left text-[#b3b3b3] hover:text-white hover:bg-[#404040] transition-colors"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={16} className="mr-3" />
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
