@@ -213,7 +213,7 @@ export default function Sidebar({ children }: SidebarProps) {
            </div>
 
                    {/* User Info */}
-           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#2d2d2d]">
+           <div className="absolute bottom-0 left-0 right-0 p-4">
              <div className="flex items-center space-x-3">
                <div className="w-8 h-8 bg-[#404040] rounded-full flex items-center justify-center flex-shrink-0">
                  <User size={20} className="text-[#b3b3b3]" />
