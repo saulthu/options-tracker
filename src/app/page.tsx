@@ -110,8 +110,9 @@ export default function Home() {
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
+          <div className="overflow-x-auto mb-8">
+            <div className="flex gap-6 min-w-max pb-2">
+            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-[#b3b3b3]">Total P&L</CardTitle>
                 <DollarSign className="h-4 w-4 text-[#b3b3b3]" />
@@ -128,7 +129,7 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
+            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-[#b3b3b3]">Open Positions</CardTitle>
                 <Activity className="h-4 w-4 text-[#b3b3b3]" />
@@ -141,7 +142,7 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
+            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-[#b3b3b3]">Portfolio Value</CardTitle>
                 <TrendingUp className="h-4 w-4 text-[#b3b3b3]" />
@@ -154,18 +155,19 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
+            <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-64 flex-shrink-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-[#b3b3b3]">Win Rate</CardTitle>
                 <TrendingUp className="h-4 w-4 text-[#b3b3b3]" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-white">67%</div>
-                <p className="text-xs text-[#b3b3b3]">
+                <div className="text-xs text-[#b3b3b3]">
                   Profitable trades
-                </p>
+                </div>
               </CardContent>
             </Card>
+            </div>
           </div>
 
           {/* P&L Chart */}
