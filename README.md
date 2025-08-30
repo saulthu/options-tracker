@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Options Tracker
+
+A modern web application for tracking options trading positions and performance. Built with Next.js, TypeScript, and Tailwind CSS.
+
+## Features
+
+- **Dashboard Overview**: View key metrics including total P&L, open positions, portfolio value, and win rate
+- **Position Management**: Add new options positions with detailed information
+- **Performance Tracking**: Monitor individual position performance and overall portfolio
+- **Visual Analytics**: P&L chart showing performance over time
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Custom components with Radix UI primitives
+- **Icons**: Lucide React
+- **Database**: Supabase (configured for future use)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd options-tracker
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Run the development server:
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+### Adding New Positions
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Click the "New Position" button in the header
+2. Fill out the form with:
+   - Stock symbol (e.g., AAPL, TSLA)
+   - Option type (Call or Put)
+   - Strike price
+   - Expiration date
+   - Quantity
+   - Entry price
+   - Optional notes
+3. Click "Add Position" to save
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Viewing Performance
 
-## Deploy on Vercel
+- **Summary Cards**: Quick overview of key metrics
+- **P&L Chart**: Visual representation of performance over time
+- **Positions Table**: Detailed view of all open positions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/                 # Next.js app directory
+│   ├── page.tsx        # Main dashboard page
+│   ├── layout.tsx      # Root layout
+│   └── globals.css     # Global styles
+├── components/          # React components
+│   ├── ui/             # Reusable UI components
+│   ├── NewPositionForm.tsx  # Form for adding positions
+│   └── PnLChart.tsx    # Performance chart component
+└── lib/                # Utility functions
+```
+
+## Future Enhancements
+
+- [ ] Real-time market data integration
+- [ ] Position editing and closing
+- [ ] Advanced analytics and reporting
+- [ ] Portfolio diversification metrics
+- [ ] Risk management tools
+- [ ] Export functionality
+- [ ] User authentication
+- [ ] Multi-portfolio support
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Disclaimer
+
+This application is for educational and personal use only. It is not financial advice and should not be used as the sole basis for investment decisions. Always consult with a qualified financial advisor before making investment decisions.
