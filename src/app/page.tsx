@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ type ViewType = 'overview' | 'weekly-report' | 'settings';
 
 export default function Home() {
   const { user, loading, error, signOut } = useAuth();
-  const { profile, hasProfile, loading: profileLoading } = useUserProfile();
+  const { profile } = useUserProfile();
   
   const [isTradeFormOpen, setIsTradeFormOpen] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
