@@ -76,7 +76,7 @@ src/
 │   └── globals.css     # Global styles
 ├── components/          # React components
 │   ├── ui/             # Reusable UI components
-│   ├── NewPositionForm.tsx  # Form for adding positions
+│   ├── NewTradeForm.tsx  # Form for adding trades
 │   └── PnLChart.tsx    # Performance chart component
 └── lib/                # Utility functions
 ```

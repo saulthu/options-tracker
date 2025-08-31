@@ -1,48 +1,40 @@
 export interface User {
   id: string
+  name: string
   email: string
-  created_at: string
-  updated_at: string
+  created: string
 }
 
-export interface Position {
-  id: string
-  user_id: string
-  trading_account_id: string
-  symbol: string
-  type: 'Call' | 'Put'
-  strike: number
-  expiration: string
-  quantity: number
-  entry_price: number
-  current_price: number
-  pnl: number
-  status: 'Open' | 'Closed' | 'Assigned'
-  notes?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface TradingAccount {
+export interface Account {
   id: string
   user_id: string
   name: string
-  type: 'Personal' | 'IRA' | '401k' | 'Roth IRA' | 'Traditional IRA' | 'Corporate' | 'SMSF' | 'Other'
+  type: string
   institution?: string
-  account_number?: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
+  created: string
 }
 
-export interface PnLHistory {
+export interface Ticker {
   id: string
-  user_id: string
-  date: string
-  total_pnl: number
-  open_positions: number
-  portfolio_value: number
-  created_at: string
+  name: string
+  icon?: string // Path/URL to cached Google S2 ticker icon file
+}
+
+export interface Trade {
+  id: string
+  account_id: string
+  type: 'Cash' | 'Shares' | 'CSP' | 'CC' | 'Call' | 'Put'
+  action: 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment'
+  ticker_id?: string
+  price: number
+  quantity: number
+  value: number
+  strike?: number
+  expiry?: string
+  opened: string
+  closed?: string
+  close_method?: 'Manual' | 'Expired' | 'Assigned'
+  created: string
 }
 
 export interface Database {
@@ -50,23 +42,23 @@ export interface Database {
     Tables: {
       users: {
         Row: User
-        Insert: Omit<User, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>
+        Insert: Omit<User, 'id' | 'created'>
+        Update: Partial<Omit<User, 'id' | 'created'>>
       }
-      positions: {
-        Row: Position
-        Insert: Omit<Position, 'id' | 'user_id' | 'trading_account_id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<Position, 'id' | 'user_id' | 'trading_account_id' | 'created_at' | 'updated_at'>>
+      accounts: {
+        Row: Account
+        Insert: Omit<Account, 'id' | 'created'>
+        Update: Partial<Omit<Account, 'id' | 'created'>>
       }
-      trading_accounts: {
-        Row: TradingAccount
-        Insert: Omit<TradingAccount, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<TradingAccount, 'id' | 'created_at' | 'updated_at'>>
+      tickers: {
+        Row: Ticker
+        Insert: Omit<Ticker, 'id'>
+        Update: Partial<Omit<Ticker, 'id'>>
       }
-      pnl_history: {
-        Row: PnLHistory
-        Insert: Omit<PnLHistory, 'id' | 'user_id' | 'created_at'>
-        Update: Partial<Omit<PnLHistory, 'id' | 'user_id' | 'created_at'>>
+      trades: {
+        Row: Trade
+        Insert: Omit<Trade, 'id' | 'created'>
+        Update: Partial<Omit<Trade, 'id' | 'created'>>
       }
     }
   }

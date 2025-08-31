@@ -9,6 +9,10 @@ interface SidebarProps {
   onViewChange: (view: 'overview' | 'weekly-report' | 'settings') => void;
   currentView: 'overview' | 'weekly-report' | 'settings';
   onLogout: () => void;
+  userProfile?: {
+    name: string;
+    email: string;
+  } | null;
 }
 
 interface NavButtonProps {
@@ -62,7 +66,7 @@ function NavButton({
   );
 }
 
-export default function Sidebar({ children, onViewChange, currentView, onLogout }: SidebarProps) {
+export default function Sidebar({ children, onViewChange, currentView, onLogout, userProfile }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -130,12 +134,14 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
     { key: 'quick-add', icon: Plus, text: 'Quick Add' },
     { key: 'overview', icon: Grid3X3, text: 'Overview', hasAction: true },
     { key: 'weekly-report', icon: Calendar, text: 'Weekly Report', hasAction: true },
+
     { key: 'transactions', icon: BarChart3, text: 'Transactions' },
     { key: 'assigned-shares', icon: FileText, text: 'Assigned Shares' },
     { key: 'ai-assistant', icon: Brain, text: 'AI Assistant' },
+    { key: 'settings', icon: Settings, text: 'Settings', hasAction: true },
   ].map(item => ({
     ...item,
-    onClick: item.hasAction ? () => handleViewChange(item.key as 'overview' | 'weekly-report') : undefined,
+    onClick: item.hasAction ? () => handleViewChange(item.key as 'overview' | 'weekly-report' | 'settings') : undefined,
     isActive: item.hasAction ? currentView === item.key : false
   }));
 
@@ -193,8 +199,12 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
                 )}
               </div>
               <div className={`flex-1 min-w-0 ${userTextClass}`}>
-                <div className="text-white text-sm font-medium truncate">User</div>
-                <div className="text-[#b3b3b3] text-xs truncate">user@example.com</div>
+                <div className="text-white text-sm font-medium truncate">
+                  {userProfile?.name || 'User'}
+                </div>
+                <div className="text-[#b3b3b3] text-xs truncate">
+                  {userProfile?.email || 'user@example.com'}
+                </div>
               </div>
             </div>
 
@@ -202,18 +212,6 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
             {showUserMenu && (
               <div className="sidebar-user-menu-popup" ref={userMenuRef}>
                 <div className="py-2">
-                  {/* Settings Button */}
-                  <button
-                    className="sidebar-user-menu-button"
-                    onClick={() => handleViewChange('settings')}
-                  >
-                    <Settings size={16} className="mr-3" />
-                    Settings
-                  </button>
-                  
-                  {/* Divider */}
-                  <div className="sidebar-user-menu-divider"></div>
-                  
                   {/* Logout Button */}
                   <button
                     className="sidebar-user-menu-button"

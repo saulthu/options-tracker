@@ -1,0 +1,35 @@
+User table
+- id key
+- name text
+- email text
+- created timestamp
+
+Account table
+- id key
+- user_id key
+- name text
+- type text
+- institution
+- created timestamp
+
+Ticker table
+- id key
+- name text
+- icon
+
+Trade table
+- id key
+- user_id
+- account_id (Account for this transaction)
+- type (Transaction type: Cash, Shares, CSP, CC, Call, Put)
+- action (Action being performed: Buy, Sell, Deposit, Withdraw, Adjustment)
+- ticker_id (Ticker, none if Cash)
+- price (Price per share, normally 1.0 for Cash)
+- quantity (Number of shares or contracts)
+- value (Value of the transaction for simple account balance summation: P*Q for Cash/Shares, P*Q*100 for options)
+- strike (Strike price per share for options, None for others)
+- expiry (Expiry date for options, None for others)
+- opened (Date of open)
+- closed (Date of close)
+- close_method (Manual for Cash/Shares, for options Manual (i.e. was BTC or STC), Expired (i.e. strike not hit), Assigned (i.e. strike hit either assigned shares or called away shares))
+- created timestamp
