@@ -10,7 +10,6 @@ import PnLChart from "@/components/PnLChart";
 import Sidebar from "@/components/Sidebar";
 import LoginForm from "@/components/LoginForm";
 import Settings from "@/components/Settings";
-
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
@@ -32,12 +31,16 @@ interface Trade {
   created: string;
 }
 
-  type ViewType = 'overview' | 'weekly-report' | 'settings';
+type ViewType = 'overview' | 'weekly-report' | 'settings';
 
 export default function Home() {
   const { user, loading, error, signOut } = useAuth();
   const { profile, hasProfile, loading: profileLoading } = useUserProfile();
+  
+  const [isTradeFormOpen, setIsTradeFormOpen] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
+
+  // Mock trades data
   const [trades, setTrades] = useState<Trade[]>([
     {
       id: "1",
@@ -95,15 +98,6 @@ export default function Home() {
       created: "2024-01-10T10:00:00Z"
     }
   ]);
-
-  const [isTradeFormOpen, setIsTradeFormOpen] = useState(false);
-
-  // Redirect new users to settings to complete their profile
-  useEffect(() => {
-    if (!loading && !profileLoading && user && !hasProfile) {
-      setCurrentView('settings');
-    }
-  }, [loading, profileLoading, user, hasProfile]);
 
   // Mock historical portfolio value data
   const historicalPortfolio = [
@@ -221,9 +215,9 @@ export default function Home() {
                           {portfolioValue >= 0 ? "+" : ""}${portfolioValue.toFixed(2)}
                         </span>
                       </div>
-                                              <p className="text-xs text-[#b3b3b3]">
-                          Current portfolio value
-                        </p>
+                      <p className="text-xs text-[#b3b3b3]">
+                        Current portfolio value
+                      </p>
                     </CardContent>
                   </Card>
 
@@ -272,10 +266,10 @@ export default function Home() {
               <div className="mb-8">
                 <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
                   <CardHeader>
-                                      <CardTitle className="text-white">Portfolio Performance</CardTitle>
-                  <CardDescription className="text-[#b3b3b3]">
-                    Historical portfolio value over time
-                  </CardDescription>
+                    <CardTitle className="text-white">Portfolio Performance</CardTitle>
+                    <CardDescription className="text-[#b3b3b3]">
+                      Historical portfolio value over time
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <PnLChart data={historicalPortfolio} />

@@ -72,17 +72,11 @@ export function useUserProfile() {
         setLoading(true);
         setError(null);
 
-        try {
-          const { data, error: fetchError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-          
-          return { data, error: fetchError };
-        } catch (requestError) {
-          throw requestError;
-        }
+        const { data, error: fetchError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
         if (fetchError) {
           if (fetchError.code === 'PGRST116') {
