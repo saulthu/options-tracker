@@ -34,8 +34,8 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
-      <Card className="w-full max-w-md bg-[#1a1a1a] border-[#2d2d2d] text-white">
+    <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]" data-1p-ignore data-lpignore="true" data-form-type="other">
+      <Card className="w-full max-w-md bg-[#1a1a1a] border-[#2d2d2d] text-white" data-1p-ignore data-lpignore="true" data-form-type="other">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Options Tracker</CardTitle>
           <CardDescription className="text-center text-[#b3b3b3]">
@@ -43,7 +43,7 @@ export default function LoginForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" data-1p-ignore data-lpignore="true" data-form-type="other">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-[#b3b3b3] mb-2">
                 Email
@@ -54,6 +54,10 @@ export default function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="username"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="login"
                 className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white placeholder-[#666666] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your email"
               />
@@ -69,6 +73,10 @@ export default function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="login"
                 className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white placeholder-[#666666] focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your password"
               />
