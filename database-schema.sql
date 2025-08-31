@@ -78,9 +78,7 @@ CREATE POLICY "Users can view own accounts" ON public.accounts
 CREATE POLICY "Users can insert own accounts" ON public.accounts
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Allow the trigger function to insert default accounts
-CREATE POLICY "Allow trigger function to insert default accounts" ON public.accounts
-  FOR INSERT WITH CHECK (true);
+
 
 CREATE POLICY "Users can update own accounts" ON public.accounts
   FOR UPDATE USING (auth.uid() = user_id);
@@ -116,19 +114,13 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   default_name TEXT;
-  default_account_id UUID;
 BEGIN
   -- Extract first part of email (before @) for default name
   default_name := split_part(NEW.email, '@', 1);
   
-  -- Insert user profile with default name
+  -- Insert user profile with default name only
   INSERT INTO public.users (id, name, email)
   VALUES (NEW.id, default_name, NEW.email);
-  
-  -- Create a default trading account for the user
-  INSERT INTO public.accounts (id, user_id, name, type, institution)
-  VALUES (gen_random_uuid(), NEW.id, 'Main Trading Account', 'Individual', 'TD Ameritrade')
-  RETURNING id INTO default_account_id;
   
   RETURN NEW;
 END;

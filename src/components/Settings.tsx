@@ -28,24 +28,7 @@ export default function Settings() {
   };
 
   // Accounts state
-  const [accounts, setAccounts] = useState<Account[]>([
-    {
-      id: "1",
-      name: "Main Trading Account",
-      type: "Individual",
-      institution: "Fidelity",
-      account_number: "****1234",
-      description: "Primary account for options trading"
-    },
-    {
-      id: "2",
-      name: "Retirement IRA",
-      type: "Traditional IRA",
-      institution: "Vanguard",
-      account_number: "****5678",
-      description: "Long-term retirement investments"
-    }
-  ]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [isAccountFormOpen, setIsAccountFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [accountLoading, setAccountLoading] = useState(false);
