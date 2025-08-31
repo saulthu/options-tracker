@@ -24,7 +24,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] p-8" data-1p-ignore data-lpignore="true" data-form-type="other">
+    <div className="min-h-screen bg-[#0f0f0f] p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -33,7 +33,7 @@ export default function Settings() {
         </div>
 
         {/* Profile Settings */}
-        <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white mb-6" data-1p-ignore data-lpignore="true">
+        <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white mb-6">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
               <User className="w-5 h-5 mr-2" />
@@ -70,9 +70,6 @@ export default function Settings() {
                     onChange={(e) => setTempName(e.target.value)}
                     required
                     autoComplete="off"
-                    data-1p-ignore
-                    data-lpignore="true"
-                    data-form-type="other"
                     className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white placeholder-[#666666] focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your display name"
                   />
