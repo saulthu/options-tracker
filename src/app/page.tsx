@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, DollarSign, Activity } from "lucide-react";
+import { TrendingUp, DollarSign, Activity } from "lucide-react";
 import NewPositionForm from "@/components/NewPositionForm";
 import PnLChart from "@/components/PnLChart";
 import Sidebar from "@/components/Sidebar";
@@ -240,19 +239,19 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
+                  <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-[#404040] scrollbar-track-transparent">
+                    <table className="w-full min-w-[800px]">
                       <thead>
                         <tr>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Symbol</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Type</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Strike</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Expiration</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Quantity</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Entry Price</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Current Price</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">P&L</th>
-                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3]">Status</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Symbol</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Type</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Strike</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Expiration</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Quantity</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Entry Price</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Current Price</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">P&L</th>
+                          <th className="text-left py-3 px-4 font-medium text-[#b3b3b3] whitespace-nowrap">Status</th>
                         </tr>
                       </thead>
                       <tbody>

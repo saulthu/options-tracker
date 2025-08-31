@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User, LogOut } from "lucide-react";
+import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User, LogOut, LucideIcon } from "lucide-react";
+import Image from "next/image";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -10,17 +11,85 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
+interface NavButtonProps {
+  icon: LucideIcon;
+  text: string;
+  isCollapsed: boolean;
+  hoveredButton: string | null;
+  buttonKey: string;
+  isActive?: boolean;
+  onClick?: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
+// Reusable navigation button component
+function NavButton({ 
+  icon: Icon, 
+  text, 
+  isCollapsed, 
+  hoveredButton, 
+  buttonKey, 
+  isActive = false, 
+  onClick,
+  onMouseEnter,
+  onMouseLeave 
+}: NavButtonProps) {
+  // DRY: Use computed classes from parent component
+  const buttonWidthClass = isCollapsed ? 'sidebar-button-width-collapsed' : 'sidebar-button-width-expanded';
+  const iconPositionClass = isCollapsed ? 'sidebar-icon-collapsed' : 'sidebar-icon-expanded';
+  const textVisibilityClass = isCollapsed ? 'sidebar-text-collapsed' : 'sidebar-text-expanded';
+  
+  return (
+    <button 
+      className={`sidebar-nav-item ${buttonWidthClass} ${isActive ? 'sidebar-nav-item-active' : ''}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={onClick}
+    >
+      <div className={`sidebar-icon-container ${iconPositionClass}`}>
+        <Icon size={20} />
+      </div>
+      <span className={`ml-3 ${textVisibilityClass}`}>{text}</span>
+      
+      {/* Hover tooltip for collapsed state */}
+      {isCollapsed && hoveredButton === buttonKey && (
+        <div className="sidebar-tooltip">
+          {text}
+        </div>
+      )}
+    </button>
+  );
+}
+
 export default function Sidebar({ children, onViewChange, currentView, onLogout }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  // DRY: Computed CSS classes to avoid repeated ternaries
+  const sidebarWidthClass = isCollapsed ? 'sidebar-width-collapsed' : 'sidebar-width-expanded';
+  const navContainerClass = isCollapsed ? 'sidebar-nav-container-collapsed' : 'sidebar-nav-container-expanded';
+  const userTextClass = isCollapsed ? 'sidebar-user-text-collapsed' : 'sidebar-user-text-expanded';
+
+  // DRY: Reusable mouse event handlers
+  const handleMouseEnter = (key: string) => {
+    if (isCollapsed) setHoveredButton(key);
+  };
+
+  const handleMouseLeave = () => setHoveredButton(null);
+
   // Handle clicking outside the user menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
+      // Don't close if clicking on the user icon itself
+      const target = event.target as Node;
+      const userIcon = document.querySelector('[data-user-icon]');
+      
+      if (userMenuRef.current && !userMenuRef.current.contains(target) && 
+          userIcon && !userIcon.contains(target)) {
+        closeUserMenu();
       }
     };
 
@@ -40,182 +109,66 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
 
   const handleViewChange = (view: 'overview' | 'weekly-report' | 'settings') => {
     onViewChange(view);
-    setShowUserMenu(false); // Close menu when navigating
+    closeUserMenu(); // Close menu when navigating
   };
 
   const handleLogout = () => {
     onLogout();
-    setShowUserMenu(false);
+    closeUserMenu();
   };
 
   const toggleUserMenu = () => {
-    setShowUserMenu(!showUserMenu);
+    setShowUserMenu(prev => !prev);
   };
+
+  const closeUserMenu = () => {
+    setShowUserMenu(false);
+  };
+
+  // DRY: Dynamic navigation items configuration
+  const navItems = [
+    { key: 'quick-add', icon: Plus, text: 'Quick Add' },
+    { key: 'overview', icon: Grid3X3, text: 'Overview', hasAction: true },
+    { key: 'weekly-report', icon: Calendar, text: 'Weekly Report', hasAction: true },
+    { key: 'transactions', icon: BarChart3, text: 'Transactions' },
+    { key: 'assigned-shares', icon: FileText, text: 'Assigned Shares' },
+    { key: 'ai-assistant', icon: Brain, text: 'AI Assistant' },
+  ].map(item => ({
+    ...item,
+    onClick: item.hasAction ? () => handleViewChange(item.key as 'overview' | 'weekly-report') : undefined,
+    isActive: item.hasAction ? currentView === item.key : false
+  }));
 
   return (
     <div className="flex h-screen bg-[#0f0f0f]">
       {/* Sidebar */}
-      <div className={`bg-[#1a1a1a] text-white ${
-        isCollapsed ? 'w-16' : 'w-64'
-      }`}>
+      <div className={`bg-[#1a1a1a] text-white ${sidebarWidthClass}`}>
         {/* Header */}
         <div className="flex items-center border-b border-[#2d2d2d] py-4 px-2">
           <div className="flex items-center">
-            <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
-              <img src="/td.avif" alt="TD Logo" className="w-full h-full object-contain rounded-full" />
-            </div>
-            
+                         <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
+               <Image src="/td.avif" alt="TD Logo" width={48} height={48} className="object-contain rounded-full" />
+             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <div className={`${isCollapsed ? 'px-1 pt-4' : 'p-4'}`}>
+        <div className={navContainerClass}>
           <nav>
-            {/* Quick Add */}
-            <button 
-              className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                isCollapsed ? 'w-14 mx-auto' : 'w-full'
-              }`}
-              onMouseEnter={() => isCollapsed && setHoveredButton('quick-add')}
-              onMouseLeave={() => setHoveredButton(null)}
-            >
-              <div className={`${
-                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-              }`}>
-                <Plus size={20} className="flex-shrink-0" />
-              </div>
-              <span className={`ml-3 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>Quick Add</span>
-              
-              {/* Hover tooltip for collapsed state */}
-              {isCollapsed && hoveredButton === 'quick-add' && (
-                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                  Quick Add
-                </div>
-              )}
-            </button>
-
-            {/* Overview */}
-            <button 
-              className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                isCollapsed ? 'w-14 mx-auto' : 'w-full'
-              } ${currentView === 'overview' ? 'bg-[#2d2d2d] text-white' : ''}`}
-              onMouseEnter={() => isCollapsed && setHoveredButton('overview')}
-              onMouseLeave={() => setHoveredButton(null)}
-              onClick={() => handleViewChange('overview')}
-            >
-              <div className={`${
-                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-              }`}>
-                <Grid3X3 size={20} className="flex-shrink-0" />
-              </div>
-              <span className={`ml-3 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>Overview</span>
-              
-              {/* Hover tooltip for collapsed state */}
-              {isCollapsed && hoveredButton === 'overview' && (
-                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                  Overview
-                </div>
-              )}
-            </button>
-
-            {/* Weekly Report */}
-            <button 
-              className={`flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative ${
-                isCollapsed ? 'w-14 mx-auto' : 'w-full'
-              } ${currentView === 'weekly-report' ? 'bg-[#2d2d2d] text-white' : ''}`}
-              onMouseEnter={() => isCollapsed && setHoveredButton('weekly-report')}
-              onMouseLeave={() => setHoveredButton(null)}
-              onClick={() => handleViewChange('weekly-report')}
-            >
-              <div className={`${
-                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-              }`}>
-                <Calendar size={20} className="flex-shrink-0" />
-              </div>
-              <span className={`ml-3 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>Weekly Report</span>
-              
-              {/* Hover tooltip for collapsed state */}
-              {isCollapsed && hoveredButton === 'weekly-report' && (
-                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                  Weekly Report
-                </div>
-              )}
-            </button>
-
-            {/* Transactions */}
-            <button 
-              className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
-              onMouseEnter={() => isCollapsed && setHoveredButton('transactions')}
-              onMouseLeave={() => setHoveredButton(null)}
-            >
-              <div className={`${
-                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-              }`}>
-                <BarChart3 size={20} className="flex-shrink-0" />
-              </div>
-              <span className={`ml-3 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>Transactions</span>
-              
-              {/* Hover tooltip for collapsed state */}
-              {isCollapsed && hoveredButton === 'transactions' && (
-                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                  Transactions
-                </div>
-              )}
-            </button>
-
-            {/* Assigned Shares */}
-            <button 
-              className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
-              onMouseEnter={() => isCollapsed && setHoveredButton('assigned-shares')}
-              onMouseLeave={() => setHoveredButton(null)}
-            >
-              <div className={`${
-                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-              }`}>
-                <FileText size={20} className="flex-shrink-0" />
-              </div>
-              <span className={`ml-3 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>Assigned Shares</span>
-              
-              {/* Hover tooltip for collapsed state */}
-              {isCollapsed && hoveredButton === 'assigned-shares' && (
-                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                  Assigned Shares
-                </div>
-              )}
-            </button>
-
-            {/* AI Assistant */}
-            <button 
-              className="w-full flex items-center text-left text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] px-1 py-2 rounded-lg transition-colors h-10 relative"
-              onMouseEnter={() => isCollapsed && setHoveredButton('ai-assistant')}
-              onMouseLeave={() => setHoveredButton(null)}
-            >
-              <div className={`${
-                isCollapsed ? 'absolute left-1/2 transform -translate-x-1/2' : 'relative'
-              }`}>
-                <Brain size={20} className="flex-shrink-0" />
-              </div>
-              <span className={`ml-3 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>AI Assistant</span>
-              
-              {/* Hover tooltip for collapsed state */}
-              {isCollapsed && hoveredButton === 'ai-assistant' && (
-                <div className="absolute left-16 bg-[#2d2d2d] text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap z-50">
-                  AI Assistant
-                </div>
-              )}
-            </button>
+            {navItems.map((item) => (
+              <NavButton
+                key={item.key}
+                icon={item.icon}
+                text={item.text}
+                isCollapsed={isCollapsed}
+                hoveredButton={hoveredButton}
+                buttonKey={item.key}
+                isActive={item.isActive}
+                onClick={item.onClick}
+                onMouseEnter={() => handleMouseEnter(item.key)}
+                onMouseLeave={handleMouseLeave}
+              />
+            ))}
           </nav>
         </div>
 
@@ -224,14 +177,22 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
           <div className="relative">
             <div className="flex items-center space-x-3">
               <div 
-                className="w-8 h-8 bg-[#404040] rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-[#505050] transition-colors"
+                className="sidebar-user-icon"
+                data-user-icon
                 onClick={toggleUserMenu}
+                onMouseEnter={() => handleMouseEnter('user')}
+                onMouseLeave={handleMouseLeave}
               >
                 <User size={20} className="text-[#b3b3b3]" />
+                
+                {/* Hover tooltip for collapsed state */}
+                {isCollapsed && hoveredButton === 'user' && (
+                  <div className="sidebar-tooltip">
+                    User Menu
+                  </div>
+                )}
               </div>
-              <div className={`flex-1 min-w-0 ${
-                isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
-              }`}>
+              <div className={`flex-1 min-w-0 ${userTextClass}`}>
                 <div className="text-white text-sm font-medium truncate">User</div>
                 <div className="text-[#b3b3b3] text-xs truncate">user@example.com</div>
               </div>
@@ -239,11 +200,11 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
 
             {/* User Menu Popup */}
             {showUserMenu && (
-              <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#2d2d2d] border border-[#404040] rounded-lg shadow-lg z-50" ref={userMenuRef}>
+              <div className="sidebar-user-menu-popup" ref={userMenuRef}>
                 <div className="py-2">
                   {/* Settings Button */}
                   <button
-                    className="w-full flex items-center px-4 py-2 text-left text-[#b3b3b3] hover:text-white hover:bg-[#404040] transition-colors"
+                    className="sidebar-user-menu-button"
                     onClick={() => handleViewChange('settings')}
                   >
                     <Settings size={16} className="mr-3" />
@@ -251,11 +212,11 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout 
                   </button>
                   
                   {/* Divider */}
-                  <div className="border-t border-[#404040] my-1"></div>
+                  <div className="sidebar-user-menu-divider"></div>
                   
                   {/* Logout Button */}
                   <button
-                    className="w-full flex items-center px-4 py-2 text-left text-[#b3b3b3] hover:text-white hover:bg-[#404040] transition-colors"
+                    className="sidebar-user-menu-button"
                     onClick={handleLogout}
                   >
                     <LogOut size={16} className="mr-3" />
