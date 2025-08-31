@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Image from 'next/image';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -34,13 +35,22 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]" data-1p-ignore data-lpignore="true" data-form-type="other">
-      <Card className="w-full max-w-md bg-[#1a1a1a] border-[#2d2d2d] text-white" data-1p-ignore data-lpignore="true" data-form-type="other">
+    <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
+      <Card className="w-full max-w-md bg-[#1a1a1a] border-[#2d2d2d] text-white">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Options Tracker</CardTitle>
-          <CardDescription className="text-center text-[#b3b3b3]">
-            {isSignUp ? 'Create your account' : 'Sign in to your account'}
-          </CardDescription>
+          <div className="flex flex-col items-center space-y-4">
+            <Image 
+              src="/td.avif" 
+              alt="TD Logo" 
+              width={48} 
+              height={48} 
+              className="object-contain rounded-full" 
+            />
+            <CardTitle className="text-2xl text-center">Options Tracker</CardTitle>
+            <CardDescription className="text-center text-[#b3b3b3]">
+              {isSignUp ? 'Create your account' : 'Sign in to your account'}
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4" data-1p-ignore data-lpignore="true" data-form-type="other">
@@ -48,19 +58,20 @@ export default function LoginForm() {
               <label htmlFor="email" className="block text-sm font-medium text-[#b3b3b3] mb-2">
                 Email
               </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="username"
-                data-1p-ignore
-                data-lpignore="true"
-                data-form-type="login"
-                className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white placeholder-[#666666] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your email"
-              />
+                             <input
+                 id="email"
+                 type="email"
+                 value={email}
+                 onChange={(e) => setEmail(e.target.value)}
+                 required
+                 autoComplete="username"
+                 data-1p-ignore
+                 data-lpignore="true"
+                 data-form-type="login"
+                 autoFocus
+                 className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white placeholder-[#666666] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 placeholder="Enter your email"
+               />
             </div>
             
             <div>

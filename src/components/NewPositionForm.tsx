@@ -16,6 +16,8 @@ interface Position {
   currentPrice: number;
   pnl: number;
   status: string;
+  tradingAccountId: string;
+  tradingAccountName: string;
 }
 
 interface NewPositionFormProps {
@@ -47,7 +49,9 @@ export default function NewPositionForm({ isOpen, onClose, onSubmit }: NewPositi
       entryPrice: parseFloat(formData.entryPrice),
       currentPrice: parseFloat(formData.entryPrice), // Initially same as entry
       pnl: 0,
-      status: "Open"
+      status: "Open",
+      tradingAccountId: "1", // Default to main account for now
+      tradingAccountName: "Main Account"
     };
     onSubmit(position);
     setFormData({

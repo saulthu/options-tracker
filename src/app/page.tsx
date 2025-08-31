@@ -22,6 +22,8 @@ interface Position {
   currentPrice: number;
   pnl: number;
   status: string;
+  tradingAccountId: string;
+  tradingAccountName: string;
 }
 
 type ViewType = 'overview' | 'weekly-report' | 'settings';
@@ -40,7 +42,9 @@ export default function Home() {
       entryPrice: 5.50,
       currentPrice: 6.20,
       pnl: 0.70,
-      status: "Open"
+      status: "Open",
+      tradingAccountId: "1",
+      tradingAccountName: "Main Account"
     },
     {
       id: 2,
@@ -52,7 +56,9 @@ export default function Home() {
       entryPrice: 3.80,
       currentPrice: 2.90,
       pnl: -1.80,
-      status: "Open"
+      status: "Open",
+      tradingAccountId: "1",
+      tradingAccountName: "Main Account"
     },
     {
       id: 3,
@@ -64,7 +70,9 @@ export default function Home() {
       entryPrice: 8.20,
       currentPrice: 12.50,
       pnl: 4.30,
-      status: "Open"
+      status: "Open",
+      tradingAccountId: "1",
+      tradingAccountName: "Main Account"
     }
   ]);
 

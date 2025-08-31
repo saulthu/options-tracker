@@ -6,10 +6,24 @@ CREATE TABLE public.users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create trading accounts table
+CREATE TABLE public.trading_accounts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  type TEXT CHECK (type IN ('Personal', 'IRA', '401k', 'Roth IRA', 'Traditional IRA', 'Other')) NOT NULL,
+  institution TEXT,
+  account_number TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create positions table
 CREATE TABLE public.positions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  trading_account_id UUID REFERENCES public.trading_accounts(id) ON DELETE CASCADE NOT NULL,
   symbol TEXT NOT NULL,
   type TEXT CHECK (type IN ('Call', 'Put')) NOT NULL,
   strike DECIMAL(10,2) NOT NULL,
@@ -37,7 +51,10 @@ CREATE TABLE public.pnl_history (
 );
 
 -- Create indexes for better performance
+CREATE INDEX idx_trading_accounts_user_id ON public.trading_accounts(user_id);
+CREATE INDEX idx_trading_accounts_type ON public.trading_accounts(type);
 CREATE INDEX idx_positions_user_id ON public.positions(user_id);
+CREATE INDEX idx_positions_trading_account_id ON public.positions(trading_account_id);
 CREATE INDEX idx_positions_symbol ON public.positions(symbol);
 CREATE INDEX idx_positions_status ON public.positions(status);
 CREATE INDEX idx_pnl_history_user_id ON public.pnl_history(user_id);
@@ -45,6 +62,7 @@ CREATE INDEX idx_pnl_history_date ON public.pnl_history(date);
 
 -- Enable Row Level Security
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trading_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pnl_history ENABLE ROW LEVEL SECURITY;
 
@@ -55,6 +73,19 @@ CREATE POLICY "Users can view own profile" ON public.users
 
 CREATE POLICY "Users can update own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id);
+
+-- Trading accounts policies
+CREATE POLICY "Users can view own trading accounts" ON public.trading_accounts
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own trading accounts" ON public.trading_accounts
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own trading accounts" ON public.trading_accounts
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own trading accounts" ON public.trading_accounts
+  FOR DELETE USING (auth.uid() = user_id);
 
 -- Positions policies
 CREATE POLICY "Users can view own positions" ON public.positions
@@ -85,9 +116,18 @@ CREATE POLICY "Users can delete own PnL history" ON public.pnl_history
 -- Create function to automatically create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  new_user_id UUID;
 BEGIN
+  -- Insert user profile
   INSERT INTO public.users (id, email)
-  VALUES (NEW.id, NEW.email);
+  VALUES (NEW.id, NEW.email)
+  RETURNING id INTO new_user_id;
+  
+  -- Create default trading account
+  INSERT INTO public.trading_accounts (user_id, name, type, institution)
+  VALUES (new_user_id, 'Main Account', 'Personal', 'Default');
+  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -113,4 +153,8 @@ CREATE TRIGGER update_users_updated_at
 
 CREATE TRIGGER update_positions_updated_at
   BEFORE UPDATE ON public.positions
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE TRIGGER update_trading_accounts_updated_at
+  BEFORE UPDATE ON public.trading_accounts
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
