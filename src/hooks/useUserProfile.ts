@@ -38,20 +38,7 @@ export function useUserProfile() {
         return;
       }
 
-      // Create default trading account
-      const { error: accountError } = await supabase
-        .from('accounts')
-        .insert({
-          user_id: user.id,
-          name: 'Main Trading Account',
-          type: 'Individual',
-          institution: 'TD Ameritrade'
-        });
 
-      if (accountError) {
-        console.warn('Profile created but account failed:', accountError.message);
-        // Don't fail completely - profile is more important
-      }
 
       setProfile(profileData);
     } catch (err) {
