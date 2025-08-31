@@ -11,7 +11,7 @@ CREATE TABLE public.trading_accounts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
-  type TEXT CHECK (type IN ('Personal', 'IRA', '401k', 'Roth IRA', 'Traditional IRA', 'Other')) NOT NULL,
+           type TEXT CHECK (type IN ('Personal', 'IRA', '401k', 'Roth IRA', 'Traditional IRA', 'Corporate', 'SMSF', 'Other')) NOT NULL,
   institution TEXT,
   account_number TEXT,
   is_active BOOLEAN DEFAULT true,
