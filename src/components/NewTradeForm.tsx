@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { X, Plus } from "lucide-react";
@@ -30,6 +31,7 @@ interface NewTradeFormProps {
 }
 
 export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeFormProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     type: "Call" as 'Cash' | 'Shares' | 'CSP' | 'CC' | 'Call' | 'Put',
     action: "Buy" as 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment',
@@ -38,7 +40,8 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
     quantity: "",
     strike: "",
     expiry: "",
-    opened: ""
+    opened: "",
+    notes: ""
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -50,7 +53,7 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
     
     const trade: Trade = {
       id: Date.now().toString(),
-      user_id: "user-1", // TODO: Get actual user ID from context
+      user_id: user?.id || "",
       account_id: "1", // Default to main account for now
       type: formData.type,
       action: formData.action,
@@ -73,12 +76,13 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
       quantity: "",
       strike: "",
       expiry: "",
-      opened: ""
+      opened: "",
+      notes: ""
     });
     onClose();
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -234,6 +238,20 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Any additional notes about this trade..."
+                rows={3}
               />
             </div>
 

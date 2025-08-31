@@ -107,7 +107,6 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
   }, [showUserMenu]);
 
   const toggleSidebar = () => {
-    console.log('Toggle clicked, toggling sidebar');
     setIsCollapsed(!isCollapsed);
   };
 

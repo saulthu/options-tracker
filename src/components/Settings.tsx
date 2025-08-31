@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { User, Save } from "lucide-react";
 
+
 export default function Settings() {
   const { user } = useAuth();
   const { profile, updateProfile, loading: profileLoading } = useUserProfile();
@@ -170,6 +171,8 @@ export default function Settings() {
             </p>
           </CardContent>
         </Card>
+
+
       </div>
     </div>
   );

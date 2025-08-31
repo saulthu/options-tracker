@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -15,47 +15,7 @@ export function useUserProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const { data, error: fetchError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (fetchError) {
-          if (fetchError.code === 'PGRST116') {
-            // No profile found - create one automatically
-            await createDefaultProfile();
-          } else {
-            console.error('Error fetching profile:', fetchError);
-            setError(fetchError.message);
-          }
-        } else {
-          setProfile(data);
-        }
-      } catch (err) {
-        console.error('Unexpected error fetching profile:', err);
-        setError('Failed to fetch user profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [user]);
-
-  const createDefaultProfile = async () => {
+  const createDefaultProfile = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -74,7 +34,7 @@ export function useUserProfile() {
 
       if (profileError) {
         console.error('Failed to create profile:', profileError);
-        setError(`Failed to create profile: ${profileError.message}`);
+        setError(`Failed to create profile: ${profileError.message || 'Unknown error occurred'}`);
         return;
       }
 
@@ -98,7 +58,52 @@ export function useUserProfile() {
       console.error('Failed to create default profile:', err);
       setError(`Failed to create default profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          
+          return { data, error: fetchError };
+        } catch (requestError) {
+          throw requestError;
+        }
+
+        if (fetchError) {
+          if (fetchError.code === 'PGRST116') {
+            // No profile found - create one automatically
+            await createDefaultProfile();
+          } else {
+            setError(`Database error: ${fetchError.message || 'Unknown error occurred'}`);
+          }
+        } else {
+          setProfile(data);
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching profile:', err);
+        setError('Failed to fetch user profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user, createDefaultProfile]);
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user || !profile) return { error: 'No user or profile found' };
