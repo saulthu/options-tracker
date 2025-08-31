@@ -69,6 +69,7 @@ export default function NewPositionForm({ isOpen, onClose, onSubmit }: NewPositi
     });
   };
 
+  // Don't render anything if not open - this prevents form elements from persisting in DOM
   if (!isOpen) return null;
 
   return (

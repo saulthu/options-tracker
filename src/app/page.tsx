@@ -293,11 +293,14 @@ export default function Home() {
     <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut}>
       {renderViewContent()}
 
-      <NewPositionForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleAddPosition}
-      />
+      {/* Only render the form when it's actually open */}
+      {isFormOpen && (
+        <NewPositionForm
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          onSubmit={handleAddPosition}
+        />
+      )}
     </Sidebar>
   );
 }
