@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ThemeButton } from "@/components/ui/theme-button";
 import { TrendingUp, DollarSign, Activity, Plus } from "lucide-react";
 import NewTradeForm from "@/components/NewTradeForm";
 import PnLChart from "@/components/PnLChart";
@@ -35,7 +35,7 @@ type ViewType = 'overview' | 'weekly-report' | 'settings';
 
 export default function Home() {
   const { user, loading, error, signOut } = useAuth();
-  const { profile } = useUserProfile();
+  const { profile, updateProfile } = useUserProfile();
   
   const [isTradeFormOpen, setIsTradeFormOpen] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
@@ -166,7 +166,7 @@ export default function Home() {
   const renderViewContent = () => {
     switch (currentView) {
       case 'settings':
-        return <Settings />;
+        return <Settings updateProfile={updateProfile} profile={profile} />;
       case 'weekly-report':
         return (
           <div className="min-h-screen bg-[#0f0f0f] p-8">
@@ -189,13 +189,12 @@ export default function Home() {
                     <h1 className="text-3xl font-bold text-white mb-2">Trading Tracker</h1>
                     <p className="text-[#b3b3b3]">Track your trades and portfolio performance</p>
                   </div>
-                  <Button 
+                  <ThemeButton 
+                    icon={Plus}
                     onClick={() => setIsTradeFormOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
                     Add Trade
-                  </Button>
+                  </ThemeButton>
                 </div>
               </div>
             </header>

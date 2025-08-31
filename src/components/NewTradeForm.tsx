@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ThemeButton, CancelButton } from "@/components/ui/theme-button";
 import { X, Plus } from "lucide-react";
 
 interface Trade {
@@ -100,9 +100,9 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
             <CardTitle>Add New Trade</CardTitle>
             <CardDescription>Enter details for your new trade</CardDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <ThemeButton icon={X} size="sm" onClick={onClose}>
+            Close
+          </ThemeButton>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -256,13 +256,12 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
             </div>
 
             <div className="flex space-x-2 pt-4">
-              <Button type="submit" className="flex-1">
-                <Plus className="h-4 w-4 mr-2" />
+              <ThemeButton type="submit" icon={Plus} className="flex-1">
                 Add Trade
-              </Button>
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              </ThemeButton>
+              <CancelButton type="button" onClick={onClose} className="flex-1">
                 Cancel
-              </Button>
+              </CancelButton>
             </div>
           </form>
         </CardContent>

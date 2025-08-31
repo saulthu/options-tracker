@@ -22,6 +22,8 @@ export function useUserProfile() {
       // Create user profile with default name
       const defaultName = user.email?.split('@')[0] || 'User';
       
+      console.log('🔍 Creating profile for user:', user.id, 'with name:', defaultName);
+      
       const { data: profileData, error: profileError } = await supabase
         .from('users')
         .insert({
@@ -32,9 +34,12 @@ export function useUserProfile() {
         .select()
         .single();
 
+      console.log('📊 Profile creation response:', { data: profileData, error: profileError });
+
       if (profileError) {
         console.error('Failed to create profile:', profileError);
-        setError(`Failed to create profile: ${profileError.message || 'Unknown error occurred'}`);
+        const errorMessage = profileError.message || profileError.details || profileError.hint || 'Unknown database error';
+        setError(`Failed to create profile: ${errorMessage}`);
         return;
       }
 
@@ -59,11 +64,15 @@ export function useUserProfile() {
         setLoading(true);
         setError(null);
 
+        console.log('🔍 Fetching profile for user:', user.id);
+        
         const { data, error: fetchError } = await supabase
           .from('users')
           .select('*')
           .eq('id', user.id)
           .single();
+
+        console.log('📊 Profile fetch response:', { data, error: fetchError });
 
         if (fetchError) {
           if (fetchError.code === 'PGRST116') {
@@ -86,10 +95,17 @@ export function useUserProfile() {
     fetchProfile();
   }, [user, createDefaultProfile]);
 
+  // Debug: Log profile changes
+  useEffect(() => {
+    console.log('🔄 Profile state changed:', profile);
+  }, [profile]);
+
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user || !profile) return { error: 'No user or profile found' };
 
     try {
+      console.log('🔍 Updating profile with:', updates);
+      
       const { data, error: updateError } = await supabase
         .from('users')
         .update(updates)
@@ -102,6 +118,9 @@ export function useUserProfile() {
         return { error: updateError.message };
       }
 
+      console.log('📊 Profile update response:', { data, error: updateError });
+      console.log('🔄 Setting profile to:', data);
+      
       setProfile(data);
       return { data };
     } catch (err) {

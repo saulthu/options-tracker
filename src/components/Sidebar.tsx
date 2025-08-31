@@ -201,9 +201,6 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
                 <div className="text-white text-sm font-medium truncate">
                   {userProfile?.name || 'User'}
                 </div>
-                <div className="text-[#b3b3b3] text-xs truncate">
-                  {userProfile?.email || 'user@example.com'}
-                </div>
               </div>
             </div>
 

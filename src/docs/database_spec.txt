@@ -3,6 +3,7 @@ User table
 - name text
 - email text
 - created timestamp
+
 Account table
 - id key
 - user_id key

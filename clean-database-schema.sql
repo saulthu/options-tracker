@@ -25,7 +25,9 @@ CREATE TABLE public.accounts (
   name TEXT NOT NULL,
   type TEXT NOT NULL,
   institution TEXT NOT NULL,
-  created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  account_number TEXT,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Ticker table (exactly as per database_spec.txt)

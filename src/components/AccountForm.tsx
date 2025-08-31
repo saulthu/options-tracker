@@ -1,21 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { X, Save, Edit } from "lucide-react";
-
-interface Account {
-  id: string;
-  name: string;
-  type: 'Individual' | 'IRA' | '401k' | 'Roth IRA' | 'Traditional IRA' | 'Other';
-  institution: string;
-  account_number?: string;
-  description?: string;
-}
-
-type AccountFormData = Omit<Account, 'id'>;
-
+import { ThemeButton, CancelButton } from "@/components/ui/theme-button";
+import { Save } from "lucide-react";
+import Modal from "@/components/ui/modal";
+import { type Account, type AccountFormData } from "@/hooks/useAccounts";
 interface AccountFormProps {
   isOpen: boolean;
   onClose: () => void;
@@ -73,29 +62,13 @@ export default function AccountForm({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div>
-            <CardTitle className="text-white flex items-center">
-              <Edit className="w-5 h-5 mr-2" />
-              {isEditing ? 'Edit Account' : 'Add New Account'}
-            </CardTitle>
-            <CardDescription className="text-[#b3b3b3]">
-              {isEditing ? 'Update your account information' : 'Create a new trading account'}
-            </CardDescription>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d]"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </CardHeader>
-        
-        <CardContent>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`${isEditing ? 'Edit' : 'Add New'} Account`}
+      description={isEditing ? 'Update your account information' : 'Create a new trading account'}
+      maxWidth="md"
+    >
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Account Name */}
             <div>
@@ -117,18 +90,20 @@ export default function AccountForm({
               <label className="block text-sm font-medium text-[#b3b3b3] mb-2">
                 Account Type *
               </label>
-              <select
-                value={formData.type}
-                onChange={(e) => handleInputChange('type', e.target.value)}
-                className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Individual">Individual</option>
-                <option value="IRA">IRA</option>
-                <option value="401k">401k</option>
-                <option value="Roth IRA">Roth IRA</option>
-                <option value="Traditional IRA">Traditional IRA</option>
-                <option value="Other">Other</option>
-              </select>
+                             <select
+                 value={formData.type}
+                 onChange={(e) => handleInputChange('type', e.target.value)}
+                 className="w-full px-3 py-2 bg-[#2d2d2d] border border-[#404040] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+               >
+                 <option value="Individual">Individual</option>
+                 <option value="Corporate">Corporate</option>
+                 <option value="SMSF">SMSF (Self-Managed Super Fund)</option>
+                 <option value="IRA">IRA</option>
+                 <option value="401k">401k</option>
+                 <option value="Roth IRA">Roth IRA</option>
+                 <option value="Traditional IRA">Traditional IRA</option>
+                 <option value="Other">Other</option>
+               </select>
             </div>
 
             {/* Institution */}
@@ -176,27 +151,24 @@ export default function AccountForm({
 
             {/* Action Buttons */}
             <div className="flex space-x-3 pt-4">
-              <Button
+              <ThemeButton
                 type="submit"
+                icon={Save}
                 disabled={loading || !formData.name.trim() || !formData.institution.trim()}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                className="flex-1"
               >
-                <Save className="w-4 h-4 mr-2" />
                 {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
-              </Button>
-              <Button
+              </ThemeButton>
+              <CancelButton
                 type="button"
-                variant="outline"
                 onClick={onClose}
                 disabled={loading}
-                className="flex-1 border-[#404040] text-[#b3b3b3] hover:bg-[#2d2d2d] disabled:opacity-50"
+                className="flex-1"
               >
                 Cancel
-              </Button>
+              </CancelButton>
             </div>
           </form>
-        </CardContent>
-      </Card>
-    </div>
+    </Modal>
   );
 }
