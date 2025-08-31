@@ -290,17 +290,19 @@ export default function Home() {
   };
 
   return (
-    <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut}>
-      {renderViewContent()}
+    <div data-1p-ignore data-lpignore="true" data-form-type="other">
+      <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut}>
+        {renderViewContent()}
 
-      {/* Only render the form when it's actually open */}
-      {isFormOpen && (
-        <NewPositionForm
-          isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
-          onSubmit={handleAddPosition}
-        />
-      )}
-    </Sidebar>
+        {/* Only render the form when it's actually open */}
+        {isFormOpen && (
+          <NewPositionForm
+            isOpen={isFormOpen}
+            onClose={() => setIsFormOpen(false)}
+            onSubmit={handleAddPosition}
+          />
+        )}
+      </Sidebar>
+    </div>
   );
 }
