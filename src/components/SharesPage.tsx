@@ -13,6 +13,7 @@ interface SharePosition {
   totalCost: number;
   currentValue: number;
   unrealizedPnL: number;
+  coveredCalls: number;
 }
 
 interface SharesPageProps {
@@ -28,7 +29,8 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
       costBasis: 147.83,
       totalCost: 2217.45,
       currentValue: 2325.00,
-      unrealizedPnL: 107.55
+      unrealizedPnL: 107.55,
+      coveredCalls: 10
     },
     {
       ticker: "MSFT",
@@ -36,7 +38,8 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
       costBasis: 315.25,
       totalCost: 2522.00,
       currentValue: 2680.00,
-      unrealizedPnL: 158.00
+      unrealizedPnL: 158.00,
+      coveredCalls: 8
     },
     {
       ticker: "GOOGL",
@@ -44,7 +47,8 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
       costBasis: 128.50,
       totalCost: 642.50,
       currentValue: 675.00,
-      unrealizedPnL: 32.50
+      unrealizedPnL: 32.50,
+      coveredCalls: 0
     }
   ]);
 
@@ -64,6 +68,32 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
     if (pnl > 0) return 'text-green-400';
     if (pnl < 0) return 'text-red-400';
     return 'text-gray-400';
+  };
+
+  const handleBuyShares = (ticker?: string) => {
+    if (ticker) {
+      console.log(`Buy shares for ${ticker}`);
+      // TODO: Open buy form for specific ticker
+    } else {
+      console.log('Buy shares (general)');
+      // TODO: Open general buy form
+    }
+  };
+
+  const handleSellShares = (ticker?: string) => {
+    if (ticker) {
+      console.log(`Sell shares for ${ticker}`);
+      // TODO: Open sell form for specific ticker
+    } else {
+      console.log('Sell shares (general)');
+      // TODO: Open general sell form
+    }
+  };
+
+  const getCoverageStatus = (quantity: number, coveredCalls: number) => {
+    if (coveredCalls === 0) return { status: 'Uncovered', color: 'text-red-400', bgColor: 'bg-red-900/20' };
+    if (coveredCalls >= quantity) return { status: 'Full', color: 'text-green-400', bgColor: 'bg-green-900/20' };
+    return { status: 'Partial', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' };
   };
 
 
@@ -156,15 +186,33 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
 
       {/* Share Positions Table */}
       <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2" />
-            Current Positions
-          </CardTitle>
-          <CardDescription className="text-[#b3b3b3]">
-            Share positions grouped by ticker for {getRangeDescription(selectedDateRange)}
-          </CardDescription>
-        </CardHeader>
+                 <CardHeader>
+           <div className="flex justify-between items-start">
+             <div>
+               <CardTitle className="text-white flex items-center">
+                 <TrendingUp className="w-5 h-5 mr-2" />
+                 Current Positions
+               </CardTitle>
+               <CardDescription className="text-[#b3b3b3]">
+                 Share positions grouped by ticker for {getRangeDescription(selectedDateRange)}
+               </CardDescription>
+             </div>
+             <div className="flex space-x-3">
+               <button
+                 onClick={() => handleBuyShares()}
+                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors flex items-center space-x-2"
+               >
+                 <span className="text-sm">Buy Shares</span>
+               </button>
+               <button
+                 onClick={() => handleSellShares()}
+                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors flex items-center space-x-2"
+               >
+                 <span className="text-sm">Sell Shares</span>
+               </button>
+             </div>
+           </div>
+         </CardHeader>
         <CardContent>
           {sharePositions.length === 0 ? (
             <div className="text-center py-8 text-[#b3b3b3]">
@@ -177,13 +225,15 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#404040]">
-                    <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Ticker</th>
-                    <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Quantity</th>
-                    <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Cost Basis</th>
-                    <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Total Cost</th>
-                    <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Current Value</th>
-                    <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Unrealized P&L</th>
-                    <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Return %</th>
+                                         <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Ticker</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Qty</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Basis</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Cost</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Value</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">P&L</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Return</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">CC</th>
+                     <th className="text-left py-2 px-3 font-medium text-[#b3b3b3] text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -204,12 +254,43 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
                           {position.unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPnL)}
                         </span>
                       </td>
-                      <td className="py-2 px-3">
-                        <span className={`font-medium ${getPnLColor(position.unrealizedPnL)}`}>
-                          {formatPercentage(position.unrealizedPnL, position.totalCost)}
-                        </span>
-                      </td>
-                    </tr>
+                                             <td className="py-2 px-3">
+                         <span className={`font-medium ${getPnLColor(position.unrealizedPnL)}`}>
+                           {formatPercentage(position.unrealizedPnL, position.totalCost)}
+                         </span>
+                       </td>
+                       <td className="py-2 px-3">
+                         {(() => {
+                           const coverage = getCoverageStatus(position.quantity, position.coveredCalls);
+                           return (
+                             <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${coverage.bgColor} ${coverage.color}`}>
+                               {coverage.status}
+                               {position.coveredCalls > 0 && (
+                                 <span className="ml-1 text-xs opacity-75">
+                                   ({position.coveredCalls})
+                                 </span>
+                               )}
+                             </div>
+                           );
+                         })()}
+                       </td>
+                       <td className="py-2 px-3">
+                         <div className="flex space-x-2">
+                           <button
+                             onClick={() => handleBuyShares(position.ticker)}
+                             className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                           >
+                             Buy
+                           </button>
+                           <button
+                             onClick={() => handleSellShares(position.ticker)}
+                             className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                           >
+                             Sell
+                           </button>
+                         </div>
+                       </td>
+                     </tr>
                   ))}
                 </tbody>
               </table>
