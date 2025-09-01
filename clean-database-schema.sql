@@ -43,7 +43,7 @@ CREATE TABLE public.trades (
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   account_id UUID NOT NULL REFERENCES public.accounts(id) ON DELETE CASCADE,
   type TEXT NOT NULL CHECK (type IN ('Cash', 'Shares', 'CSP', 'CC', 'Call', 'Put')),
-  action TEXT NOT NULL CHECK (action IN ('Buy', 'Sell', 'Deposit', 'Withdraw', 'Adjustment')),
+  action TEXT NOT NULL CHECK (action IN ('Buy', 'Sell', 'Deposit', 'Withdraw', 'Adjustment', 'Assigned', 'Called Away')),
   ticker_id UUID REFERENCES public.tickers(id) ON DELETE SET NULL,
   price DECIMAL(10,2) NOT NULL,
   quantity INTEGER NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE public.trades (
   expiry DATE,
   opened DATE NOT NULL,
   closed DATE,
-  close_method TEXT CHECK (close_method IN ('Manual', 'Expired', 'Assigned')),
+  close_method TEXT CHECK (close_method IN ('Manual', 'Expired', 'Assigned', 'Called Away')),
   created TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

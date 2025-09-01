@@ -11,7 +11,7 @@ interface Trade {
   user_id: string;
   account_id: string;
   type: 'Cash' | 'Shares' | 'CSP' | 'CC' | 'Call' | 'Put';
-  action: 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment';
+  action: 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment' | 'Assigned' | 'Called Away';
   ticker_id?: string;
   price: number;
   quantity: number;
@@ -20,7 +20,7 @@ interface Trade {
   expiry?: string;
   opened: string;
   closed?: string;
-  close_method?: 'Manual' | 'Expired' | 'Assigned';
+  close_method?: 'Manual' | 'Expired' | 'Assigned' | 'Called Away';
   created: string;
 }
 
@@ -34,7 +34,7 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     type: "Call" as 'Cash' | 'Shares' | 'CSP' | 'CC' | 'Call' | 'Put',
-    action: "Buy" as 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment',
+    action: "Buy" as 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment' | 'Assigned' | 'Called Away',
     ticker: "",
     price: "",
     quantity: "",
@@ -142,6 +142,8 @@ export default function NewTradeForm({ isOpen, onClose, onSubmit }: NewTradeForm
                 <option value="Deposit">Deposit</option>
                 <option value="Withdraw">Withdraw</option>
                 <option value="Adjustment">Adjustment</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Called Away">Called Away</option>
               </select>
             </div>
 

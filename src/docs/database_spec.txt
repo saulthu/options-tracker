@@ -1,10 +1,10 @@
-User table
+"users" table
 - id key
 - name text
 - email text
 - created timestamp
 
-Account table
+"accounts" table
 - id key
 - user_id key
 - name text
@@ -12,17 +12,17 @@ Account table
 - institution
 - created timestamp
 
-Ticker table
+"tickers" table
 - id key
 - name text
 - icon
 
-Trade table
+"trades" table
 - id key
 - user_id
 - account_id (Account for this transaction)
 - type (Transaction type: Cash, Shares, CSP, CC, Call, Put)
-- action (Action being performed: Buy, Sell, Deposit, Withdraw, Adjustment)
+- action (Action being performed: Buy, Sell, Deposit, Withdraw, Adjustment, Assigned, Called Away)
 - ticker_id (Ticker, none if Cash)
 - price (Price per share, normally 1.0 for Cash)
 - quantity (Number of shares or contracts)
@@ -31,5 +31,15 @@ Trade table
 - expiry (Expiry date for options, None for others)
 - opened (Date of open)
 - closed (Date of close)
-- close_method (Manual for Cash/Shares, for options Manual (i.e. was BTC or STC), Expired (i.e. strike not hit), Assigned (i.e. strike hit either assigned shares or called away shares))
+- close_method (Manual for Cash/Shares, for options Manual (i.e. was BTC or STC), Expired (i.e. strike not hit), Assigned (i.e. strike hit for CSP), Called Away (i.e. strike hit for CC))
 - created timestamp
+
+Remember the purpose of the value field in a trade is to allow simple account balance summation.
+- The purchase of shares would be a negative value
+- Depositing cash would be a positive
+- Withdrawing cash would be a negative
+- Selling covered call or cash-set covered put would be a positive
+- Buying calls and puts would be negative
+- Buying shares would be negative, selling shares would be positive
+- Assigned shares (from CSP) would be a negative value (cash outflow to buy shares at strike)
+- Called away shares (from CC) would be a positive value (cash inflow from selling shares at strike)

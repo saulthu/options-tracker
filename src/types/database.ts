@@ -24,7 +24,7 @@ export interface Trade {
   id: string
   account_id: string
   type: 'Cash' | 'Shares' | 'CSP' | 'CC' | 'Call' | 'Put'
-  action: 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment'
+  action: 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment' | 'Assigned' | 'Called Away'
   ticker_id?: string
   price: number
   quantity: number
@@ -33,7 +33,7 @@ export interface Trade {
   expiry?: string
   opened: string
   closed?: string
-  close_method?: 'Manual' | 'Expired' | 'Assigned'
+  close_method?: 'Manual' | 'Expired' | 'Assigned' | 'Called Away'
   created: string
 }
 

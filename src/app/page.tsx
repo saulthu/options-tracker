@@ -19,7 +19,7 @@ interface Trade {
   user_id: string;
   account_id: string;
   type: 'Cash' | 'Shares' | 'CSP' | 'CC' | 'Call' | 'Put';
-  action: 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment';
+  action: 'Buy' | 'Sell' | 'Deposit' | 'Withdraw' | 'Adjustment' | 'Assigned' | 'Called Away';
   ticker_id?: string;
   price: number;
   quantity: number;
@@ -28,7 +28,7 @@ interface Trade {
   expiry?: string;
   opened: string;
   closed?: string;
-  close_method?: 'Manual' | 'Expired' | 'Assigned';
+  close_method?: 'Manual' | 'Expired' | 'Assigned' | 'Called Away';
   created: string;
 }
 
@@ -143,7 +143,7 @@ export default function Home() {
 
   // Show error state
   if (error) {
-    return (
+  return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f]">
         <div className="text-center">
           <div className="text-red-400 text-xl mb-4">Authentication Error</div>
@@ -363,7 +363,11 @@ export default function Home() {
                               </Badge>
                             </td>
                             <td className="py-3 px-4">
-                              <Badge variant={trade.action === "Buy" ? "default" : "destructive"}>
+                              <Badge variant={
+                                trade.action === "Buy" || trade.action === "Deposit" ? "default" : 
+                                trade.action === "Sell" || trade.action === "Withdraw" || trade.action === "Called Away" ? "destructive" :
+                                trade.action === "Assigned" ? "secondary" : "outline"
+                              }>
                                 {trade.action}
                               </Badge>
                             </td>
