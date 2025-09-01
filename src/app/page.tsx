@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThemeButton } from "@/components/ui/theme-button";
-import { TrendingUp, DollarSign, Activity, Plus } from "lucide-react";
-import NewTradeForm from "@/components/NewTradeForm";
+import { TrendingUp, DollarSign, Activity, Settings as SettingsIcon, Calendar, List } from "lucide-react";
 import PnLChart from "@/components/PnLChart";
 import Sidebar from "@/components/Sidebar";
 import LoginForm from "@/components/LoginForm";
 import Settings from "@/components/Settings";
+import SharesPage from "@/components/SharesPage";
+import PageHeader from "@/components/ui/page-header";
+import { DateRange } from "@/components/DateRangeSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
@@ -31,17 +32,19 @@ interface Trade {
   created: string;
 }
 
-type ViewType = 'overview' | 'weekly-report' | 'settings';
+type ViewType = 'overview' | 'weekly-report' | 'settings' | 'shares' | 'transactions';
 
 export default function Home() {
   const { user, loading, error, signOut } = useAuth();
   const { profile, updateProfile } = useUserProfile();
   
-  const [isTradeFormOpen, setIsTradeFormOpen] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange>('7d');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
 
   // Mock trades data
-  const [trades, setTrades] = useState<Trade[]>([
+  const [trades] = useState<Trade[]>([
     {
       id: "1",
       user_id: "user-1",
@@ -125,12 +128,17 @@ export default function Home() {
   
   const openTrades = trades.filter(trade => !trade.closed).length;
 
-  const handleAddTrade = (newTrade: Trade) => {
-    setTrades([...trades, newTrade]);
-  };
-
   const handleViewChange = (view: ViewType) => {
     setCurrentView(view);
+  };
+
+  const handleDateRangeChange = (range: DateRange) => {
+    setSelectedDateRange(range);
+  };
+
+  const handleCustomDateChange = (startDate: string, endDate: string) => {
+    setCustomStartDate(startDate);
+    setCustomEndDate(endDate);
   };
 
   // Show error state
@@ -165,39 +173,86 @@ export default function Home() {
   // Render the appropriate view content
   const renderViewContent = () => {
     switch (currentView) {
-      case 'settings':
-        return <Settings updateProfile={updateProfile} profile={profile} />;
-      case 'weekly-report':
-        return (
-          <div className="min-h-screen bg-[#0f0f0f] p-8">
-            <div className="max-w-4xl mx-auto">
-              <h1 className="text-3xl font-bold text-white mb-2">Weekly Report</h1>
-              <p className="text-[#b3b3b3]">Weekly performance and analytics will be displayed here.</p>
-            </div>
-          </div>
-        );
+             case 'settings':
+         return (
+           <div className="min-h-screen bg-[#0f0f0f]">
+             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+               <PageHeader
+                 title="Settings"
+                 icon={SettingsIcon}
+                 description="Manage your account and preferences."
+                 selectedDateRange={selectedDateRange}
+                 onDateRangeChange={handleDateRangeChange}
+                 customStartDate={customStartDate}
+                 customEndDate={customEndDate}
+                 onCustomDateChange={handleCustomDateChange}
+               />
+               <Settings updateProfile={updateProfile} profile={profile} />
+             </div>
+           </div>
+         );
+             case 'shares':
+         return (
+           <div className="min-h-screen bg-[#0f0f0f]">
+             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+               <SharesPage selectedDateRange={selectedDateRange} />
+             </div>
+           </div>
+         );
+             case 'transactions':
+         return (
+           <div className="min-h-screen bg-[#0f0f0f]">
+             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+               <PageHeader
+                 title="All Transactions"
+                 icon={List}
+                 description="View and manage all your trading transactions."
+                 selectedDateRange={selectedDateRange}
+                 onDateRangeChange={handleDateRangeChange}
+                 customStartDate={customStartDate}
+                 customEndDate={customEndDate}
+                 onCustomDateChange={handleCustomDateChange}
+               />
+             </div>
+           </div>
+         );
+             case 'weekly-report':
+         return (
+           <div className="min-h-screen bg-[#0f0f0f]">
+             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+               <PageHeader
+                 title="Weekly Report"
+                 icon={Calendar}
+                 description="Weekly performance and analytics will be displayed here."
+                 selectedDateRange={selectedDateRange}
+                 onDateRangeChange={handleDateRangeChange}
+                 customStartDate={customStartDate}
+                 customEndDate={customEndDate}
+                 onCustomDateChange={handleCustomDateChange}
+               />
+             </div>
+           </div>
+         );
       
       case 'overview':
       default:
         return (
           <div className="min-h-screen bg-[#0f0f0f]">
-            {/* Header */}
-            <header className="py-8">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-8 flex justify-between items-center">
-                  <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Trading Tracker</h1>
-                    <p className="text-[#b3b3b3]">Track your trades and portfolio performance</p>
-                  </div>
-                  <ThemeButton 
-                    icon={Plus}
-                    onClick={() => setIsTradeFormOpen(true)}
-                  >
-                    Add Trade
-                  </ThemeButton>
-                </div>
-              </div>
-            </header>
+                         {/* Header */}
+             <header className="py-8">
+               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                 <PageHeader
+                   title="Trading Tracker"
+                   icon={TrendingUp}
+                   description="Track your trades and portfolio performance"
+                   selectedDateRange={selectedDateRange}
+                   onDateRangeChange={handleDateRangeChange}
+                   customStartDate={customStartDate}
+                   customEndDate={customEndDate}
+                   onCustomDateChange={handleCustomDateChange}
+                 />
+               </div>
+             </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               {/* Summary Cards */}
@@ -337,18 +392,9 @@ export default function Home() {
 
   return (
     <div data-1p-ignore data-lpignore="true" data-form-type="other">
-      <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut} userProfile={profile}>
-        {renderViewContent()}
-
-        {/* Only render the form when it's actually open */}
-        {isTradeFormOpen && (
-          <NewTradeForm
-            isOpen={isTradeFormOpen}
-            onClose={() => setIsTradeFormOpen(false)}
-            onSubmit={handleAddTrade}
-          />
-        )}
-      </Sidebar>
+             <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut} userProfile={profile}>
+         {renderViewContent()}
+       </Sidebar>
     </div>
   );
 }
