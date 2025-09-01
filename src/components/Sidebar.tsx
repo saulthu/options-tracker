@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Grid3X3, Calendar, BarChart3, FileText, Brain, Settings, User, LogOut, LucideIcon } from "lucide-react";
+import { Plus, Grid3X3, Calendar, Activity, TrendingUp, Brain, Settings, User, LogOut, LucideIcon } from "lucide-react";
 import Image from "next/image";
 
 interface SidebarProps {
@@ -134,8 +134,8 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
     { key: 'overview', icon: Grid3X3, text: 'Overview', hasAction: true },
     { key: 'weekly-report', icon: Calendar, text: 'Weekly Report', hasAction: true },
 
-    { key: 'transactions', icon: BarChart3, text: 'Transactions' },
-    { key: 'assigned-shares', icon: FileText, text: 'Assigned Shares' },
+    { key: 'options', icon: Activity, text: 'Options' },
+    { key: 'shares', icon: TrendingUp, text: 'Shares' },
     { key: 'ai-assistant', icon: Brain, text: 'AI Assistant' },
     { key: 'settings', icon: Settings, text: 'Settings', hasAction: true },
   ].map(item => ({

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, Trash2 } from "lucide-react";
 import { ReactNode, ButtonHTMLAttributes } from "react";
 
 interface ThemeButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -48,7 +48,7 @@ export function CancelButton({
   );
 }
 
-// Special button for destructive actions (no icon)
+// Special button for destructive actions (with trash icon)
 export function DestructiveButton({ 
   children, 
   className = "",
@@ -56,6 +56,7 @@ export function DestructiveButton({
 }: Omit<ThemeButtonProps, 'icon'> & { children?: ReactNode }) {
   return (
     <ThemeButton
+      icon={Trash2}
       className={className}
       {...props}
     >

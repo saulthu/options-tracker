@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeButton } from '@/components/ui/theme-button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LogIn, UserPlus, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LoginForm() {
@@ -101,6 +102,7 @@ export default function LoginForm() {
 
             <ThemeButton
               type="submit"
+              icon={isSignUp ? UserPlus : LogIn}
               disabled={loading}
               className="w-full"
             >
@@ -111,9 +113,10 @@ export default function LoginForm() {
               <button
                 type="button"
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-[#b3b3b3] hover:text-white"
+                className="text-sm text-[#b3b3b3] hover:text-white flex items-center justify-center mx-auto space-x-2"
               >
-                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                <RefreshCw size={16} />
+                <span>{isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}</span>
               </button>
             </div>
           </form>
