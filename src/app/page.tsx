@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, DollarSign, Activity, Settings as SettingsIcon, Calendar, List } from "lucide-react";
@@ -10,7 +10,7 @@ import LoginForm from "@/components/LoginForm";
 import Settings from "@/components/Settings";
 import SharesPage from "@/components/SharesPage";
 import PageHeader from "@/components/ui/page-header";
-import { DateRange } from "@/components/DateRangeSelector";
+import { TimeRange } from "@/components/TimeRangeSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
@@ -39,9 +39,9 @@ export default function Home() {
   const { profile, updateProfile } = useUserProfile();
   
   const [currentView, setCurrentView] = useState<ViewType>('overview');
-  const [selectedDateRange, setSelectedDateRange] = useState<DateRange>('7d');
-  const [customStartDate, setCustomStartDate] = useState<string>('');
-  const [customEndDate, setCustomEndDate] = useState<string>('');
+  
+  // Time range state - managed by TimeScaleSelector
+  const [selectedRange, setSelectedRange] = useState<TimeRange | null>(null);
 
   // Mock trades data
   const [trades] = useState<Trade[]>([
@@ -132,14 +132,10 @@ export default function Home() {
     setCurrentView(view);
   };
 
-  const handleDateRangeChange = (range: DateRange) => {
-    setSelectedDateRange(range);
-  };
-
-  const handleCustomDateChange = (startDate: string, endDate: string) => {
-    setCustomStartDate(startDate);
-    setCustomEndDate(endDate);
-  };
+  const handleRangeChange = useCallback((range: TimeRange) => {
+    console.log('Time range changed to:', range);
+    setSelectedRange(range);
+  }, []);
 
   // Show error state
   if (error) {
@@ -181,11 +177,7 @@ export default function Home() {
                  title="Settings"
                  icon={SettingsIcon}
                  description="Manage your account and preferences."
-                 selectedDateRange={selectedDateRange}
-                 onDateRangeChange={handleDateRangeChange}
-                 customStartDate={customStartDate}
-                 customEndDate={customEndDate}
-                 onCustomDateChange={handleCustomDateChange}
+                 onRangeChange={handleRangeChange}
                />
                <Settings updateProfile={updateProfile} profile={profile} />
              </div>
@@ -195,7 +187,13 @@ export default function Home() {
          return (
            <div className="min-h-screen bg-[#0f0f0f]">
              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-               <SharesPage selectedDateRange={selectedDateRange} />
+               <PageHeader
+                 title="Share Positions"
+                 icon={TrendingUp}
+                 description="Current holdings grouped by ticker"
+                 onRangeChange={handleRangeChange}
+               />
+               {selectedRange && <SharesPage selectedRange={selectedRange} />}
              </div>
            </div>
          );
@@ -207,11 +205,7 @@ export default function Home() {
                  title="All Transactions"
                  icon={List}
                  description="View and manage all your trading transactions."
-                 selectedDateRange={selectedDateRange}
-                 onDateRangeChange={handleDateRangeChange}
-                 customStartDate={customStartDate}
-                 customEndDate={customEndDate}
-                 onCustomDateChange={handleCustomDateChange}
+                 onRangeChange={handleRangeChange}
                />
              </div>
            </div>
@@ -224,11 +218,7 @@ export default function Home() {
                  title="Weekly Report"
                  icon={Calendar}
                  description="Weekly performance and analytics will be displayed here."
-                 selectedDateRange={selectedDateRange}
-                 onDateRangeChange={handleDateRangeChange}
-                 customStartDate={customStartDate}
-                 customEndDate={customEndDate}
-                 onCustomDateChange={handleCustomDateChange}
+                 onRangeChange={handleRangeChange}
                />
              </div>
            </div>
@@ -245,11 +235,7 @@ export default function Home() {
                    title="Trading Tracker"
                    icon={TrendingUp}
                    description="Track your trades and portfolio performance"
-                   selectedDateRange={selectedDateRange}
-                   onDateRangeChange={handleDateRangeChange}
-                   customStartDate={customStartDate}
-                   customEndDate={customEndDate}
-                   onCustomDateChange={handleCustomDateChange}
+                   onRangeChange={handleRangeChange}
                  />
                </div>
              </header>

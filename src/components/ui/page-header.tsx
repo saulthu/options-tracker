@@ -1,28 +1,22 @@
 "use client";
 
 import { LucideIcon } from "lucide-react";
-import DateRangeSelector, { DateRange } from "../DateRangeSelector";
+import TimeRangeSelector, { TimeRange, TimeScale } from "../TimeRangeSelector";
 
 interface PageHeaderProps {
   title: string;
   icon: LucideIcon;
   description: string;
-  selectedDateRange: DateRange;
-  onDateRangeChange: (range: DateRange) => void;
-  customStartDate: string;
-  customEndDate: string;
-  onCustomDateChange: (startDate: string, endDate: string) => void;
+  onRangeChange: (range: TimeRange) => void;
+  initialTimeScale?: TimeScale;
 }
 
 export default function PageHeader({
   title,
   icon: Icon,
   description,
-  selectedDateRange,
-  onDateRangeChange,
-  customStartDate,
-  customEndDate,
-  onCustomDateChange,
+  onRangeChange,
+  initialTimeScale = 'week',
 }: PageHeaderProps) {
   return (
     <div className="flex justify-between items-start mb-6">
@@ -33,12 +27,9 @@ export default function PageHeader({
           <p className="text-[#b3b3b3] text-sm mt-1">{description}</p>
         </div>
       </div>
-      <DateRangeSelector
-        selectedRange={selectedDateRange}
-        onRangeChange={onDateRangeChange}
-        customStartDate={customStartDate}
-        customEndDate={customEndDate}
-        onCustomDateChange={onCustomDateChange}
+      <TimeRangeSelector
+        onRangeChange={onRangeChange}
+        initialScale={initialTimeScale}
       />
     </div>
   );

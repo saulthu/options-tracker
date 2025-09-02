@@ -1,0 +1,243 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ThemeButton } from './ui/theme-button';
+
+export type TimeScale = 'day' | 'week' | 'month' | 'year';
+
+export interface TimeRange {
+  startDate: Date;
+  endDate: Date;
+  scale: TimeScale;
+  label: string;
+}
+
+interface TimeRangeSelectorProps {
+  onRangeChange: (range: TimeRange) => void;
+  initialScale?: TimeScale;
+}
+
+export default function TimeRangeSelector({ 
+  onRangeChange, 
+  initialScale = 'week' 
+}: TimeRangeSelectorProps) {
+  const [currentScale, setCurrentScale] = useState<TimeScale>(initialScale);
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const hasNotifiedParent = useRef(false);
+
+  // Calculate the current time range based on scale and date
+  const calculateTimeRange = useCallback((date: Date, scale: TimeScale): TimeRange => {
+    const startDate = new Date(date);
+    const endDate = new Date(date);
+    
+    switch (scale) {
+      case 'day':
+        // Single day: start and end are the same day
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+        return {
+          startDate,
+          endDate,
+          scale,
+          label: date.toLocaleDateString('en-US', { 
+            weekday: 'long',
+            month: 'long', 
+            day: 'numeric',
+            year: 'numeric'
+          })
+        };
+
+      case 'week':
+        // Week: Saturday to Friday
+        const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        
+        // Find the Friday of this week
+        let daysToFriday;
+        if (dayOfWeek === 5) { // Friday
+          daysToFriday = 0;
+        } else if (dayOfWeek === 6) { // Saturday
+          daysToFriday = 6; // Go to next Friday
+        } else { // Sunday (0) through Thursday (4)
+          daysToFriday = (5 - dayOfWeek + 7) % 7;
+        }
+        
+        // Set end date to Friday
+        endDate.setDate(date.getDate() + daysToFriday);
+        endDate.setHours(23, 59, 59, 999);
+        
+        // Set start date to Saturday (6 days before Friday)
+        startDate.setDate(endDate.getDate() - 6);
+        startDate.setHours(0, 0, 0, 0);
+        
+        return {
+          startDate,
+          endDate,
+          scale,
+          label: `Week ending ${endDate.toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: 'numeric' 
+          })}`
+        };
+
+      case 'month':
+        // Month: First day to last day of month
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+        
+        endDate.setMonth(date.getMonth() + 1, 0); // Last day of month
+        endDate.setHours(23, 59, 59, 999);
+        
+        return {
+          startDate,
+          endDate,
+          scale,
+          label: date.toLocaleDateString('en-US', { 
+            month: 'long',
+            year: 'numeric'
+          })
+        };
+
+      case 'year':
+        // Year: January 1st to December 31st
+        startDate.setMonth(0, 1); // January 1st
+        startDate.setHours(0, 0, 0, 0);
+        
+        endDate.setMonth(11, 31); // December 31st
+        endDate.setHours(23, 59, 59, 999);
+        
+        return {
+          startDate,
+          endDate,
+          scale,
+          label: date.getFullYear().toString()
+        };
+
+      default:
+        throw new Error(`Unknown time scale: ${scale}`);
+    }
+  }, []);
+
+  // Get current time range
+  const currentRange = calculateTimeRange(currentDate, currentScale);
+
+  // Notify parent of range changes (only once on mount and when range actually changes)
+  useEffect(() => {
+    if (!hasNotifiedParent.current) {
+      hasNotifiedParent.current = true;
+      onRangeChange(currentRange);
+    }
+  }, [currentRange, onRangeChange]);
+
+  // Notify parent when range changes due to user interaction
+  const notifyParent = useCallback((range: TimeRange) => {
+    onRangeChange(range);
+  }, [onRangeChange]);
+
+  // Navigation functions
+  const goToPrevious = useCallback(() => {
+    const newDate = new Date(currentDate);
+    
+    switch (currentScale) {
+      case 'day':
+        newDate.setDate(currentDate.getDate() - 1);
+        break;
+      case 'week':
+        newDate.setDate(currentDate.getDate() - 7);
+        break;
+      case 'month':
+        newDate.setMonth(currentDate.getMonth() - 1);
+        break;
+      case 'year':
+        newDate.setFullYear(currentDate.getFullYear() - 1);
+        break;
+    }
+    
+    setCurrentDate(newDate);
+    const newRange = calculateTimeRange(newDate, currentScale);
+    notifyParent(newRange);
+  }, [currentDate, currentScale, calculateTimeRange, notifyParent]);
+
+  const goToNext = useCallback(() => {
+    const newDate = new Date(currentDate);
+    
+    switch (currentScale) {
+      case 'day':
+        newDate.setDate(currentDate.getDate() + 1);
+        break;
+      case 'week':
+        newDate.setDate(currentDate.getDate() + 7);
+        break;
+      case 'month':
+        newDate.setMonth(currentDate.getMonth() + 1);
+        break;
+      case 'year':
+        newDate.setFullYear(currentDate.getFullYear() + 1);
+        break;
+    }
+    
+    setCurrentDate(newDate);
+    const newRange = calculateTimeRange(newDate, currentScale);
+    notifyParent(newRange);
+  }, [currentDate, currentScale, calculateTimeRange, notifyParent]);
+
+  const goToCurrent = useCallback(() => {
+    const newDate = new Date();
+    setCurrentDate(newDate);
+    const newRange = calculateTimeRange(newDate, currentScale);
+    notifyParent(newRange);
+  }, [currentScale, calculateTimeRange, notifyParent]);
+
+  const handleScaleChange = useCallback((scale: TimeScale) => {
+    setCurrentScale(scale);
+    const newRange = calculateTimeRange(currentDate, scale);
+    notifyParent(newRange);
+  }, [currentDate, calculateTimeRange, notifyParent]);
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Scale selector */}
+      <div className="flex rounded-lg border border-gray-600 bg-gray-800 p-1">
+        {(['day', 'week', 'month', 'year'] as TimeScale[]).map((scale) => (
+          <button
+            key={scale}
+            onClick={() => handleScaleChange(scale)}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              currentScale === scale
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            {scale.charAt(0).toUpperCase() + scale.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Navigation */}
+      <div className="flex items-center gap-1">
+        <ThemeButton
+          onClick={goToPrevious}
+          size="sm"
+          className="p-1"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </ThemeButton>
+
+        <button
+          onClick={goToCurrent}
+          className="px-3 py-1 text-sm font-medium text-gray-300 hover:text-white transition-colors min-w-[120px]"
+        >
+          {currentRange.label}
+        </button>
+
+        <ThemeButton
+          onClick={goToNext}
+          size="sm"
+          className="p-1"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </ThemeButton>
+      </div>
+    </div>
+  );
+}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { TrendingUp, DollarSign } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DateRange } from "./DateRangeSelector";
-import PageHeader from "@/components/ui/page-header";
+import { TimeRange } from "./TimeRangeSelector";
+
 import { supabase } from "@/lib/supabase";
 
 
@@ -20,13 +20,27 @@ interface SharePosition {
 }
 
 interface SharesPageProps {
-  selectedDateRange: DateRange;
+  selectedRange: TimeRange;
 }
 
-export default function SharesPage({ selectedDateRange }: SharesPageProps) {
+export default function SharesPage({ selectedRange }: SharesPageProps) {
   const [sharePositions, setSharePositions] = useState<SharePosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Debug: Show what SharesPage received
+  console.log('SharesPage received selectedRange:');
+  console.log('Start date:', selectedRange.startDate.toDateString());
+  console.log('End date:', selectedRange.endDate.toDateString());
+  console.log('Scale:', selectedRange.scale);
+
+  // Use the selected time range dates directly
+  const dateRange = useMemo(() => {
+    return {
+      startDate: selectedRange.startDate.toISOString().split('T')[0],
+      endDate: selectedRange.endDate.toISOString().split('T')[0]
+    };
+  }, [selectedRange]);
 
   // Fetch share positions from database
   const fetchSharePositions = useCallback(async () => {
@@ -40,54 +54,6 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
         throw new Error('User not authenticated');
       }
 
-      // Calculate date range for filtering
-      const now = new Date();
-      let startDate: Date;
-      const endDate: Date = now;
-
-      switch (selectedDateRange) {
-        case '7d': {
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() - 7);
-          break;
-        }
-        case '30d': {
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() - 30);
-          break;
-        }
-        case '90d': {
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() - 90);
-          break;
-        }
-        case '1y': {
-          startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-          break;
-        }
-        case 'all': {
-          startDate = new Date(0); // Beginning of time
-          break;
-        }
-        case 'custom': {
-          // For custom dates, we'll need to implement this when custom date picker is added
-          startDate = new Date(0);
-          break;
-        }
-        default: {
-          // Default to current trading week (Saturday to Friday)
-          startDate = new Date(now);
-          // Find the most recent Saturday
-          const daysSinceSaturday = (now.getDay() + 1) % 7;
-          startDate.setDate(now.getDate() - daysSinceSaturday);
-          break;
-        }
-      }
-
-      // Format dates for Supabase query
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-
       // Fetch share trades for the user within the selected date range
       const { data: trades, error: tradesError } = await supabase
         .from('trades')
@@ -97,12 +63,12 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
         `)
         .eq('user_id', user.id)
         .eq('type', 'Shares')
-        .gte('opened', startDateStr)
-        .lte('opened', endDateStr)
+        .gte('opened', dateRange.startDate)
+        .lte('opened', dateRange.endDate)
         .order('opened', { ascending: true });
 
       console.log('Fetched trades:', trades);
-      console.log('Date range:', startDateStr, 'to', endDateStr);
+      console.log('Date range:', dateRange.startDate, 'to', dateRange.endDate);
 
       if (tradesError) {
         throw new Error(`Error fetching trades: ${tradesError.message}`);
@@ -116,8 +82,8 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
         .eq('type', 'CC')
         .eq('action', 'Sell')
         .is('closed', null)
-        .gte('opened', startDateStr)
-        .lte('opened', endDateStr);
+        .gte('opened', dateRange.startDate)
+        .lte('opened', dateRange.endDate);
 
       if (ccError) {
         throw new Error(`Error fetching covered calls: ${ccError.message}`);
@@ -202,35 +168,31 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedDateRange]);
+  }, [dateRange]);
 
-  // Fetch data on component mount
+  // Fetch data when date range changes
   useEffect(() => {
     fetchSharePositions();
   }, [fetchSharePositions]);
 
-  // Refresh data when date range changes
-  useEffect(() => {
-    fetchSharePositions();
-  }, [selectedDateRange, fetchSharePositions]);
-
-  const formatCurrency = (amount: number) => {
+  // Memoize expensive calculations
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
-  };
+  }, []);
 
-  const formatPercentage = (amount: number, total: number) => {
+  const formatPercentage = useCallback((amount: number, total: number) => {
     if (total === 0) return '0.00%';
     return `${((amount / total) * 100).toFixed(2)}%`;
-  };
+  }, []);
 
-  const getPnLColor = (pnl: number) => {
+  const getPnLColor = useCallback((pnl: number) => {
     if (pnl > 0) return 'text-green-400';
     if (pnl < 0) return 'text-red-400';
     return 'text-gray-400';
-  };
+  }, []);
 
   const handleBuyShares = (ticker?: string) => {
     if (ticker) {
@@ -258,100 +220,53 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
     return { status: 'Partial', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' };
   };
 
-  const getRangeDescription = (range: DateRange) => {
-    const now = new Date();
-    switch (range) {
-      case '7d': {
-        const startOfWeek = new Date(now);
-        // Find the most recent Saturday
-        const daysSinceSaturday = (now.getDay() + 1) % 7;
-        startOfWeek.setDate(now.getDate() - daysSinceSaturday);
-        return `${startOfWeek.toLocaleDateString()} - ${now.toLocaleDateString()}`;
-      }
-      case '30d': {
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return `${startOfMonth.toLocaleDateString()} - ${now.toLocaleDateString()}`;
-      }
-      case '90d': {
-        const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-        return `${threeMonthsAgo.toLocaleDateString()} - ${now.toLocaleDateString()}`;
-      }
-      case '1y': {
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        return `${startOfYear.toLocaleDateString()} - ${now.toLocaleDateString()}`;
-      }
-      case 'all': return 'All available data';
-      case 'custom': return 'Custom date range';
-      default: return '';
-    }
+  const getRangeDescription = () => {
+    const startStr = selectedRange.startDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+    const endStr = selectedRange.endDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+    return `${startStr} - ${endStr}`;
   };
 
-  // Calculate totals
-  const totalCost = sharePositions.reduce((sum, position) => sum + position.totalCost, 0);
-  const totalValue = sharePositions.reduce((sum, position) => sum + position.currentValue, 0);
-  const totalPnL = sharePositions.reduce((sum, position) => sum + position.unrealizedPnL, 0);
+  // Memoize totals calculation
+  const totals = useMemo(() => {
+    const totalCost = sharePositions.reduce((sum, position) => sum + position.totalCost, 0);
+    const totalValue = sharePositions.reduce((sum, position) => sum + position.currentValue, 0);
+    const totalPnL = sharePositions.reduce((sum, position) => sum + position.unrealizedPnL, 0);
+    return { totalCost, totalValue, totalPnL };
+  }, [sharePositions]);
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Share Positions"
-          icon={TrendingUp}
-          description={`Current holdings grouped by ticker for ${getRangeDescription(selectedDateRange)}`}
-          selectedDateRange={selectedDateRange}
-          onDateRangeChange={() => {}} // This will be handled by the parent component
-          customStartDate=""
-          customEndDate=""
-          onCustomDateChange={() => {}}
-        />
-        <div className="text-center py-8 text-[#b3b3b3]">
-          <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Loading share positions...</p>
-        </div>
+      <div className="text-center py-8 text-[#b3b3b3]">
+        <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p>Loading share positions...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Share Positions"
-          icon={TrendingUp}
-          description={`Current holdings grouped by ticker for ${getRangeDescription(selectedDateRange)}`}
-          selectedDateRange={selectedDateRange}
-          onDateRangeChange={() => {}} // This will be handled by the parent component
-          customStartDate=""
-          customEndDate=""
-          onCustomDateChange={() => {}}
-        />
-        <div className="text-center py-8 text-[#b3b3b3]">
-          <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-red-400">Error loading share positions</p>
-          <p className="text-sm text-[#b3b3b3]">{error}</p>
-          <button 
-            onClick={fetchSharePositions}
-            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="text-center py-8 text-[#b3b3b3]">
+        <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p className="text-red-400">Error loading share positions</p>
+        <p className="text-sm text-[#b3b3b3]">{error}</p>
+        <button 
+          onClick={fetchSharePositions}
+          className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Share Positions"
-        icon={TrendingUp}
-        description={`Current holdings grouped by ticker for ${getRangeDescription(selectedDateRange)}`}
-        selectedDateRange={selectedDateRange}
-        onDateRangeChange={() => {}} // This will be handled by the parent component
-        customStartDate=""
-        customEndDate=""
-        onCustomDateChange={() => {}}
-      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -361,7 +276,7 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
             <DollarSign className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{formatCurrency(totalCost)}</div>
+            <div className="text-2xl font-bold text-white">{formatCurrency(totals.totalCost)}</div>
             <p className="text-xs text-[#b3b3b3]">Total amount invested</p>
           </CardContent>
         </Card>
@@ -372,7 +287,7 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
             <TrendingUp className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{formatCurrency(totalValue)}</div>
+            <div className="text-2xl font-bold text-white">{formatCurrency(totals.totalValue)}</div>
             <p className="text-xs text-[#b3b3b3]">Current market value</p>
           </CardContent>
         </Card>
@@ -383,11 +298,11 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
             <DollarSign className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getPnLColor(totalPnL)}`}>
-              {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
+            <div className={`text-2xl font-bold ${getPnLColor(totals.totalPnL)}`}>
+              {totals.totalPnL >= 0 ? '+' : ''}{formatCurrency(totals.totalPnL)}
             </div>
             <p className="text-xs text-[#b3b3b3]">
-              {formatPercentage(totalPnL, totalCost)} return
+              {formatPercentage(totals.totalPnL, totals.totalCost)} return
             </p>
           </CardContent>
         </Card>
@@ -403,7 +318,7 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
                 Positions
               </CardTitle>
               <CardDescription className="text-[#b3b3b3]">
-                Share positions grouped by ticker for {getRangeDescription(selectedDateRange)}
+                Share positions grouped by ticker for {getRangeDescription()} ({selectedRange.scale})
               </CardDescription>
             </div>
             <div className="flex space-x-3">
@@ -427,7 +342,7 @@ export default function SharesPage({ selectedDateRange }: SharesPageProps) {
             <div className="text-center py-8 text-[#b3b3b3]">
               <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No share positions found</p>
-              <p className="text-sm">No share trades found for {getRangeDescription(selectedDateRange)}</p>
+              <p className="text-sm">No share trades found for {getRangeDescription()} ({selectedRange.scale})</p>
               <p className="text-xs mt-2">Try selecting a different date range or add some share trades</p>
               <button 
                 onClick={fetchSharePositions}
