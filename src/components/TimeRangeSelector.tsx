@@ -27,7 +27,6 @@ export default function TimeRangeSelector({
   const [showCalendar, setShowCalendar] = useState(false);
   const hasNotifiedParent = useRef(false);
   const calendarRef = useRef<HTMLDivElement>(null);
-  const isToggling = useRef(false);
 
   // Calculate the current time range based on scale and date
   const calculateTimeRange = useCallback((date: Date, scale: TimeScale): TimeRange => {
@@ -229,47 +228,31 @@ export default function TimeRangeSelector({
     setShowCalendar(false);
   }, [currentScale, calculateTimeRange, notifyParent]);
 
-  // Close calendar when label is clicked while open
-  const handleLabelClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    console.log('Label clicked, current showCalendar:', showCalendar);
-    
-    if (isToggling.current) {
-      console.log('Already toggling, ignoring click');
-      return;
-    }
-    
-    isToggling.current = true;
-    setShowCalendar(prev => {
-      console.log('Setting showCalendar from', prev, 'to', !prev);
-      return !prev;
-    });
-    
-    // Reset toggle flag after a short delay
-    setTimeout(() => {
-      isToggling.current = false;
-    }, 50);
-  }, [showCalendar]);
+  // Toggle calendar (same pattern as user menu)
+  const toggleCalendar = () => {
+    setShowCalendar(prev => !prev);
+  };
 
-  // Close calendar when clicking outside
+  // Handle clicking outside the calendar (same pattern as user menu)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+      // Don't close if clicking on the calendar trigger button
+      const target = event.target as Node;
+      const calendarTrigger = document.querySelector('[data-calendar-trigger]');
+      
+      if (calendarRef.current && !calendarRef.current.contains(target) && 
+          calendarTrigger && !calendarTrigger.contains(target)) {
         setShowCalendar(false);
       }
     };
 
     if (showCalendar) {
-      // Use a small delay to prevent immediate closure
-      const timeoutId = setTimeout(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-      }, 100);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
+      document.addEventListener('mousedown', handleClickOutside);
     }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [showCalendar]);
 
   return (
@@ -285,7 +268,7 @@ export default function TimeRangeSelector({
         </ThemeButton>
 
         <ThemeButton
-          onClick={handleLabelClick}
+          onClick={toggleCalendar}
           size="sm"
           className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7 flex items-center gap-1"
           data-calendar-trigger
