@@ -27,6 +27,7 @@ export default function TimeRangeSelector({
   const [showCalendar, setShowCalendar] = useState(false);
   const hasNotifiedParent = useRef(false);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const isToggling = useRef(false);
 
   // Calculate the current time range based on scale and date
   const calculateTimeRange = useCallback((date: Date, scale: TimeScale): TimeRange => {
@@ -231,11 +232,23 @@ export default function TimeRangeSelector({
   // Close calendar when label is clicked while open
   const handleLabelClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (showCalendar) {
-      setShowCalendar(false);
-    } else {
-      setShowCalendar(true);
+    console.log('Label clicked, current showCalendar:', showCalendar);
+    
+    if (isToggling.current) {
+      console.log('Already toggling, ignoring click');
+      return;
     }
+    
+    isToggling.current = true;
+    setShowCalendar(prev => {
+      console.log('Setting showCalendar from', prev, 'to', !prev);
+      return !prev;
+    });
+    
+    // Reset toggle flag after a short delay
+    setTimeout(() => {
+      isToggling.current = false;
+    }, 50);
   }, [showCalendar]);
 
   // Close calendar when clicking outside
