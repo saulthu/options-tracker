@@ -119,6 +119,16 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Prevent scrollbar layout shifts */
+  html {
+    scrollbar-gutter: stable;
+  }
+  
+  /* Ensure consistent layout with scrollbars */
+  .scrollbar-stable {
+    scrollbar-gutter: stable;
+  }
 }
 
 @layer components {
