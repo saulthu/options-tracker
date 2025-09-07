@@ -90,6 +90,12 @@ src/
 - **Fix linting errors** immediately
 - **Use Turbopack** for faster builds
 
+### **Git Workflow**
+- **No Auto-Commit**: Never automatically commit changes - always ask user first
+- **Clean commits**: Build successfully before committing
+- **Descriptive messages**: Clear commit descriptions
+- **Terminal Issues**: PowerShell hanging is a known issue, use Ctrl+C when needed
+
 ### **Code Quality**
 - **TypeScript**: Strict typing, no `any` types
 - **ESLint**: Fix all warnings and errors
