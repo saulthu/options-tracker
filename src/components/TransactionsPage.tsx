@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { TrendingUp, DollarSign, Activity, Building2, Calendar } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Building2 } from "lucide-react";
 import { TimeRange } from "./TimeRangeSelector";
 import { usePortfolio } from "@/contexts/PortfolioContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -140,15 +139,6 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     }).format(amount);
   };
 
-  const formatDateTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const getInstrumentDisplay = (transaction: TransactionWithDetails) => {
     if (transaction.instrument_kind === 'CASH') {
@@ -188,6 +178,45 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
 
   return (
     <div className="space-y-8">
+      {/* Debug Information */}
+      <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
+        <CardHeader>
+          <CardTitle className="text-sm text-[#b3b3b3]">Debug Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm space-y-2">
+            <div>
+              <span className="text-[#b3b3b3]">Date Range: </span>
+              <span className="text-white">
+                {selectedRange.startDate.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })} - {selectedRange.endDate.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+            </div>
+            <div>
+              <span className="text-[#b3b3b3]">ISO Range: </span>
+              <span className="text-white font-mono text-xs">
+                {selectedRange.startDate.toISOString()} to {selectedRange.endDate.toISOString()}
+              </span>
+            </div>
+            <div>
+              <span className="text-[#b3b3b3]">Filtered Transactions: </span>
+              <span className="text-white">{filteredTransactions.length}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
@@ -237,101 +266,107 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
         </Card>
       </div>
 
-      {/* Account Cards */}
-      {accountTransactions.length === 0 ? (
-        <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
-          <CardContent className="text-center py-8">
-            <div className="text-lg text-[#b3b3b3]">No transactions found</div>
-            <div className="text-sm text-[#b3b3b3] mt-2">Try adjusting your time range or add some transactions</div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {accountTransactions.map((accountData) => (
-            <Card key={accountData.account.id} className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  {accountData.account.name}
-                </CardTitle>
-                <CardDescription className="flex items-center gap-4">
-                  <span>{accountData.account.institution}</span>
-                  <Badge variant="outline">{accountData.account.type}</Badge>
-                  <span className="text-green-400 font-medium">
-                    Balance: {formatCurrency(accountData.runningBalance)}
-                  </span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {accountData.transactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="flex items-center justify-between p-4 bg-[#0f0f0f] rounded-lg border border-[#2d2d2d]"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          {transaction.side === 'BUY' || (transaction.instrument_kind === 'CASH' && transaction.qty > 0) ? (
-                            <div className="w-8 h-8 bg-green-400/20 rounded-full flex items-center justify-center">
-                              <TrendingUp className="h-4 w-4 text-green-400" />
-                            </div>
-                          ) : (
-                            <div className="w-8 h-8 bg-red-400/20 rounded-full flex items-center justify-center">
-                              <TrendingUp className="h-4 w-4 text-red-400 rotate-180" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="font-medium text-white">
-                              {getInstrumentDisplay(transaction)}
-                            </span>
-                            {transaction.tickers?.name && (
-                              <Badge variant="outline" className="text-xs">
-                                {transaction.tickers.name}
-                              </Badge>
-                            )}
+      {/* Transactions Table */}
+      <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Transactions Table
+          </CardTitle>
+          <CardDescription>
+            All transactions in the selected time period with running balances
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {accountTransactions.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-lg text-[#b3b3b3]">No transactions found</div>
+              <div className="text-sm text-[#b3b3b3] mt-2">Try adjusting your time range or add some transactions</div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#2d2d2d]">
+                    <th className="text-left py-3 px-2 text-[#b3b3b3] font-medium">Account</th>
+                    <th className="text-left py-3 px-2 text-[#b3b3b3] font-medium">DateTime</th>
+                    <th className="text-left py-3 px-2 text-[#b3b3b3] font-medium">Type</th>
+                    <th className="text-left py-3 px-2 text-[#b3b3b3] font-medium">Instrument</th>
+                    <th className="text-right py-3 px-2 text-[#b3b3b3] font-medium">Qty</th>
+                    <th className="text-right py-3 px-2 text-[#b3b3b3] font-medium">Price</th>
+                    <th className="text-right py-3 px-2 text-[#b3b3b3] font-medium">Fees</th>
+                    <th className="text-right py-3 px-2 text-[#b3b3b3] font-medium">Cash Delta</th>
+                    <th className="text-right py-3 px-2 text-[#b3b3b3] font-medium">Balance</th>
+                    <th className="text-left py-3 px-2 text-[#b3b3b3] font-medium">Memo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accountTransactions.map((accountData) => 
+                    accountData.transactions.map((transaction, index) => (
+                      <tr 
+                        key={`${accountData.account.id}-${transaction.id}`} 
+                        className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] ${
+                          index === 0 ? 'bg-[#0f0f0f]/50' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-2">
+                          <div className="text-white font-medium">{accountData.account.name}</div>
+                          <div className="text-xs text-[#b3b3b3]">{accountData.account.institution}</div>
+                        </td>
+                        <td className="py-3 px-2 text-white font-mono text-xs">
+                          {new Date(transaction.timestamp).toLocaleString('en-US', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            year: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              transaction.side === 'BUY' || (transaction.instrument_kind === 'CASH' && transaction.qty > 0) 
+                                ? 'bg-green-400' 
+                                : 'bg-red-400'
+                            }`} />
+                            <span className="text-white">{transaction.instrument_kind}</span>
                           </div>
-                          <div className="flex items-center space-x-4 text-sm text-[#b3b3b3]">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDateTime(transaction.timestamp)}
-                            </div>
-                            {transaction.memo && (
-                              <span className="italic">&ldquo;{transaction.memo}&rdquo;</span>
-                            )}
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className="text-white">
+                            {getInstrumentDisplay(transaction)}
                           </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-white">
-                          {transaction.instrument_kind === 'CASH' 
-                            ? formatCurrency(Math.abs(transaction.qty))
-                            : `${transaction.qty} @ ${formatCurrency(transaction.price || 0)}`
-                          }
-                        </div>
-                        {transaction.fees > 0 && (
-                          <div className="text-xs text-[#b3b3b3]">
-                            Fees: {formatCurrency(transaction.fees)}
-                          </div>
-                        )}
-                        <div className="text-xs text-[#b3b3b3] mt-1">
-                          <div className={(transaction.cashDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        </td>
+                        <td className="py-3 px-2 text-right text-white">
+                          {transaction.qty}
+                        </td>
+                        <td className="py-3 px-2 text-right text-white">
+                          {transaction.price ? formatCurrency(transaction.price) : '-'}
+                        </td>
+                        <td className="py-3 px-2 text-right text-white">
+                          {transaction.fees > 0 ? formatCurrency(transaction.fees) : '-'}
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <span className={(transaction.cashDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}>
                             {(transaction.cashDelta || 0) >= 0 ? '+' : ''}{formatCurrency(transaction.cashDelta || 0)}
-                          </div>
-                          <div className="text-[#b3b3b3]">
-                            Balance: {formatCurrency(transaction.balanceAfter || 0)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-right text-white font-mono text-xs">
+                          {formatCurrency(transaction.balanceAfter || 0)}
+                        </td>
+                        <td className="py-3 px-2 text-[#b3b3b3] text-xs">
+                          {transaction.memo || '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -193,6 +193,9 @@ A well-implemented feature should:
 5. **React Hooks Compliance**: Fixed all hooks rule violations
 6. **Type Safety**: Resolved all TypeScript errors
 7. **Build Success**: Clean builds with no errors or warnings
+8. **Enhanced TransactionsPage**: Account-grouped view with running balance calculations
+9. **Business Logic Integration**: Proper cash delta and balance calculations per transaction
+10. **UI/UX Improvements**: Color-coded indicators, proper formatting, and enhanced display
 
 The application now follows **industry best practices** for React/Next.js applications with a clean, maintainable, and performant architecture.
 
@@ -220,131 +223,154 @@ The application now follows **industry best practices** for React/Next.js applic
 ## 🔄 Recent Patterns
 
 ### **Optimized Page Component Template** ⭐ **NEW**
-```typescript
-interface [PageName]PageProps {
-  selectedRange: TimeRange;
-  // other props as needed
-}
 
-export default function [PageName]Page({ selectedRange }: [PageName]PageProps) {
-  const { user } = useAuth();
-  const { getFilteredPortfolio, getFilteredTransactions, loading, error } = usePortfolio();
+**Purpose**: Standardized structure for all page components to ensure consistency and performance.
 
-  // Get filtered data for the selected time range
-  const filteredData = useMemo(() => {
-    return getFilteredPortfolio(selectedRange); // or getFilteredTransactions(selectedRange)
-  }, [getFilteredPortfolio, selectedRange]);
+**Key Structure**:
+- **Props Interface**: Define `selectedRange: TimeRange` and other required props
+- **Context Usage**: Use `useAuth()` and `usePortfolio()` hooks for data access
+- **Data Filtering**: Use `getFilteredPortfolio()` or `getFilteredTransactions()` based on needs
+- **Memoization**: Wrap expensive calculations in `useMemo()` for performance
+- **Error Handling**: Implement loading, error, and authentication states
+- **Early Returns**: Handle edge cases before main render logic
 
-  // Memoize expensive calculations
-  const calculatedData = useMemo(() => {
-    // Expensive calculations here
-    return processData(filteredData);
-  }, [filteredData]);
-
-  // Early returns after all hooks
-  if (loading) return <LoadingComponent />;
-  if (error) return <ErrorComponent error={error} />;
-  if (!user) return <LoginPrompt />;
-
-  return (
-    <div className="space-y-8">
-      {/* Page content using calculatedData */}
-    </div>
-  );
-}
-```
+**Performance Benefits**:
+- Memoized calculations prevent unnecessary re-renders
+- Centralized data access through context
+- Consistent error handling patterns
+- Clean separation of concerns
 
 ### **Performance Optimization Patterns** ⭐ **NEW**
-```typescript
-// ✅ GOOD: Memoize expensive calculations
-const summaryStats = useMemo(() => {
-  return calculateExpensiveStats(data);
-}, [data]);
 
-// ✅ GOOD: Memoize filtered data
-const filteredTransactions = useMemo(() => {
-  return getFilteredTransactions(selectedRange);
-}, [getFilteredTransactions, selectedRange]);
+**Purpose**: Ensure optimal performance through proper memoization and React best practices.
 
-// ✅ GOOD: Memoize helper functions
-const formatCurrency = useMemo(() => (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount);
-}, []);
+**Key Patterns**:
+- **Memoize Expensive Calculations**: Use `useMemo()` for complex data processing that depends on specific dependencies
+- **Memoize Filtered Data**: Cache filtered results to prevent unnecessary recalculations on every render
+- **Memoize Helper Functions**: Cache utility functions that don't change between renders
+- **Proper Hook Usage**: Never call hooks conditionally - always call them at the top level
+- **Dependency Arrays**: Include all dependencies in `useMemo()` and `useCallback()` arrays
 
-// ❌ BAD: Don't call hooks conditionally
-if (loading) return <div>Loading...</div>; // This breaks hooks rules
-const data = useMemo(() => calculate(), []); // This won't work
-```
+**Performance Benefits**:
+- Prevents unnecessary re-calculations
+- Reduces render cycles
+- Improves user experience with faster interactions
+- Maintains React's reconciliation efficiency
 
 ### **Shared State Management Pattern** ⭐ **NEW**
-```typescript
-// All page components should use PortfolioContext
-const { 
-  getFilteredPortfolio,    // For position/balance data
-  getFilteredTransactions, // For transaction lists
-  loading, 
-  error 
-} = usePortfolio();
 
-// Never fetch data directly in page components
-// ❌ BAD: Direct Supabase queries in components
-const { data } = await supabase.from('transactions').select('*');
+**Purpose**: Centralize data access and state management across all page components.
 
-// ✅ GOOD: Use context methods
-const transactions = getFilteredTransactions(selectedRange);
-```
+**Key Principles**:
+- **Context-Based Access**: All page components use `usePortfolio()` hook for data access
+- **No Direct Queries**: Never make direct Supabase queries in page components
+- **Centralized Filtering**: Use `getFilteredPortfolio()` and `getFilteredTransactions()` methods
+- **Consistent Loading States**: Handle loading and error states uniformly across components
+- **Single Source of Truth**: All data flows through the PortfolioContext
+
+**Benefits**:
+- Prevents duplicate data fetching
+- Ensures consistent data across all pages
+- Simplifies component logic
+- Improves performance through shared state
+- Makes testing and debugging easier
 
 ### **Time Range Filtering Pattern** ⭐ **NEW**
-```typescript
-// PortfolioContext provides filtered data methods
-const filteredPortfolio = getFilteredPortfolio(selectedRange);
-const filteredTransactions = getFilteredTransactions(selectedRange);
 
-// These methods automatically:
-// 1. Filter by time range (startDate to endDate)
-// 2. Recalculate portfolio state for filtered data
-// 3. Return memoized results for performance
-```
+**Purpose**: Provide efficient time-based filtering of portfolio data across all components.
+
+**Key Features**:
+- **Centralized Filtering**: `getFilteredPortfolio()` and `getFilteredTransactions()` methods in PortfolioContext
+- **Automatic Processing**: Methods handle time range filtering and portfolio recalculation
+- **Performance Optimization**: Results are memoized to prevent unnecessary recalculations
+- **Consistent Behavior**: All components use the same filtering logic
+
+**How It Works**:
+1. Filter transactions by time range (startDate to endDate)
+2. Recalculate portfolio state for filtered data
+3. Return memoized results for performance
+4. Update automatically when time range changes
+
+### **Account-Grouped Transaction Display Pattern** ⭐ **NEW**
+
+**Purpose**: Display transactions organized by account with running balance calculations for each transaction.
+
+**Key Features**:
+- **Account Grouping**: Group all transactions by account ID, creating separate cards for each account
+- **Running Balance Calculation**: Calculate cumulative account balance after each transaction
+- **Cash Delta Logic**: Determine cash flow impact based on transaction type:
+  - CASH transactions: Direct cash amount (positive/negative)
+  - BUY transactions: Negative cash flow (cost + fees)
+  - SELL transactions: Positive cash flow (proceeds - fees)
+- **Chronological Sorting**: Sort transactions by timestamp within each account
+- **Performance Optimization**: Use `useMemo` to prevent unnecessary recalculations
+
+**Business Logic**:
+- Each account shows its current running balance
+- Each transaction displays its cash delta and resulting balance
+- Proper handling of different instrument types (CASH, SHARES, CALL, PUT)
+- Fallback account data when account details are missing
+
+### **Enhanced Transaction Display Pattern** ⭐ **NEW**
+
+**Purpose**: Format and display transaction information in a user-friendly, consistent manner.
+
+**Key Features**:
+- **Instrument Display Logic**: Convert raw transaction data into readable format:
+  - CASH: Display as "Cash"
+  - SHARES: Display as "BUY/SELL TICKER"
+  - OPTIONS: Display as "BUY/SELL TICKER CALL/PUT $STRIKE EXPIRY"
+- **Currency Formatting**: Consistent USD formatting using `Intl.NumberFormat`
+- **Date/Time Formatting**: User-friendly timestamp display
+- **Visual Indicators**: Color-coded transaction types (green for buys, red for sells)
+- **Memo Display**: Show transaction notes with proper HTML entity escaping
+
+**UI Components**:
+- Account cards with institution and type information
+- Transaction rows with running balance display
+- Summary statistics cards at the top
+- Responsive design with proper spacing and typography
 
 ### **Database Query Pattern**
-```typescript
-const { data, error } = await supabase
-  .from('transactions')
-  .select('*')
-  .gte('opened', selectedRange.startDate.toISOString())
-  .lte('opened', selectedRange.endDate.toISOString());
-```
+
+**Purpose**: Standardized approach for querying Supabase database with proper error handling.
+
+**Key Principles**:
+- **Use PortfolioContext**: Never make direct database queries in page components
+- **Centralized Queries**: All database access goes through PortfolioContext methods
+- **Proper Error Handling**: Handle specific error codes and provide user-friendly messages
+- **Time Range Filtering**: Use proper date boundaries for time-based queries
+- **Type Safety**: Use TypeScript interfaces for all database entities
+
+**Benefits**:
+- Consistent error handling across the application
+- Centralized data access patterns
+- Better performance through shared state
+- Easier testing and debugging
 
 ### **Error Handling Pattern**
-```typescript
-try {
-  const { data, error: fetchError } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('user_id', user.id);
 
-  if (fetchError) {
-    // Handle specific error cases
-    if (fetchError.code === 'PGRST116' || fetchError.message?.includes('relation does not exist')) {
-      setError('Database not initialized. Please run the database setup first.');
-      return;
-    }
-    throw fetchError;
-  }
-  
-  setData(data || []);
-} catch (err) {
-  console.error('Error details:', {
-    name: (err as Error & { code?: string; details?: string; hint?: string })?.name,
-    message: (err as Error & { code?: string; details?: string; hint?: string })?.message,
-    code: (err as Error & { code?: string; details?: string; hint?: string })?.code,
-  });
-  setError(err instanceof Error ? err.message : 'Operation failed');
-}
-```
+**Purpose**: Provide comprehensive error handling for database operations and user interactions.
+
+**Key Principles**:
+- **Specific Error Handling**: Handle different error codes with appropriate user messages
+- **Graceful Degradation**: Continue app functionality when possible, show helpful error messages
+- **Comprehensive Logging**: Log detailed error information for debugging
+- **User-Friendly Messages**: Convert technical errors into actionable user instructions
+- **Type Safety**: Use proper TypeScript error typing for better error handling
+
+**Common Error Scenarios**:
+- Database not initialized (PGRST116)
+- Permission denied (42501)
+- Authentication issues
+- Network connectivity problems
+- Invalid data formats
+
+**Best Practices**:
+- Always provide fallback behavior
+- Log errors with sufficient detail for debugging
+- Show specific instructions for user actions
+- Maintain app stability even with errors
 
 ### **Debugging Supabase Issues**
 When encountering empty error objects or connection issues:
