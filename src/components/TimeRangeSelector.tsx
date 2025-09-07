@@ -221,6 +221,14 @@ export default function TimeRangeSelector({
     notifyParent(newRange);
   }, [calculateTimeRange, notifyParent]);
 
+  // Jump to current period (same scale)
+  const jumpToCurrent = useCallback(() => {
+    const now = new Date();
+    setCurrentDate(now);
+    const newRange = calculateTimeRange(now, currentScale);
+    notifyParent(newRange);
+  }, [currentScale, calculateTimeRange, notifyParent]);
+
   return (
     <div className="flex flex-col items-center gap-2">
       {/* Navigation */}
@@ -233,9 +241,13 @@ export default function TimeRangeSelector({
           <ChevronLeft className="h-4 w-4" />
         </ThemeButton>
 
-        <div className="px-3 py-1 text-sm font-medium text-gray-300 min-w-[120px] text-center">
+        <ThemeButton
+          onClick={jumpToCurrent}
+          size="sm"
+          className="px-3 py-1 text-sm font-medium min-w-[120px] h-8"
+        >
           {currentRange.label}
-        </div>
+        </ThemeButton>
 
         <ThemeButton
           onClick={goToNext}
@@ -252,7 +264,7 @@ export default function TimeRangeSelector({
           <button
             key={scale}
             onClick={() => handleScaleChange(scale)}
-            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors min-w-[30px] h-8 ${
               currentScale === scale
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-300 hover:text-white hover:bg-gray-700'
