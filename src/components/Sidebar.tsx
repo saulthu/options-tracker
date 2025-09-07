@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { Plus, Grid3X3, Calendar, Activity, TrendingUp, Brain, Settings, User, LogOut, LucideIcon, List } from "lucide-react";
 import Image from "next/image";
 import { ViewType } from "@/types/navigation";
+import { useTimeRange } from "@/contexts/TimeRangeContext";
 
-import TimeRangeSelector, { TimeRange } from "@/components/TimeRangeSelector";
+import TimeRangeSelector from "@/components/TimeRangeSelector";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -16,7 +17,6 @@ interface SidebarProps {
     name: string;
     email: string;
   } | null;
-  onRangeChange?: (range: TimeRange) => void;
 }
 
 interface NavButtonProps {
@@ -70,7 +70,8 @@ function NavButton({
   );
 }
 
-export default function Sidebar({ children, onViewChange, currentView, onLogout, userProfile, onRangeChange }: SidebarProps) {
+export default function Sidebar({ children, onViewChange, currentView, onLogout, userProfile }: SidebarProps) {
+  const { selectedRange, handleRangeChange } = useTimeRange();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -183,11 +184,12 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
         </div>
 
         {/* Time Range Selector - Below Navigation */}
-        {!isCollapsed && onRangeChange && (
+        {!isCollapsed && (
           <div className="px-2 py-3 border-t border-[#2d2d2d]">
             <TimeRangeSelector
-              onRangeChange={onRangeChange}
+              onRangeChange={handleRangeChange}
               initialScale="week"
+              selectedRange={selectedRange}
             />
           </div>
         )}

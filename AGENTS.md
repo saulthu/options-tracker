@@ -403,17 +403,68 @@ Common permission/RLS issues and their solutions:
 - **PortfolioContext**: Only fetches transactions, does NOT create users
 - **Avoid duplication**: Don't duplicate user creation logic across contexts
 
-### **Permission Error Fixes**
-Common permission/RLS issues and their solutions:
-1. **User not in users table**: Automatically create user record if missing
-2. **RLS policy blocking access**: Ensure user can insert their own profile
-3. **Permission denied errors**: Handle specific error codes (42501, insufficient_privilege)
-4. **Authentication issues**: Verify user is properly authenticated before database queries
-5. **Missing INSERT policy**: Add INSERT policy for users table to allow self-registration
-6. **Graceful degradation**: Continue with main functionality even if user creation fails
-7. **Comprehensive logging**: Log all error details to help diagnose permission issues
-8. **Database not initialized**: User must run `clean-database-schema.sql` first
-9. **Chicken-and-egg problem**: Don't query users table before user is created
+### **Authentication Error Fixes**
+Common authentication issues and their solutions:
+1. **AuthSessionMissingError**: PortfolioContext should use AuthContext instead of direct auth calls
+2. **Race conditions**: Wait for auth to be ready before making database queries
+3. **User not in users table**: Automatically create user record if missing
+4. **RLS policy blocking access**: Ensure user can insert their own profile
+5. **Permission denied errors**: Handle specific error codes (42501, insufficient_privilege)
+6. **Authentication issues**: Verify user is properly authenticated before database queries
+7. **Missing INSERT policy**: Add INSERT policy for users table to allow self-registration
+8. **Graceful degradation**: Continue with main functionality even if user creation fails
+9. **Comprehensive logging**: Log all error details to help diagnose permission issues
+10. **Database not initialized**: User must run `clean-database-schema.sql` first
+11. **Chicken-and-egg problem**: Don't query users table before user is created
+
+### **Context Dependency Pattern** ⭐ **NEW**
+
+**Purpose**: Ensure proper dependency management between contexts to avoid authentication race conditions.
+
+**Problem**: PortfolioContext was making its own authentication calls instead of using AuthContext, causing "Auth session missing!" errors during app initialization.
+
+**Solution**: 
+1. **Use AuthContext**: PortfolioContext should depend on AuthContext for user state
+2. **Wait for Auth**: Only fetch data when authentication is ready and user is available
+3. **Proper Loading States**: Combine auth loading with data loading states
+4. **Error Propagation**: Pass auth errors through to the UI
+
+**Implementation**:
+- **PortfolioContext**: Import and use `useAuth()` hook instead of direct Supabase auth calls
+- **Dependency Management**: Wait for `!authLoading && user && !authError` before fetching data
+- **Loading States**: Combine `loading || authLoading` for proper UI feedback
+- **Error Handling**: Combine `error || authError` for comprehensive error reporting
+
+**Benefits**:
+- **No Race Conditions**: Data fetching waits for proper authentication
+- **Cleaner Architecture**: Single source of truth for authentication state
+- **Better Error Handling**: Auth errors properly propagated to UI
+- **Consistent Loading**: Unified loading states across the app
+
+### **TimeRange Context Pattern** ⭐ **NEW**
+
+**Purpose**: Centralize time range selection state management in a shared context for consistent access across all components.
+
+**Problem**: Time range state was managed in the main page component, but it's actually global UI state that affects all pages and should be managed at the layout level.
+
+**Solution**: 
+1. **Create TimeRangeContext** with `selectedRange`, `setSelectedRange`, and `handleRangeChange`
+2. **Add TimeRangeProvider** to the root layout alongside AuthProvider and PortfolioProvider
+3. **Move time range logic** from main page to the shared context
+4. **Update components** to use `useTimeRange()` hook instead of prop drilling
+
+**Implementation**:
+- **TimeRangeContext**: Manages time range state and provides `useTimeRange()` hook
+- **Root Layout**: Wraps app with TimeRangeProvider for global access
+- **Sidebar**: Uses `useTimeRange()` directly instead of receiving props
+- **Main Page**: Simplified to only handle view switching, time range handled by context
+
+**Benefits**:
+- **Consistent Architecture**: All global state managed in contexts
+- **Cleaner Components**: No prop drilling for time range state
+- **Better Separation**: UI state vs business logic state clearly separated
+- **Easier Testing**: Time range logic isolated and testable
+- **Future-Proofing**: Clear pattern for adding more global UI state
 
 ### **Account Data Synchronization Pattern** ⭐ **NEW**
 

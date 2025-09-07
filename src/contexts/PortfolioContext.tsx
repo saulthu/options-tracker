@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { useAuth } from './AuthContext';
 import { 
   buildPortfolio, 
   PortfolioState, 
@@ -54,6 +55,7 @@ interface PortfolioProviderProps {
 }
 
 export function PortfolioProvider({ children }: PortfolioProviderProps) {
+  const { user, loading: authLoading, error: authError } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,28 +67,10 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
       setLoading(true);
       setError(null);
 
-      // Debug Supabase configuration
-      console.log('Supabase config check:', {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Present' : 'Missing',
-        key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Present' : 'Missing'
-      });
-
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('Auth check:', { 
-        user: user?.id, 
-        userEmail: user?.email,
-        authError,
-        session: await supabase.auth.getSession()
-      });
-      
-      if (authError) {
-        console.error('Auth error:', authError);
-        setError('Authentication error: ' + authError.message);
-        return;
-      }
-      
+      // Use user from AuthContext instead of making separate auth call
       if (!user) {
         setError('User not authenticated');
+        setTransactions([]);
         return;
       }
 
@@ -182,7 +166,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   // Recalculate portfolio when transactions change
   useEffect(() => {
@@ -194,10 +178,17 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, [transactions]);
 
-  // Initial fetch
+  // Initial fetch - only when auth is ready and user is available
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (!authLoading && user && !authError) {
+      fetchTransactions();
+    } else if (!authLoading && !user) {
+      // User is not authenticated, clear data
+      setTransactions([]);
+      setPortfolio(null);
+      setLoading(false);
+    }
+  }, [fetchTransactions, authLoading, user, authError]);
 
   // Helper functions
   const getPositions = useCallback((accountId: string): Position[] => {
@@ -300,8 +291,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const value: PortfolioContextType = {
     transactions,
-    loading,
-    error,
+    loading: loading || authLoading,
+    error: error || authError,
     portfolio,
     getPositions,
     getRealizedPnL,

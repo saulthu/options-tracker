@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PortfolioProvider } from "@/contexts/PortfolioContext";
+import { TimeRangeProvider } from "@/contexts/TimeRangeContext";
 
 export const metadata: Metadata = {
   title: "Options Tracker",
@@ -18,7 +19,9 @@ export default function RootLayout({
       <body className="antialiased">
         <AuthProvider>
           <PortfolioProvider>
-            {children}
+            <TimeRangeProvider>
+              {children}
+            </TimeRangeProvider>
           </PortfolioProvider>
         </AuthProvider>
       </body>

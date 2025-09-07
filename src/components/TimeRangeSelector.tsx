@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { ThemeButton } from './ui/theme-button';
 
@@ -16,16 +16,18 @@ export interface TimeRange {
 interface TimeRangeSelectorProps {
   onRangeChange: (range: TimeRange) => void;
   initialScale?: TimeScale;
+  selectedRange?: TimeRange | null;
 }
 
 export default function TimeRangeSelector({ 
   onRangeChange, 
-  initialScale = 'week' 
+  initialScale = 'week',
+  selectedRange
 }: TimeRangeSelectorProps) {
-  const [currentScale, setCurrentScale] = useState<TimeScale>(initialScale);
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  // Use selectedRange as the source of truth, fallback to initial values
+  const currentScale = selectedRange?.scale ?? initialScale;
+  const currentDate = useMemo(() => selectedRange?.startDate ?? new Date(), [selectedRange?.startDate]);
   const [showCalendar, setShowCalendar] = useState(false);
-  const hasNotifiedParent = useRef(false);
   const calendarRef = useRef<HTMLDivElement>(null);
 
   // Calculate the current time range based on scale and date
@@ -123,87 +125,79 @@ export default function TimeRangeSelector({
     }
   }, []);
 
-  // Get current time range
-  const currentRange = calculateTimeRange(currentDate, currentScale);
-
-  // Notify parent of range changes (only once on mount and when range actually changes)
-  useEffect(() => {
-    if (!hasNotifiedParent.current) {
-      hasNotifiedParent.current = true;
-      onRangeChange(currentRange);
-    }
-  }, [currentRange, onRangeChange]);
-
-  // Notify parent when range changes due to user interaction
-  const notifyParent = useCallback((range: TimeRange) => {
-    onRangeChange(range);
-  }, [onRangeChange]);
+  // Use selectedRange if available, otherwise calculate from current date/scale
+  const currentRange = selectedRange || calculateTimeRange(currentDate, currentScale);
 
   // Navigation functions
   const goToPrevious = useCallback(() => {
-    const newDate = new Date(currentDate);
+    let newDate: Date;
     
-    switch (currentScale) {
-      case 'day':
-        newDate.setDate(currentDate.getDate() - 1);
-        break;
-      case 'week':
-        newDate.setDate(currentDate.getDate() - 7);
-        break;
-      case 'month':
-        newDate.setMonth(currentDate.getMonth() - 1);
-        break;
-      case 'year':
-        newDate.setFullYear(currentDate.getFullYear() - 1);
-        break;
+    if (currentScale === 'week' && selectedRange) {
+      // For week navigation, use the Friday date (endDate) as reference
+      newDate = new Date(selectedRange.endDate);
+      newDate.setDate(selectedRange.endDate.getDate() - 7);
+    } else {
+      // For other scales, use the current date
+      newDate = new Date(currentDate);
+      switch (currentScale) {
+        case 'day':
+          newDate.setDate(currentDate.getDate() - 1);
+          break;
+        case 'month':
+          newDate.setMonth(currentDate.getMonth() - 1);
+          break;
+        case 'year':
+          newDate.setFullYear(currentDate.getFullYear() - 1);
+          break;
+      }
     }
     
-    setCurrentDate(newDate);
     const newRange = calculateTimeRange(newDate, currentScale);
-    notifyParent(newRange);
-  }, [currentDate, currentScale, calculateTimeRange, notifyParent]);
+    onRangeChange(newRange);
+  }, [currentDate, currentScale, calculateTimeRange, onRangeChange, selectedRange]);
 
   const goToNext = useCallback(() => {
-    const newDate = new Date(currentDate);
+    let newDate: Date;
     
-    switch (currentScale) {
-      case 'day':
-        newDate.setDate(currentDate.getDate() + 1);
-        break;
-      case 'week':
-        newDate.setDate(currentDate.getDate() + 7);
-        break;
-      case 'month':
-        newDate.setMonth(currentDate.getMonth() + 1);
-        break;
-      case 'year':
-        newDate.setFullYear(currentDate.getFullYear() + 1);
-        break;
+    if (currentScale === 'week' && selectedRange) {
+      // For week navigation, use the Friday date (endDate) as reference
+      newDate = new Date(selectedRange.endDate);
+      newDate.setDate(selectedRange.endDate.getDate() + 7);
+    } else {
+      // For other scales, use the current date
+      newDate = new Date(currentDate);
+      switch (currentScale) {
+        case 'day':
+          newDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'month':
+          newDate.setMonth(currentDate.getMonth() + 1);
+          break;
+        case 'year':
+          newDate.setFullYear(currentDate.getFullYear() + 1);
+          break;
+      }
     }
     
-    setCurrentDate(newDate);
     const newRange = calculateTimeRange(newDate, currentScale);
-    notifyParent(newRange);
-  }, [currentDate, currentScale, calculateTimeRange, notifyParent]);
+    onRangeChange(newRange);
+  }, [currentDate, currentScale, calculateTimeRange, onRangeChange, selectedRange]);
 
 
 
   const handleScaleChange = useCallback((scale: TimeScale) => {
-    setCurrentScale(scale);
     // When changing scale, jump to the current period of that scale
     const now = new Date();
-    setCurrentDate(now);
     const newRange = calculateTimeRange(now, scale);
-    notifyParent(newRange);
-  }, [calculateTimeRange, notifyParent]);
+    onRangeChange(newRange);
+  }, [calculateTimeRange, onRangeChange]);
 
   // Handle calendar date selection
   const handleDateSelect = useCallback((selectedDate: Date) => {
-    setCurrentDate(selectedDate);
     const newRange = calculateTimeRange(selectedDate, currentScale);
-    notifyParent(newRange);
+    onRangeChange(newRange);
     setShowCalendar(false);
-  }, [currentScale, calculateTimeRange, notifyParent]);
+  }, [currentScale, calculateTimeRange, onRangeChange]);
 
   // Toggle calendar (same pattern as user menu)
   const toggleCalendar = () => {

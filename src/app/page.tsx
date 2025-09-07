@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { TrendingUp, Settings as SettingsIcon, Calendar, List } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import LoginForm from "@/components/LoginForm";
@@ -11,11 +11,11 @@ import ReportPage from "@/components/ReportPage";
 import OptionsPage from "@/components/OptionsPage";
 import TransactionsPage from "@/components/TransactionsPage";
 
-import { TimeRange } from "@/components/TimeRangeSelector";
 import DebugSupabase from "@/components/DebugSupabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { usePortfolio } from "@/contexts/PortfolioContext";
+import { useTimeRange } from "@/contexts/TimeRangeContext";
 import { ViewType } from "@/types/navigation";
 
 
@@ -25,22 +25,15 @@ export default function Home() {
   const { user, loading, error, signOut } = useAuth();
   const { profile, updateProfile } = useUserProfile();
   const { loading: portfolioLoading, error: portfolioError } = usePortfolio();
+  const { selectedRange } = useTimeRange();
   
   const [currentView, setCurrentView] = useState<ViewType>('overview');
-  
-  // Time range state - managed by TimeScaleSelector
-  const [selectedRange, setSelectedRange] = useState<TimeRange | null>(null);
 
 
 
   const handleViewChange = (view: ViewType) => {
     setCurrentView(view);
   };
-
-  const handleRangeChange = useCallback((range: TimeRange) => {
-    console.log('Time range changed to:', range);
-    setSelectedRange(range);
-  }, []);
 
   // Get the current view's header info
   const getViewHeader = () => {
@@ -156,7 +149,6 @@ export default function Home() {
         currentView={currentView} 
         onLogout={signOut} 
         userProfile={profile}
-        onRangeChange={handleRangeChange}
       >
         <div className="min-h-screen bg-[#0f0f0f]">
           {/* Global Header */}
