@@ -230,21 +230,21 @@ export default function TimeRangeSelector({
   }, [currentScale, calculateTimeRange, notifyParent]);
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-1.5 w-full max-w-[200px]">
       {/* Navigation */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 w-full">
         <ThemeButton
           onClick={goToPrevious}
           size="sm"
-          className="p-1"
+          className="p-1 flex-shrink-0"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3 w-3" />
         </ThemeButton>
 
         <ThemeButton
           onClick={jumpToCurrent}
           size="sm"
-          className="px-2 py-1 text-xs font-medium min-w-[80px] h-8"
+          className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7"
         >
           {currentRange.label}
         </ThemeButton>
@@ -252,19 +252,19 @@ export default function TimeRangeSelector({
         <ThemeButton
           onClick={goToNext}
           size="sm"
-          className="p-1"
+          className="p-1 flex-shrink-0"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3 w-3" />
         </ThemeButton>
       </div>
 
       {/* Scale selector */}
-      <div className="flex rounded-lg border border-gray-600 bg-gray-800 p-1">
+      <div className="flex rounded border border-gray-600 bg-gray-800 p-0.5 w-full">
         {(['day', 'week', 'month', 'year'] as TimeScale[]).map((scale) => (
           <button
             key={scale}
             onClick={() => handleScaleChange(scale)}
-            className={`px-2 py-1 text-xs font-medium rounded transition-colors min-w-[24px] h-8 ${
+            className={`px-1.5 py-1 text-xs font-medium rounded transition-colors flex-1 h-7 ${
               currentScale === scale
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-300 hover:text-white hover:bg-gray-700'

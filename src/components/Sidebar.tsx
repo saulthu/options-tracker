@@ -184,7 +184,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
 
         {/* Time Range Selector - Below Navigation */}
         {!isCollapsed && onRangeChange && (
-          <div className="px-4 py-4 border-t border-[#2d2d2d]">
+          <div className="px-2 py-3 border-t border-[#2d2d2d]">
             <TimeRangeSelector
               onRangeChange={onRangeChange}
               initialScale="week"
