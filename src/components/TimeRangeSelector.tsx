@@ -228,10 +228,14 @@ export default function TimeRangeSelector({
     setShowCalendar(false);
   }, [currentScale, calculateTimeRange, notifyParent]);
 
-  // Toggle calendar popup
-  const toggleCalendar = useCallback(() => {
-    setShowCalendar(prev => !prev);
-  }, []);
+  // Close calendar when label is clicked while open
+  const handleLabelClick = useCallback(() => {
+    if (showCalendar) {
+      setShowCalendar(false);
+    } else {
+      setShowCalendar(true);
+    }
+  }, [showCalendar]);
 
   // Close calendar when clicking outside
   useEffect(() => {
@@ -248,7 +252,7 @@ export default function TimeRangeSelector({
   }, [showCalendar]);
 
   return (
-    <div className="relative flex flex-col items-center gap-1.5 w-full max-w-[160px]">
+    <div className="relative flex flex-col items-center gap-1.5 w-full max-w-[180px]">
       {/* Navigation */}
       <div className="flex items-center gap-0.5 w-full">
         <ThemeButton
@@ -260,7 +264,7 @@ export default function TimeRangeSelector({
         </ThemeButton>
 
         <ThemeButton
-          onClick={toggleCalendar}
+          onClick={handleLabelClick}
           size="sm"
           className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7 flex items-center gap-1"
         >

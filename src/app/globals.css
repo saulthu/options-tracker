@@ -161,7 +161,7 @@
   }
   
   .sidebar-width-expanded {
-    @apply w-64;
+    @apply w-48;
   }
   
   .sidebar-nav-container-collapsed {
