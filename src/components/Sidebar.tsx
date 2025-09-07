@@ -5,6 +5,8 @@ import { Plus, Grid3X3, Calendar, Activity, TrendingUp, Brain, Settings, User, L
 import Image from "next/image";
 import { ViewType } from "@/types/navigation";
 
+import TimeRangeSelector, { TimeRange } from "@/components/TimeRangeSelector";
+
 interface SidebarProps {
   children: React.ReactNode;
   onViewChange: (view: ViewType) => void;
@@ -14,6 +16,7 @@ interface SidebarProps {
     name: string;
     email: string;
   } | null;
+  onRangeChange?: (range: TimeRange) => void;
 }
 
 interface NavButtonProps {
@@ -67,7 +70,7 @@ function NavButton({
   );
 }
 
-export default function Sidebar({ children, onViewChange, currentView, onLogout, userProfile }: SidebarProps) {
+export default function Sidebar({ children, onViewChange, currentView, onLogout, userProfile, onRangeChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -151,12 +154,21 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
       {/* Sidebar */}
       <div className={`bg-[#1a1a1a] text-white ${sidebarWidthClass}`}>
         {/* Header */}
-        <div className="flex items-center border-b border-[#2d2d2d] py-4 px-2">
-          <div className="flex items-center">
-                         <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
-               <Image src="/td.avif" alt="TD Logo" width={48} height={48} className="object-contain rounded-full" />
-             </div>
+        <div className="border-b border-[#2d2d2d] py-4 px-2">
+          <div className="flex items-center mb-3">
+            <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
+              <Image src="/td.avif" alt="TD Logo" width={48} height={48} className="object-contain rounded-full" />
+            </div>
           </div>
+          {/* Time Range Selector - Fixed Position */}
+          {!isCollapsed && onRangeChange && (
+            <div className="flex justify-center">
+              <TimeRangeSelector
+                onRangeChange={onRangeChange}
+                initialScale="week"
+              />
+            </div>
+          )}
         </div>
 
         {/* Navigation */}

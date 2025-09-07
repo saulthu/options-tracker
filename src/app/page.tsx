@@ -11,7 +11,7 @@ import ReportPage from "@/components/ReportPage";
 import OptionsPage from "@/components/OptionsPage";
 import TransactionsPage from "@/components/TransactionsPage";
 
-import TimeRangeSelector, { TimeRange } from "@/components/TimeRangeSelector";
+import { TimeRange } from "@/components/TimeRangeSelector";
 import DebugSupabase from "@/components/DebugSupabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -151,12 +151,18 @@ export default function Home() {
 
   return (
     <div data-1p-ignore data-lpignore="true" data-form-type="other">
-      <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut} userProfile={profile}>
+      <Sidebar 
+        onViewChange={handleViewChange} 
+        currentView={currentView} 
+        onLogout={signOut} 
+        userProfile={profile}
+        onRangeChange={handleRangeChange}
+      >
         <div className="min-h-screen bg-[#0f0f0f]">
-          {/* Global Header with Time Selector */}
+          {/* Global Header */}
           <header className="py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex items-start mb-6">
                 <div className="flex space-x-3">
                   <currentHeader.icon className="w-8 h-8 text-blue-400 flex-shrink-0 self-start" />
                   <div>
@@ -164,11 +170,6 @@ export default function Home() {
                     <p className="text-[#b3b3b3] text-sm mt-1">{currentHeader.description}</p>
                   </div>
                 </div>
-                <TimeRangeSelector
-                  key="global-time-selector"
-                  onRangeChange={handleRangeChange}
-                  initialScale="week"
-                />
               </div>
             </div>
           </header>
