@@ -46,6 +46,21 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
   // Get filtered transactions for the selected date range
   const filteredTransactions = getFilteredTransactions(selectedRange) as TransactionWithDetails[];
 
+  // Debug logging for date filtering
+  console.log('Date filtering debug:', {
+    selectedRange: {
+      start: selectedRange.startDate.toISOString(),
+      end: selectedRange.endDate.toISOString()
+    },
+    filteredCount: filteredTransactions.length,
+    sampleTransactions: filteredTransactions.slice(0, 3).map(tx => ({
+      id: tx.id,
+      timestamp: tx.timestamp,
+      parsedDate: new Date(tx.timestamp).toISOString(),
+      instrument: tx.instrument_kind
+    }))
+  });
+
   // Group transactions by account and calculate running balances
   const accountTransactions = useMemo((): AccountTransactions[] => {
     if (!filteredTransactions.length) return [];

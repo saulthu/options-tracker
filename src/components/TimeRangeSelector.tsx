@@ -57,18 +57,36 @@ export default function TimeRangeSelector({
         if (dayOfWeek === 5) { // Friday
           daysToFriday = 0;
         } else if (dayOfWeek === 6) { // Saturday
-          daysToFriday = 6; // Go to next Friday
+          daysToFriday = -6; // Go to previous Friday (current week)
         } else { // Sunday (0) through Thursday (4)
           daysToFriday = (5 - dayOfWeek + 7) % 7;
         }
         
-        // Set end date to Friday
-        endDate.setDate(date.getDate() + daysToFriday);
-        endDate.setHours(23, 59, 59, 999);
+        // Calculate Friday date first
+        const fridayDate = new Date(date);
+        fridayDate.setDate(date.getDate() + daysToFriday);
+        fridayDate.setHours(23, 59, 59, 999);
         
-        // Set start date to Saturday (6 days before Friday)
-        startDate.setDate(endDate.getDate() - 6);
-        startDate.setHours(0, 0, 0, 0);
+        // Calculate Saturday date (6 days before Friday)
+        const saturdayDate = new Date(fridayDate);
+        saturdayDate.setDate(fridayDate.getDate() - 6);
+        saturdayDate.setHours(0, 0, 0, 0);
+        
+        // Set the dates by copying values
+        startDate.setTime(saturdayDate.getTime());
+        endDate.setTime(fridayDate.getTime());
+        
+        // Debug logging for week calculation
+        console.log('Week calculation debug:', {
+          inputDate: date.toISOString(),
+          dayOfWeek,
+          daysToFriday,
+          fridayDate: fridayDate.toISOString(),
+          saturdayDate: saturdayDate.toISOString(),
+          calculatedStart: startDate.toISOString(),
+          calculatedEnd: endDate.toISOString(),
+          weekSpan: Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        });
         
         return {
           startDate,
@@ -120,6 +138,17 @@ export default function TimeRangeSelector({
 
   // Get current time range
   const currentRange = calculateTimeRange(currentDate, currentScale);
+
+  // Debug logging
+  console.log('TimeRangeSelector debug:', {
+    currentDate: currentDate.toISOString(),
+    currentScale,
+    calculatedRange: {
+      start: currentRange.startDate.toISOString(),
+      end: currentRange.endDate.toISOString(),
+      label: currentRange.label
+    }
+  });
 
   // Notify parent of range changes (only once on mount and when range actually changes)
   useEffect(() => {
