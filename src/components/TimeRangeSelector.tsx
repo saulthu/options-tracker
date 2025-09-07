@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { ThemeButton } from './ui/theme-button';
 
 export type TimeScale = 'day' | 'week' | 'month' | 'year';
@@ -24,7 +24,9 @@ export default function TimeRangeSelector({
 }: TimeRangeSelectorProps) {
   const [currentScale, setCurrentScale] = useState<TimeScale>(initialScale);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [showCalendar, setShowCalendar] = useState(false);
   const hasNotifiedParent = useRef(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   // Calculate the current time range based on scale and date
   const calculateTimeRange = useCallback((date: Date, scale: TimeScale): TimeRange => {
@@ -218,16 +220,35 @@ export default function TimeRangeSelector({
     notifyParent(newRange);
   }, [calculateTimeRange, notifyParent]);
 
-  // Jump to current period (same scale)
-  const jumpToCurrent = useCallback(() => {
-    const now = new Date();
-    setCurrentDate(now);
-    const newRange = calculateTimeRange(now, currentScale);
+  // Handle calendar date selection
+  const handleDateSelect = useCallback((selectedDate: Date) => {
+    setCurrentDate(selectedDate);
+    const newRange = calculateTimeRange(selectedDate, currentScale);
     notifyParent(newRange);
+    setShowCalendar(false);
   }, [currentScale, calculateTimeRange, notifyParent]);
 
+  // Toggle calendar popup
+  const toggleCalendar = useCallback(() => {
+    setShowCalendar(prev => !prev);
+  }, []);
+
+  // Close calendar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+        setShowCalendar(false);
+      }
+    };
+
+    if (showCalendar) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showCalendar]);
+
   return (
-    <div className="flex flex-col items-center gap-1.5 w-full max-w-[160px]">
+    <div className="relative flex flex-col items-center gap-1.5 w-full max-w-[160px]">
       {/* Navigation */}
       <div className="flex items-center gap-0.5 w-full">
         <ThemeButton
@@ -239,10 +260,11 @@ export default function TimeRangeSelector({
         </ThemeButton>
 
         <ThemeButton
-          onClick={jumpToCurrent}
+          onClick={toggleCalendar}
           size="sm"
-          className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7"
+          className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7 flex items-center gap-1"
         >
+          <Calendar className="h-3 w-3" />
           {currentRange.label}
         </ThemeButton>
 
@@ -268,6 +290,102 @@ export default function TimeRangeSelector({
             }`}
           >
             {scale.charAt(0).toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* Calendar Popup */}
+      {showCalendar && (
+        <div 
+          ref={calendarRef}
+          className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg shadow-lg z-50 p-3"
+        >
+          <CalendarGrid 
+            selectedDate={currentDate}
+            onDateSelect={handleDateSelect}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Simple Calendar Grid Component
+function CalendarGrid({ selectedDate, onDateSelect }: { selectedDate: Date; onDateSelect: (date: Date) => void }) {
+  const [currentMonth, setCurrentMonth] = useState(selectedDate);
+  
+  const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  const startDate = new Date(monthStart);
+  startDate.setDate(startDate.getDate() - startDate.getDay());
+  
+  const days = [];
+  const today = new Date();
+  
+  for (let i = 0; i < 42; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    days.push(date);
+  }
+  
+  const isSelected = (date: Date) => {
+    return date.toDateString() === selectedDate.toDateString();
+  };
+  
+  const isToday = (date: Date) => {
+    return date.toDateString() === today.toDateString();
+  };
+  
+  const isCurrentMonth = (date: Date) => {
+    return date.getMonth() === currentMonth.getMonth();
+  };
+  
+  return (
+    <div className="w-64">
+      {/* Month Header */}
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-medium text-white">
+          {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </span>
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      
+      {/* Day Headers */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
+          <div key={day} className="text-xs text-gray-400 text-center p-1">
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((date, index) => (
+          <button
+            key={index}
+            onClick={() => onDateSelect(date)}
+            className={`text-xs p-1 rounded hover:bg-gray-700 ${
+              isSelected(date)
+                ? 'bg-blue-600 text-white'
+                : isToday(date)
+                ? 'bg-gray-600 text-white'
+                : isCurrentMonth(date)
+                ? 'text-white'
+                : 'text-gray-500'
+            }`}
+          >
+            {date.getDate()}
           </button>
         ))}
       </div>
