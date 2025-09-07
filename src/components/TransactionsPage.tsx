@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, DollarSign, Activity, Building2 } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown } from "lucide-react";
 import { TimeRange } from "./TimeRangeSelector";
 import { usePortfolio } from "@/contexts/PortfolioContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,20 +28,29 @@ interface TransactionWithDetails extends Transaction {
   balanceAfter?: number;
 }
 
-interface AccountTransactions {
-  account: {
-    id: string;
-    name: string;
-    type: string;
-    institution: string;
-  };
-  transactions: TransactionWithDetails[];
-  runningBalance: number;
-}
+type SortField = 'timestamp' | 'account' | 'instrument_kind' | 'qty' | 'price' | 'fees' | 'cashDelta' | 'balanceAfter' | 'memo';
+type SortDirection = 'asc' | 'desc';
+
 
 export default function TransactionsPage({ selectedRange }: TransactionsPageProps) {
   const { user } = useAuth();
   const { getFilteredTransactions, loading } = usePortfolio();
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('timestamp');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // Handle column sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   // Get filtered transactions for the selected date range
   const filteredTransactions = getFilteredTransactions(selectedRange) as TransactionWithDetails[];
@@ -61,71 +70,88 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     }))
   });
 
-  // Group transactions by account and calculate running balances
-  const accountTransactions = useMemo((): AccountTransactions[] => {
+  // Sort all transactions by selected field and calculate running balances
+  const sortedTransactions = useMemo((): TransactionWithDetails[] => {
     if (!filteredTransactions.length) return [];
 
-    // Group by account
-    const grouped = filteredTransactions.reduce((acc, transaction) => {
-      const accountId = transaction.account_id;
-      if (!acc[accountId]) {
-        acc[accountId] = {
-          account: transaction.accounts || {
-            id: accountId,
-            name: 'Unknown Account',
-            type: 'Unknown',
-            institution: 'Unknown'
-          },
-          transactions: [],
-          runningBalance: 0
-        };
+    // Sort transactions by selected field
+    const sorted = [...filteredTransactions].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'timestamp':
+          aValue = new Date(a.timestamp).getTime();
+          bValue = new Date(b.timestamp).getTime();
+          break;
+        case 'account':
+          aValue = a.accounts?.name || '';
+          bValue = b.accounts?.name || '';
+          break;
+        case 'instrument_kind':
+          aValue = a.instrument_kind;
+          bValue = b.instrument_kind;
+          break;
+        case 'qty':
+          aValue = a.qty;
+          bValue = b.qty;
+          break;
+        case 'price':
+          aValue = a.price || 0;
+          bValue = b.price || 0;
+          break;
+        case 'fees':
+          aValue = a.fees;
+          bValue = b.fees;
+          break;
+        case 'memo':
+          aValue = a.memo || '';
+          bValue = b.memo || '';
+          break;
+        default:
+          aValue = 0;
+          bValue = 0;
       }
-      acc[accountId].transactions.push(transaction);
-      return acc;
-    }, {} as Record<string, AccountTransactions>);
 
-    // Sort transactions by timestamp and calculate running balances
-    return Object.values(grouped).map(accountData => {
-      // Sort transactions by timestamp
-      const sortedTransactions = accountData.transactions.sort((a, b) => 
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
 
-      // Calculate running balance for each transaction
-      let runningBalance = 0;
-      const transactionsWithBalance = sortedTransactions.map(transaction => {
-        // Calculate cash delta for this transaction
-        let cashDelta = 0;
-        
-        if (transaction.instrument_kind === 'CASH') {
-          // Cash transactions: qty is the cash amount
-          cashDelta = transaction.qty;
-        } else if (transaction.side === 'BUY') {
-          // Buying shares/options: negative cash flow
-          const totalCost = (transaction.price || 0) * transaction.qty;
-          cashDelta = -(totalCost + transaction.fees);
-        } else if (transaction.side === 'SELL') {
-          // Selling shares/options: positive cash flow
-          const totalProceeds = (transaction.price || 0) * transaction.qty;
-          cashDelta = totalProceeds - transaction.fees;
-        }
+      // Handle numeric comparison
+      const comparison = aValue - bValue;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
 
-        runningBalance += cashDelta;
+    // Calculate running balance for each transaction
+    let runningBalance = 0;
+    return sorted.map(transaction => {
+      // Calculate cash delta for this transaction
+      let cashDelta = 0;
+      
+      if (transaction.instrument_kind === 'CASH') {
+        // Cash transactions: qty is the cash amount
+        cashDelta = transaction.qty;
+      } else if (transaction.side === 'BUY') {
+        // Buying shares/options: negative cash flow
+        const totalCost = (transaction.price || 0) * transaction.qty;
+        cashDelta = -(totalCost + transaction.fees);
+      } else if (transaction.side === 'SELL') {
+        // Selling shares/options: positive cash flow
+        const totalProceeds = (transaction.price || 0) * transaction.qty;
+        cashDelta = totalProceeds - transaction.fees;
+      }
 
-        return {
-          ...transaction,
-          cashDelta,
-          balanceAfter: runningBalance
-        };
-      });
+      runningBalance += cashDelta;
 
       return {
-        ...accountData,
-        transactions: transactionsWithBalance,
-        runningBalance
+        ...transaction,
+        cashDelta,
+        balanceAfter: runningBalance
       };
     });
-  }, [filteredTransactions]);
+  }, [filteredTransactions, sortField, sortDirection]);
 
   // Memoize summary statistics
   const summaryStats = useMemo(() => {
@@ -152,6 +178,27 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  // Render sortable column header
+  const renderSortableHeader = (field: SortField, label: string, align: 'left' | 'right' = 'left') => {
+    const isActive = sortField === field;
+    const alignmentClass = align === 'right' ? 'text-right' : 'text-left';
+    return (
+      <th 
+        className={`${alignmentClass} py-2 px-2 text-[#b3b3b3] font-medium cursor-pointer hover:text-white select-none`}
+        onClick={() => handleSort(field)}
+      >
+        <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+          <span>{label}</span>
+          {isActive && (
+            sortDirection === 'asc' ? 
+              <ChevronUp className="h-3 w-3" /> : 
+              <ChevronDown className="h-3 w-3" />
+          )}
+        </div>
+      </th>
+    );
   };
 
 
@@ -293,7 +340,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {accountTransactions.length === 0 ? (
+          {sortedTransactions.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-lg text-[#b3b3b3]">No transactions found</div>
               <div className="text-sm text-[#b3b3b3] mt-2">Try adjusting your time range or add some transactions</div>
@@ -303,88 +350,85 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#2d2d2d]">
-                    <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Account</th>
-                    <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Date</th>
-                    <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Type</th>
+                    {renderSortableHeader('timestamp', 'Date')}
+                    {renderSortableHeader('account', 'Account')}
+                    {renderSortableHeader('instrument_kind', 'Type')}
                     <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Instrument</th>
-                    <th className="text-right py-2 px-2 text-[#b3b3b3] font-medium">Qty</th>
-                    <th className="text-right py-2 px-2 text-[#b3b3b3] font-medium">Price</th>
-                    <th className="text-right py-2 px-2 text-[#b3b3b3] font-medium">Fees</th>
+                    {renderSortableHeader('qty', 'Qty', 'right')}
+                    {renderSortableHeader('price', 'Price', 'right')}
+                    {renderSortableHeader('fees', 'Fees', 'right')}
                     <th className="text-right py-2 px-2 text-[#b3b3b3] font-medium">Cash Delta</th>
                     <th className="text-right py-2 px-2 text-[#b3b3b3] font-medium">Balance</th>
-                    <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Memo</th>
+                    {renderSortableHeader('memo', 'Memo')}
                   </tr>
                 </thead>
                 <tbody>
-                  {accountTransactions.map((accountData) => 
-                    accountData.transactions.map((transaction, index) => (
-                      <tr 
-                        key={`${accountData.account.id}-${transaction.id}`} 
-                        className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] ${
-                          index === 0 ? 'bg-[#0f0f0f]/50' : ''
-                        }`}
-                      >
-                        <td className="py-2 px-2">
-                          <div 
-                            className="text-white font-medium truncate max-w-[150px]" 
-                            title={accountData.account.name}
-                          >
-                            {accountData.account.name}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-white font-mono text-xs">
-                          {new Date(transaction.timestamp).toLocaleDateString('en-US', {
-                            month: '2-digit',
-                            day: '2-digit',
-                            year: '2-digit'
-                          })}
-                        </td>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${
-                              transaction.side === 'BUY' || (transaction.instrument_kind === 'CASH' && transaction.qty > 0) 
-                                ? 'bg-green-400' 
-                                : 'bg-red-400'
-                            }`} />
-                            <span className="text-white">{transaction.instrument_kind}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-2">
-                          <div 
-                            className="text-white truncate max-w-[200px]" 
-                            title={getInstrumentDisplay(transaction)}
-                          >
-                            {getInstrumentDisplay(transaction)}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-right text-white">
-                          {transaction.qty}
-                        </td>
-                        <td className="py-2 px-2 text-right text-white">
-                          {transaction.price ? formatCurrency(transaction.price) : '-'}
-                        </td>
-                        <td className="py-2 px-2 text-right text-white">
-                          {transaction.fees > 0 ? formatCurrency(transaction.fees) : '-'}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          <span className={(transaction.cashDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}>
-                            {(transaction.cashDelta || 0) >= 0 ? '+' : ''}{formatCurrency(transaction.cashDelta || 0)}
-                          </span>
-                        </td>
-                        <td className="py-2 px-2 text-right text-white font-mono text-xs">
-                          {formatCurrency(transaction.balanceAfter || 0)}
-                        </td>
-                        <td className="py-2 px-2 text-[#b3b3b3] text-xs">
-                          <div 
-                            className="truncate max-w-[150px]" 
-                            title={transaction.memo || '-'}
-                          >
-                            {transaction.memo || '-'}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  {sortedTransactions.map((transaction, index) => (
+                    <tr 
+                      key={transaction.id} 
+                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] ${
+                        index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]'
+                      }`}
+                    >
+                      <td className="py-2 px-2 text-white font-mono text-xs">
+                        {new Date(transaction.timestamp).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit'
+                        })}
+                      </td>
+                      <td className="py-2 px-2">
+                        <div 
+                          className="text-white text-xs truncate max-w-[150px]" 
+                          title={transaction.accounts?.name || 'Unknown Account'}
+                        >
+                          {transaction.accounts?.name || 'Unknown Account'}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            transaction.side === 'BUY' || (transaction.instrument_kind === 'CASH' && transaction.qty > 0) 
+                              ? 'bg-green-400' 
+                              : 'bg-red-400'
+                          }`} />
+                          <span className="text-white">{transaction.instrument_kind}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div 
+                          className="text-white truncate max-w-[200px]" 
+                          title={getInstrumentDisplay(transaction)}
+                        >
+                          {getInstrumentDisplay(transaction)}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 text-right text-white">
+                        {transaction.qty}
+                      </td>
+                      <td className="py-2 px-2 text-right text-white">
+                        {transaction.price ? formatCurrency(transaction.price) : '-'}
+                      </td>
+                      <td className="py-2 px-2 text-right text-white">
+                        {transaction.fees > 0 ? formatCurrency(transaction.fees) : '-'}
+                      </td>
+                      <td className="py-2 px-2 text-right">
+                        <span className={(transaction.cashDelta || 0) >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          {(transaction.cashDelta || 0) >= 0 ? '+' : ''}{formatCurrency(transaction.cashDelta || 0)}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-right text-white font-mono text-xs">
+                        {formatCurrency(transaction.balanceAfter || 0)}
+                      </td>
+                      <td className="py-2 px-2 text-[#b3b3b3] text-xs">
+                        <div 
+                          className="truncate max-w-[150px]" 
+                          title={transaction.memo || '-'}
+                        >
+                          {transaction.memo || '-'}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
