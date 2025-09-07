@@ -6,15 +6,15 @@
 
 ## Core Principle
 
-* The **primary database tables** are **`User`**, **`Account`**, **`Ticker`**, and **`Transaction`**.
+* The **primary database tables** are **`users`**, **`accounts`**, **`tickers`**, and **`transactions`**.
 * All other objects (**Positions**, **CashBalances**, **LedgerRows**, **RealizedEvents**) are **derived in memory** by scanning the immutable transaction log (optionally cached/snapshotted for speed).
 
 ---
 
-## 1) User (authentication and account management)
+## 1) users (authentication and account management)
 
 ```yaml
-User:
+users:
   id: string                    # UUID primary key
   email: string                 # unique email address
   name?: string                 # display name
@@ -24,12 +24,12 @@ User:
 
 ---
 
-## 2) Account (user's trading accounts)
+## 2) accounts (user's trading accounts)
 
 ```yaml
-Account:
+accounts:
   id: string                    # UUID primary key
-  user_id: string               # foreign key to User.id
+  user_id: string               # foreign key to users.id
   name: string                  # account display name
   type: string                  # account type (Individual, IRA, etc.)
   institution: string           # broker/institution name
@@ -40,10 +40,10 @@ Account:
 
 ---
 
-## 3) Ticker (financial instruments)
+## 3) tickers (financial instruments)
 
 ```yaml
-Ticker:
+tickers:
   id: string                    # UUID primary key
   name: string                  # ticker symbol (AAPL, MSFT, etc.)
   icon?: string                 # path/URL to cached icon file
@@ -51,31 +51,25 @@ Ticker:
 
 ---
 
-## 4) Transaction (immutable source of truth)
+## 4) transactions (immutable source of truth)
 
 ```yaml
-Transaction:
-  id: string
-  userId: string             # foreign key to User.id
-  accountId: string          # foreign key to Account.id
-
-  # Timestamps
-  timestamp: datetime        # broker event time (ISO8601)
-  created_at: datetime       # inserted
-  updated_at: datetime       # last modified (correction)
-
-  # Instrument identity
-  instrumentKind: CASH | SHARES | CALL | PUT
-  tickerId?: string          # foreign key to Ticker.id (required for SHARES / CALL / PUT)
-  expiry?: date              # CALL/PUT only (YYYY-MM-DD)
-  strike?: number            # CALL/PUT only
-
-  # Trade / cash
-  side?: BUY | SELL          # SHARES/CALL/PUT; ignored for CASH
-  qty: number                # CASH: signed cash movement; others: shares/contracts
-  price?: number             # per share/contract; not used for CASH
-  fees?: number              # ≥ 0, all-in for the txn (commission + exchange)
-  memo?: string              # free text notes
+transactions:
+  id: string                    # UUID primary key
+  user_id: string               # foreign key to users.id
+  account_id: string            # foreign key to accounts.id
+  timestamp: string             # broker event time (ISO8601)
+  created_at: datetime          # record creation time
+  updated_at: datetime          # last update time
+  instrument_kind: string       # CASH | SHARES | CALL | PUT
+  ticker_id?: string            # foreign key to tickers.id (required for SHARES/CALL/PUT)
+  expiry?: string               # CALL/PUT only (YYYY-MM-DD)
+  strike?: number               # CALL/PUT only (per share)
+  side?: string                 # BUY | SELL (ignored for CASH)
+  qty: number                   # CASH: signed cash movement; others: shares/contracts
+  price?: number                # per share/contract (not used for CASH)
+  fees: number                  # ≥ 0, all-in for the txn (commission + exchange)
+  memo?: string                 # free text notes
 ```
 
 **Conventions**
@@ -88,9 +82,9 @@ Transaction:
 
 ## 5) Table Relationships
 
-* Each transaction belongs to exactly one user (`userId` foreign key)
-* Users can have multiple accounts (`accountId` for grouping transactions)
-* For single-account users, `accountId` typically equals `userId`
+* Each transaction belongs to exactly one user (`user_id` foreign key)
+* Users can have multiple accounts (`account_id` for grouping transactions)
+* For single-account users, `account_id` typically equals `user_id`
 * All portfolio calculations are scoped to a specific user
 
 ---
@@ -100,7 +94,7 @@ Transaction:
 * **CASH** → `CASH`
 * **SHARES** → `ticker`
 * **CALL/PUT** → `ticker|expiry|strike|CALL/PUT`
-  Use `(accountId, instrumentKey)` to group state.
+  Use `(account_id, instrumentKey)` to group state.
 
 ---
 
@@ -110,9 +104,9 @@ Transaction:
 
 ```yaml
 Position:
-  accountId: string
+  account_id: string
   instrumentKey: string
-  instrumentKind: SHARES | CALL | PUT
+  instrument_kind: SHARES | CALL | PUT
   ticker: string
   qty: number                  # SHARES ≥ 0; CALL/PUT may be >0 (long) or <0 (short)
   avgPrice: number             # weighted average ENTRY cost per unit (includes allocated open-side fees)
@@ -125,7 +119,7 @@ Position:
 
 ```yaml
 CashBalance:
-  accountId: string
+  account_id: string
   balance: number
 ```
 
@@ -133,10 +127,10 @@ CashBalance:
 
 ```yaml
 LedgerRow:
-  txnId: string
-  accountId: string
+  txn_id: string
+  account_id: string
   timestamp: datetime
-  instrumentKind: CASH | SHARES | CALL | PUT
+  instrument_kind: CASH | SHARES | CALL | PUT
   ticker?: string
   expiry?: date
   strike?: number
@@ -147,7 +141,7 @@ LedgerRow:
   memo?: string
 
   cashDelta: number            # +/− cash effect of this txn
-  balanceAfter: number         # account’s running balance AFTER applying this txn
+  balanceAfter: number         # account's running balance AFTER applying this txn
   accepted: boolean            # false if rejected by validation (no effect on balance/positions)
   error?: string               # rejection reason
 ```
@@ -158,10 +152,10 @@ Emitted **only when quantity is reduced toward zero** on an existing side.
 
 ```yaml
 RealizedEvent:
-  accountId: string
-  timestamp: datetime          # closing txn’s timestamp
+  account_id: string
+  timestamp: datetime          # closing txn's timestamp
   instrumentKey: string
-  instrumentKind: SHARES | CALL | PUT
+  instrument_kind: SHARES | CALL | PUT
   ticker: string
   closedQty: number            # absolute units closed in this event (shares or contracts)
   closePrice: number           # per unit
@@ -179,7 +173,7 @@ RealizedEvent:
 
 ## 8) Rules & invariants
 
-**Multi-account:** derive state independently per `accountId`.
+**Multi-account:** derive state independently per `account_id`.
 
 **Ordering & determinism**
 
@@ -283,12 +277,12 @@ def build_portfolio(
 ) -> Dict[str, Any]:
     """
     Inputs:
-      - transactions: list of dicts with fields per your Transaction schema.
-      - opening_balances: optional {accountId: openingCashBalance}.
+      - transactions: list of dicts with fields per your transactions schema.
+      - opening_balances: optional {account_id: openingCashBalance}.
 
     Returns dict with:
-      - positions: {(accountId, instrumentKey) -> {qty, avgPrice, instrumentKind, ticker, expiry, strike, coverageHint?}}
-      - balances:  {accountId -> final cash balance}
+      - positions: {(account_id, instrumentKey) -> {qty, avgPrice, instrument_kind, ticker, expiry, strike, coverageHint?}}
+      - balances:  {account_id -> final cash balance}
       - ledger:    list of per-txn rows including cashDelta, balanceAfter, accepted, error?
       - realized:  list of realized P&L events (on partial/full closes)
     """
@@ -303,18 +297,18 @@ def build_portfolio(
     realized: List[Dict[str, Any]] = []
 
     for t in sorted_txns:
-        acc = t["accountId"]
+        acc = t["account_id"]
         balances.setdefault(acc, float(opening_balances.get(acc, 0.0)))
 
-        kind = t["instrumentKind"]
+        kind = t["instrument_kind"]
         fees = float(t.get("fees", 0.0))
         memo = t.get("memo")
 
         row_base = {
-            "txnId": t["id"],
-            "accountId": acc,
+            "txn_id": t["id"],
+            "account_id": acc,
             "timestamp": t.get("timestamp"),
-            "instrumentKind": kind,
+            "instrument_kind": kind,
             "ticker": t.get("ticker"),
             "expiry": t.get("expiry"),
             "strike": t.get("strike"),
@@ -346,7 +340,7 @@ def build_portfolio(
         pos = positions.get(key, {
             "qty": 0.0,
             "avgPrice": 0.0,
-            "instrumentKind": kind,
+            "instrument_kind": kind,
             "ticker": ticker,
             "expiry": expiry,
             "strike": strike,
@@ -419,10 +413,10 @@ def build_portfolio(
                         pnl = (open_avg - price) * closed_qty * mult - fees
 
                     realized.append({
-                        "accountId": acc,
+                        "account_id": acc,
                         "timestamp": t.get("timestamp"),
                         "instrumentKey": key_str,
-                        "instrumentKind": kind,
+                        "instrument_kind": kind,
                         "ticker": ticker,
                         "closedQty": closed_qty,
                         "closePrice": price,
@@ -448,10 +442,10 @@ def build_portfolio(
                     pnl = (open_avg - price) * closed_qty * mult - fees
 
                 realized.append({
-                    "accountId": acc,
+                    "account_id": acc,
                     "timestamp": t.get("timestamp"),
                     "instrumentKey": key_str,
-                    "instrumentKind": kind,
+                    "instrument_kind": kind,
                     "ticker": ticker,
                     "closedQty": closed_qty,
                     "closePrice": price,
@@ -472,8 +466,8 @@ def build_portfolio(
         ledger.append({**row_base, "cashDelta": cash_delta, "balanceAfter": balances[acc], "accepted": True})
 
     return {
-        "positions": positions,   # map keyed by (accountId, instrumentKey)
-        "balances": balances,     # map accountId -> cash balance
+        "positions": positions,   # map keyed by (account_id, instrumentKey)
+        "balances": balances,     # map account_id -> cash balance
         "ledger": ledger,         # list of per-transaction ledger rows
         "realized": realized      # list of realized P&L events
     }
@@ -481,7 +475,7 @@ def build_portfolio(
 
 ### Notes
 
-* **Inputs**: pass your raw `Transaction` rows (dicts) exactly as defined in your schema.
+* **Inputs**: pass your raw `transactions` rows (dicts) exactly as defined in your schema.
 * **Sorting**: done by `(timestamp, id)` to ensure deterministic results for same-time fills.
 * **No crossings**: attempts to cross through zero are rejected and show up in the ledger with `accepted=False` (and no balance/position change).
 * **AvgPrice**: open-side fees are allocated into `avgPrice` when opening/adding; realized P\&L subtracts only **closing** fees.
