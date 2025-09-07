@@ -366,8 +366,8 @@ function CalendarGrid({ selectedDate, onDateSelect }: { selectedDate: Date; onDa
       
       {/* Day Headers */}
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-          <div key={day} className="text-xs text-gray-400 text-center p-1">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+          <div key={index} className="text-xs text-gray-400 text-center p-1">
             {day}
           </div>
         ))}
