@@ -76,18 +76,6 @@ export default function TimeRangeSelector({
         startDate.setTime(saturdayDate.getTime());
         endDate.setTime(fridayDate.getTime());
         
-        // Debug logging for week calculation
-        console.log('Week calculation debug:', {
-          inputDate: date.toISOString(),
-          dayOfWeek,
-          daysToFriday,
-          fridayDate: fridayDate.toISOString(),
-          saturdayDate: saturdayDate.toISOString(),
-          calculatedStart: startDate.toISOString(),
-          calculatedEnd: endDate.toISOString(),
-          weekSpan: Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        });
-        
         return {
           startDate,
           endDate,
@@ -137,17 +125,6 @@ export default function TimeRangeSelector({
 
   // Get current time range
   const currentRange = calculateTimeRange(currentDate, currentScale);
-
-  // Debug logging
-  console.log('TimeRangeSelector debug:', {
-    currentDate: currentDate.toISOString(),
-    currentScale,
-    calculatedRange: {
-      start: currentRange.startDate.toISOString(),
-      end: currentRange.endDate.toISOString(),
-      label: currentRange.label
-    }
-  });
 
   // Notify parent of range changes (only once on mount and when range actually changes)
   useEffect(() => {
