@@ -41,8 +41,8 @@ export default function TimeRangeSelector({
           endDate,
           scale,
           label: date.toLocaleDateString('en-US', { 
-            weekday: 'long',
-            month: 'long', 
+            weekday: 'short',
+            month: 'short', 
             day: 'numeric',
             year: 'numeric'
           })
@@ -74,8 +74,8 @@ export default function TimeRangeSelector({
           startDate,
           endDate,
           scale,
-          label: `Week ending ${endDate.toLocaleDateString('en-US', { 
-            month: 'long', 
+          label: `Ending ${endDate.toLocaleDateString('en-US', { 
+            month: 'numeric', 
             day: 'numeric' 
           })}`
         };
@@ -93,7 +93,7 @@ export default function TimeRangeSelector({
           endDate,
           scale,
           label: date.toLocaleDateString('en-US', { 
-            month: 'long',
+            month: 'short',
             year: 'numeric'
           })
         };
@@ -181,21 +181,42 @@ export default function TimeRangeSelector({
     notifyParent(newRange);
   }, [currentDate, currentScale, calculateTimeRange, notifyParent]);
 
-  const goToCurrent = useCallback(() => {
-    const newDate = new Date();
-    setCurrentDate(newDate);
-    const newRange = calculateTimeRange(newDate, currentScale);
-    notifyParent(newRange);
-  }, [currentScale, calculateTimeRange, notifyParent]);
+
 
   const handleScaleChange = useCallback((scale: TimeScale) => {
     setCurrentScale(scale);
-    const newRange = calculateTimeRange(currentDate, scale);
+    // When changing scale, jump to the current period of that scale
+    const now = new Date();
+    setCurrentDate(now);
+    const newRange = calculateTimeRange(now, scale);
     notifyParent(newRange);
-  }, [currentDate, calculateTimeRange, notifyParent]);
+  }, [calculateTimeRange, notifyParent]);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col items-center gap-2">
+      {/* Navigation */}
+      <div className="flex items-center gap-1">
+        <ThemeButton
+          onClick={goToPrevious}
+          size="sm"
+          className="p-1"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </ThemeButton>
+
+        <div className="px-3 py-1 text-sm font-medium text-gray-300 min-w-[120px] text-center">
+          {currentRange.label}
+        </div>
+
+        <ThemeButton
+          onClick={goToNext}
+          size="sm"
+          className="p-1"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </ThemeButton>
+      </div>
+
       {/* Scale selector */}
       <div className="flex rounded-lg border border-gray-600 bg-gray-800 p-1">
         {(['day', 'week', 'month', 'year'] as TimeScale[]).map((scale) => (
@@ -211,32 +232,6 @@ export default function TimeRangeSelector({
             {scale.charAt(0).toUpperCase() + scale.slice(1)}
           </button>
         ))}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex items-center gap-1">
-        <ThemeButton
-          onClick={goToPrevious}
-          size="sm"
-          className="p-1"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </ThemeButton>
-
-        <button
-          onClick={goToCurrent}
-          className="px-3 py-1 text-sm font-medium text-gray-300 hover:text-white transition-colors min-w-[120px]"
-        >
-          {currentRange.label}
-        </button>
-
-        <ThemeButton
-          onClick={goToNext}
-          size="sm"
-          className="p-1"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </ThemeButton>
       </div>
     </div>
   );

@@ -28,6 +28,7 @@ export default function PageHeader({
         </div>
       </div>
       <TimeRangeSelector
+        key="global-time-selector"
         onRangeChange={onRangeChange}
         initialScale={initialTimeScale}
       />
