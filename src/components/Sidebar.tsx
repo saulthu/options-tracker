@@ -155,20 +155,11 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
       <div className={`bg-[#1a1a1a] text-white ${sidebarWidthClass}`}>
         {/* Header */}
         <div className="border-b border-[#2d2d2d] py-4 px-2">
-          <div className="flex items-center mb-3">
+          <div className="flex items-center">
             <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
               <Image src="/td.avif" alt="TD Logo" width={48} height={48} className="object-contain rounded-full" />
             </div>
           </div>
-          {/* Time Range Selector - Fixed Position */}
-          {!isCollapsed && onRangeChange && (
-            <div className="flex justify-center">
-              <TimeRangeSelector
-                onRangeChange={onRangeChange}
-                initialScale="week"
-              />
-            </div>
-          )}
         </div>
 
         {/* Navigation */}
@@ -190,6 +181,16 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
             ))}
           </nav>
         </div>
+
+        {/* Time Range Selector - Below Navigation */}
+        {!isCollapsed && onRangeChange && (
+          <div className="px-4 py-4 border-t border-[#2d2d2d]">
+            <TimeRangeSelector
+              onRangeChange={onRangeChange}
+              initialScale="week"
+            />
+          </div>
+        )}
 
         {/* User Info with Popup Menu */}
         <div className="absolute bottom-0 left-0 right-0 p-4">

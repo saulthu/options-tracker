@@ -92,7 +92,7 @@ export default function TimeRangeSelector({
           startDate,
           endDate,
           scale,
-          label: `Ending ${endDate.toLocaleDateString('en-US', { 
+          label: `${endDate.toLocaleDateString('en-US', { 
             month: 'numeric', 
             day: 'numeric' 
           })}`
@@ -112,7 +112,7 @@ export default function TimeRangeSelector({
           scale,
           label: date.toLocaleDateString('en-US', { 
             month: 'short',
-            year: 'numeric'
+            year: '2-digit'
           })
         };
 
@@ -244,7 +244,7 @@ export default function TimeRangeSelector({
         <ThemeButton
           onClick={jumpToCurrent}
           size="sm"
-          className="px-3 py-1 text-sm font-medium min-w-[120px] h-8"
+          className="px-2 py-1 text-xs font-medium min-w-[80px] h-8"
         >
           {currentRange.label}
         </ThemeButton>
@@ -264,13 +264,13 @@ export default function TimeRangeSelector({
           <button
             key={scale}
             onClick={() => handleScaleChange(scale)}
-            className={`px-3 py-1 text-xs font-medium rounded transition-colors min-w-[30px] h-8 ${
+            className={`px-2 py-1 text-xs font-medium rounded transition-colors min-w-[24px] h-8 ${
               currentScale === scale
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-300 hover:text-white hover:bg-gray-700'
             }`}
           >
-            {scale.charAt(0).toUpperCase() + scale.slice(1)}
+            {scale.charAt(0).toUpperCase()}
           </button>
         ))}
       </div>
