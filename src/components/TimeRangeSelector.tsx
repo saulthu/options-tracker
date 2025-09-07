@@ -229,7 +229,8 @@ export default function TimeRangeSelector({
   }, [currentScale, calculateTimeRange, notifyParent]);
 
   // Close calendar when label is clicked while open
-  const handleLabelClick = useCallback(() => {
+  const handleLabelClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     if (showCalendar) {
       setShowCalendar(false);
     } else {
@@ -246,8 +247,15 @@ export default function TimeRangeSelector({
     };
 
     if (showCalendar) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      // Use a small delay to prevent immediate closure
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
   }, [showCalendar]);
 
@@ -267,6 +275,7 @@ export default function TimeRangeSelector({
           onClick={handleLabelClick}
           size="sm"
           className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7 flex items-center gap-1"
+          data-calendar-trigger
         >
           <Calendar className="h-3 w-3" />
           {currentRange.label}
