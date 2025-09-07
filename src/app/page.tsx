@@ -152,9 +152,9 @@ export default function Home() {
   return (
     <div data-1p-ignore data-lpignore="true" data-form-type="other">
       <Sidebar onViewChange={handleViewChange} currentView={currentView} onLogout={signOut} userProfile={profile}>
-        <div className="min-h-screen bg-[#0f0f0f] overflow-x-hidden">
-          {/* Global Header with Time Selector - Fixed Position */}
-          <header className="sticky top-0 z-10 bg-[#0f0f0f] py-8 border-b border-[#2d2d2d]">
+        <div className="min-h-screen bg-[#0f0f0f]">
+          {/* Global Header with Time Selector */}
+          <header className="py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex space-x-3">
@@ -164,13 +164,11 @@ export default function Home() {
                     <p className="text-[#b3b3b3] text-sm mt-1">{currentHeader.description}</p>
                   </div>
                 </div>
-                <div className="flex-shrink-0">
-                  <TimeRangeSelector
-                    key="global-time-selector"
-                    onRangeChange={handleRangeChange}
-                    initialScale="week"
-                  />
-                </div>
+                <TimeRangeSelector
+                  key="global-time-selector"
+                  onRangeChange={handleRangeChange}
+                  initialScale="week"
+                />
               </div>
             </div>
           </header>
