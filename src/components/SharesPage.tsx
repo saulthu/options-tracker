@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { TrendingUp, DollarSign } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TimeRange } from "./TimeRangeSelector";
+import { usePortfolio } from "@/contexts/PortfolioContext";
+import { useAuth } from "@/contexts/AuthContext";
 
-import { supabase } from "@/lib/supabase";
-
+interface SharesPageProps {
+  selectedRange: TimeRange;
+}
 
 interface SharePosition {
   ticker: string;
@@ -19,180 +22,103 @@ interface SharePosition {
   coveredCalls: number;
 }
 
-interface SharesPageProps {
-  selectedRange: TimeRange;
-}
-
 export default function SharesPage({ selectedRange }: SharesPageProps) {
-  const [sharePositions, setSharePositions] = useState<SharePosition[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { getFilteredPortfolio, loading, error } = usePortfolio();
 
-  // Debug: Show what SharesPage received
-  console.log('SharesPage received selectedRange:');
-  console.log('Start date:', selectedRange.startDate.toDateString());
-  console.log('End date:', selectedRange.endDate.toDateString());
-  console.log('Scale:', selectedRange.scale);
+  // Get filtered portfolio for the selected time range
+  const filteredPortfolio = useMemo(() => {
+    return getFilteredPortfolio(selectedRange);
+  }, [getFilteredPortfolio, selectedRange]);
 
-  // Use the selected time range dates directly
-  const dateRange = useMemo(() => {
-    return {
-      startDate: selectedRange.startDate.toISOString().split('T')[0],
-      endDate: selectedRange.endDate.toISOString().split('T')[0]
-    };
-  }, [selectedRange]);
+  // Calculate share positions from filtered portfolio
+  const sharePositions = useMemo((): SharePosition[] => {
+    if (!filteredPortfolio) return [];
 
-  // Fetch share positions from database
-  const fetchSharePositions = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const positions: SharePosition[] = [];
+    
+    // Get all account IDs from the filtered portfolio
+    const accountIds = [...new Set(Array.from(filteredPortfolio.positions.values()).map(pos => pos.accountId))];
+    
+    accountIds.forEach(accountId => {
+      // Get positions for this account
+      const accountPositions = Array.from(filteredPortfolio.positions.values()).filter(pos => 
+        pos.accountId === accountId && pos.instrumentKind === 'SHARES'
+      );
+      
+      accountPositions.forEach(position => {
+        if (position.ticker) {
+          // Calculate covered calls for this ticker
+          const coveredCalls = Array.from(filteredPortfolio.positions.values())
+            .filter(pos => 
+              pos.accountId === accountId && 
+              pos.instrumentKind === 'CALL' && 
+              pos.ticker === position.ticker &&
+              pos.qty < 0 // Short calls
+            )
+            .reduce((sum, pos) => sum + Math.abs(pos.qty), 0);
 
-      // Get the current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Fetch share trades for the user within the selected date range
-      const { data: trades, error: tradesError } = await supabase
-        .from('trades')
-        .select(`
-          *,
-          ticker:tickers(name)
-        `)
-        .eq('user_id', user.id)
-        .eq('type', 'Shares')
-        .gte('opened', dateRange.startDate)
-        .lte('opened', dateRange.endDate)
-        .order('opened', { ascending: true });
-
-      console.log('Fetched trades:', trades);
-      console.log('Date range:', dateRange.startDate, 'to', dateRange.endDate);
-
-      if (tradesError) {
-        throw new Error(`Error fetching trades: ${tradesError.message}`);
-      }
-
-      // Fetch covered call options to calculate coverage within the same date range
-      const { data: coveredCalls, error: ccError } = await supabase
-        .from('trades')
-        .select('ticker_id, quantity')
-        .eq('user_id', user.id)
-        .eq('type', 'CC')
-        .eq('action', 'Sell')
-        .is('closed', null)
-        .gte('opened', dateRange.startDate)
-        .lte('opened', dateRange.endDate);
-
-      if (ccError) {
-        throw new Error(`Error fetching covered calls: ${ccError.message}`);
-      }
-
-      console.log('Fetched covered calls:', coveredCalls);
-
-      // Group trades by ticker and calculate positions
-      const positionsMap = new Map<string, SharePosition>();
-
-      trades?.forEach((trade) => {
-        const tickerName = (trade.ticker as { name: string })?.name;
-        if (!tickerName) return;
-
-        const existing = positionsMap.get(tickerName);
-        const tradeValue = Math.abs(trade.value); // Use absolute value for calculations
-        const isBuy = trade.action === 'Buy' || trade.action === 'Assigned';
-        const isSell = trade.action === 'Sell' || trade.action === 'Called Away';
-
-        if (existing) {
-          if (isBuy) {
-            // Add to position
-            const newQuantity = existing.quantity + trade.quantity;
-            const newTotalCost = existing.totalCost + tradeValue;
-            existing.quantity = newQuantity;
-            existing.totalCost = newTotalCost;
-            existing.costBasis = newTotalCost / newQuantity;
-          } else if (isSell) {
-            // Reduce position (FIFO-like, but simplified)
-            const newQuantity = Math.max(0, existing.quantity - trade.quantity);
-            if (newQuantity === 0) {
-              // Position closed, remove from map
-              positionsMap.delete(tickerName);
-            } else {
-              // Adjust cost basis proportionally
-              const remainingRatio = newQuantity / existing.quantity;
-              existing.quantity = newQuantity;
-              existing.totalCost = existing.totalCost * remainingRatio;
-              existing.costBasis = existing.totalCost / newQuantity;
-            }
-          }
-        } else if (isBuy) {
-          // New position
-          positionsMap.set(tickerName, {
-            ticker: tickerName,
-            tickerId: trade.ticker_id!,
-            quantity: trade.quantity,
-            costBasis: trade.price,
-            totalCost: tradeValue,
-            currentValue: 0, // Will be calculated later
-            unrealizedPnL: 0, // Will be calculated later
-            coveredCalls: 0
+          positions.push({
+            ticker: position.ticker,
+            tickerId: position.ticker, // We'll need to get the actual ticker ID from transactions
+            quantity: position.qty,
+            costBasis: position.avgPrice,
+            totalCost: position.qty * position.avgPrice,
+            currentValue: position.qty * position.avgPrice, // Placeholder - will be replaced with real market data
+            unrealizedPnL: 0, // Placeholder - will be calculated when we have market prices
+            coveredCalls: coveredCalls
           });
         }
       });
+    });
 
-      // Calculate covered calls for each position
-      coveredCalls?.forEach((cc) => {
-        if (cc.ticker_id) {
-          // Find the position by ticker ID
-          for (const position of positionsMap.values()) {
-            if (position.tickerId === cc.ticker_id) {
-              position.coveredCalls += cc.quantity;
-              break;
-            }
-          }
-        }
-      });
-
-      // Convert to array and calculate current values (placeholder for now)
-      const positions = Array.from(positionsMap.values()).map(position => ({
-        ...position,
-        currentValue: position.totalCost, // Placeholder - will be replaced with real market data
-        unrealizedPnL: 0 // Placeholder - will be calculated when we have market prices
-      }));
-
-      console.log('Calculated positions:', positions);
-      setSharePositions(positions);
-    } catch (err) {
-      console.error('Error fetching share positions:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
-
-  // Fetch data when date range changes
-  useEffect(() => {
-    fetchSharePositions();
-  }, [fetchSharePositions]);
+    return positions;
+  }, [filteredPortfolio]);
 
   // Memoize expensive calculations
-  const formatCurrency = useCallback((amount: number) => {
+  const formatCurrency = useMemo(() => (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
   }, []);
 
-  const formatPercentage = useCallback((amount: number, total: number) => {
+  const formatPercentage = useMemo(() => (amount: number, total: number) => {
     if (total === 0) return '0.00%';
     return `${((amount / total) * 100).toFixed(2)}%`;
   }, []);
 
-  const getPnLColor = useCallback((pnl: number) => {
+  const getPnLColor = useMemo(() => (pnl: number) => {
     if (pnl > 0) return 'text-green-400';
     if (pnl < 0) return 'text-red-400';
     return 'text-gray-400';
   }, []);
+
+  const getCoverageStatus = useMemo(() => (quantity: number, coveredCalls: number) => {
+    if (coveredCalls === 0) return { status: 'Uncovered', color: 'text-red-400', bgColor: 'bg-red-900/20' };
+    if (coveredCalls >= quantity) return { status: 'Full', color: 'text-green-400', bgColor: 'bg-green-900/20' };
+    return { status: 'Partial', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' };
+  }, []);
+
+  const rangeDescription = useMemo(() => {
+    const startStr = selectedRange.startDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+    const endStr = selectedRange.endDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    });
+    return `${startStr} - ${endStr}`;
+  }, [selectedRange]);
+
+  // Memoize totals calculation
+  const totals = useMemo(() => {
+    const totalCost = sharePositions.reduce((sum, position) => sum + position.totalCost, 0);
+    const totalValue = sharePositions.reduce((sum, position) => sum + position.currentValue, 0);
+    const totalPnL = sharePositions.reduce((sum, position) => sum + position.unrealizedPnL, 0);
+    return { totalCost, totalValue, totalPnL };
+  }, [sharePositions]);
 
   const handleBuyShares = (ticker?: string) => {
     if (ticker) {
@@ -214,32 +140,6 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
     }
   };
 
-  const getCoverageStatus = (quantity: number, coveredCalls: number) => {
-    if (coveredCalls === 0) return { status: 'Uncovered', color: 'text-red-400', bgColor: 'bg-red-900/20' };
-    if (coveredCalls >= quantity) return { status: 'Full', color: 'text-green-400', bgColor: 'bg-green-900/20' };
-    return { status: 'Partial', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' };
-  };
-
-  const getRangeDescription = () => {
-    const startStr = selectedRange.startDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-    const endStr = selectedRange.endDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-    return `${startStr} - ${endStr}`;
-  };
-
-  // Memoize totals calculation
-  const totals = useMemo(() => {
-    const totalCost = sharePositions.reduce((sum, position) => sum + position.totalCost, 0);
-    const totalValue = sharePositions.reduce((sum, position) => sum + position.currentValue, 0);
-    const totalPnL = sharePositions.reduce((sum, position) => sum + position.unrealizedPnL, 0);
-    return { totalCost, totalValue, totalPnL };
-  }, [sharePositions]);
-
   if (loading) {
     return (
       <div className="text-center py-8 text-[#b3b3b3]">
@@ -255,19 +155,21 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
         <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p className="text-red-400">Error loading share positions</p>
         <p className="text-sm text-[#b3b3b3]">{error}</p>
-        <button 
-          onClick={fetchSharePositions}
-          className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-        >
-          Retry
-        </button>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center py-8 text-[#b3b3b3]">
+        <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <p>Please log in to view your portfolio</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
@@ -318,7 +220,7 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
                 Positions
               </CardTitle>
               <CardDescription className="text-[#b3b3b3]">
-                Share positions grouped by ticker for {getRangeDescription()} ({selectedRange.scale})
+                Share positions grouped by ticker for {rangeDescription} ({selectedRange.scale})
               </CardDescription>
             </div>
             <div className="flex space-x-3">
@@ -342,14 +244,8 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
             <div className="text-center py-8 text-[#b3b3b3]">
               <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No share positions found</p>
-              <p className="text-sm">No share trades found for {getRangeDescription()} ({selectedRange.scale})</p>
+              <p className="text-sm">No share trades found for {rangeDescription} ({selectedRange.scale})</p>
               <p className="text-xs mt-2">Try selecting a different date range or add some share trades</p>
-              <button 
-                onClick={fetchSharePositions}
-                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm"
-              >
-                Refresh Data
-              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">

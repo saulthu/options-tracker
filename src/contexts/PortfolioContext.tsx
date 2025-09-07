@@ -8,10 +8,12 @@ import {
   Transaction, 
   Position, 
   RealizedEvent,
+  TimeRange,
   getAccountPositions,
   getAccountRealizedPnL,
   getAccountBalance,
-  getTotalRealizedPnL
+  getTotalRealizedPnL,
+  filterTransactionsByTimeRange
 } from '@/lib/portfolio-calculator';
 
 // Supabase client
@@ -34,6 +36,8 @@ interface PortfolioContextType {
   getRealizedPnL: (accountId: string) => RealizedEvent[];
   getBalance: (accountId: string) => number;
   getTotalPnL: (accountId: string) => number;
+  getFilteredTransactions: (timeRange: TimeRange) => Transaction[];
+  getFilteredPortfolio: (timeRange: TimeRange) => PortfolioState | null;
   
   // Actions
   refreshPortfolio: () => Promise<void>;
@@ -215,6 +219,16 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return getTotalRealizedPnL(portfolio, accountId);
   }, [portfolio]);
 
+  const getFilteredTransactions = useCallback((timeRange: TimeRange): Transaction[] => {
+    return filterTransactionsByTimeRange(transactions, timeRange);
+  }, [transactions]);
+
+  const getFilteredPortfolio = useCallback((timeRange: TimeRange): PortfolioState | null => {
+    const filteredTransactions = getFilteredTransactions(timeRange);
+    if (filteredTransactions.length === 0) return null;
+    return buildPortfolio(filteredTransactions);
+  }, [getFilteredTransactions]);
+
   // Actions
   const refreshPortfolio = useCallback(async () => {
     await fetchTransactions();
@@ -287,6 +301,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     getRealizedPnL,
     getBalance,
     getTotalPnL,
+    getFilteredTransactions,
+    getFilteredPortfolio,
     refreshPortfolio,
     addTransaction,
     updateTransaction,

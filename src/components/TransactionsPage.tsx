@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, DollarSign, Activity, Filter } from "lucide-react";
@@ -13,7 +14,26 @@ interface TransactionsPageProps {
 
 export default function TransactionsPage({ selectedRange }: TransactionsPageProps) {
   const { user } = useAuth();
-  const { transactions, loading } = usePortfolio();
+  const { getFilteredTransactions, loading } = usePortfolio();
+
+  // Get filtered transactions for the selected date range
+  const filteredTransactions = getFilteredTransactions(selectedRange);
+
+  // Memoize summary statistics
+  const summaryStats = useMemo(() => {
+    const totalTrades = filteredTransactions.length;
+    const totalValue = filteredTransactions.reduce((sum, transaction) => {
+      if (transaction.instrument_kind === 'CASH') {
+        return sum + Math.abs(transaction.qty);
+      } else {
+        return sum + Math.abs((transaction.price || 0) * transaction.qty);
+      }
+    }, 0);
+    const buyTrades = filteredTransactions.filter(transaction => transaction.side === 'BUY' || transaction.instrument_kind === 'CASH' && transaction.qty > 0).length;
+    const sellTrades = filteredTransactions.filter(transaction => transaction.side === 'SELL' || transaction.instrument_kind === 'CASH' && transaction.qty < 0).length;
+    
+    return { totalTrades, totalValue, buyTrades, sellTrades };
+  }, [filteredTransactions]);
   
   if (loading) {
     return (
@@ -31,24 +51,6 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     );
   }
 
-  // Filter transactions by selected date range
-  const filteredTransactions = transactions.filter(transaction => {
-    const transactionDate = new Date(transaction.timestamp);
-    return transactionDate >= selectedRange.startDate && transactionDate <= selectedRange.endDate;
-  });
-
-  // Calculate summary statistics
-  const totalTrades = filteredTransactions.length;
-  const totalValue = filteredTransactions.reduce((sum, transaction) => {
-    if (transaction.instrument_kind === 'CASH') {
-      return sum + Math.abs(transaction.qty);
-    } else {
-      return sum + Math.abs((transaction.price || 0) * transaction.qty);
-    }
-  }, 0);
-  const buyTrades = filteredTransactions.filter(transaction => transaction.side === 'BUY' || transaction.instrument_kind === 'CASH' && transaction.qty > 0).length;
-  const sellTrades = filteredTransactions.filter(transaction => transaction.side === 'SELL' || transaction.instrument_kind === 'CASH' && transaction.qty < 0).length;
-
   return (
     <div className="space-y-8">
       {/* Transaction Summary */}
@@ -59,7 +61,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
             <Activity className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{totalTrades}</div>
+            <div className="text-2xl font-bold text-white">{summaryStats.totalTrades}</div>
             <p className="text-xs text-[#b3b3b3]">
               For {selectedRange.label}
             </p>
@@ -72,7 +74,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
             <DollarSign className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">${totalValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-white">${summaryStats.totalValue.toFixed(2)}</div>
             <p className="text-xs text-[#b3b3b3]">
               Transaction volume
             </p>
@@ -85,7 +87,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
             <TrendingUp className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-400">{buyTrades}</div>
+            <div className="text-2xl font-bold text-green-400">{summaryStats.buyTrades}</div>
             <p className="text-xs text-[#b3b3b3]">
               Purchases & deposits
             </p>
@@ -98,7 +100,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
             <Filter className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-400">{sellTrades}</div>
+            <div className="text-2xl font-bold text-red-400">{summaryStats.sellTrades}</div>
             <p className="text-xs text-[#b3b3b3]">
               Sales & withdrawals
             </p>
@@ -188,7 +190,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
             <div className="space-y-3">
               {['CASH', 'SHARES', 'CALL', 'PUT'].map((type) => {
                 const count = filteredTransactions.filter(transaction => transaction.instrument_kind === type).length;
-                const percentage = totalTrades > 0 ? (count / totalTrades * 100).toFixed(1) : 0;
+                const percentage = summaryStats.totalTrades > 0 ? (count / summaryStats.totalTrades * 100).toFixed(1) : 0;
                 return (
                   <div key={type} className="flex justify-between items-center p-3 bg-[#2d2d2d] rounded-lg">
                     <div>

@@ -91,6 +91,12 @@ export interface PortfolioState {
   realized: RealizedEvent[];
 }
 
+export interface TimeRange {
+  startDate: Date;
+  endDate: Date;
+  scale: 'day' | 'week' | 'month' | 'year';
+}
+
 // Helper functions
 export function instrumentKey(
   kind: InstrumentKind, 
@@ -101,6 +107,16 @@ export function instrumentKey(
   if (kind === 'CASH') return 'CASH';
   if (kind === 'SHARES') return ticker!;
   return `${ticker}|${expiry}|${strike}|${kind}`;
+}
+
+export function filterTransactionsByTimeRange(
+  transactions: Transaction[], 
+  timeRange: TimeRange
+): Transaction[] {
+  return transactions.filter(tx => {
+    const txDate = new Date(tx.timestamp);
+    return txDate >= timeRange.startDate && txDate <= timeRange.endDate;
+  });
 }
 
 export function isOption(kind: InstrumentKind): boolean {
