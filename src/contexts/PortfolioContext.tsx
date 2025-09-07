@@ -41,6 +41,7 @@ interface PortfolioContextType {
   
   // Actions
   refreshPortfolio: () => Promise<void>;
+  refreshOnAccountChange: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -234,6 +235,11 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     await fetchTransactions();
   }, [fetchTransactions]);
 
+  const refreshOnAccountChange = useCallback(async () => {
+    // Refresh portfolio data when accounts change to get updated account names
+    await fetchTransactions();
+  }, [fetchTransactions]);
+
   const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { error: insertError } = await supabase
@@ -304,6 +310,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     getFilteredTransactions,
     getFilteredPortfolio,
     refreshPortfolio,
+    refreshOnAccountChange,
     addTransaction,
     updateTransaction,
     deleteTransaction,

@@ -325,7 +325,12 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                         }`}
                       >
                         <td className="py-2 px-2">
-                          <div className="text-white font-medium">{accountData.account.name}</div>
+                          <div 
+                            className="text-white font-medium truncate max-w-[150px]" 
+                            title={accountData.account.name}
+                          >
+                            {accountData.account.name}
+                          </div>
                         </td>
                         <td className="py-2 px-2 text-white font-mono text-xs">
                           {new Date(transaction.timestamp).toLocaleDateString('en-US', {
@@ -345,7 +350,10 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                           </div>
                         </td>
                         <td className="py-2 px-2">
-                          <div className="text-white">
+                          <div 
+                            className="text-white truncate max-w-[200px]" 
+                            title={getInstrumentDisplay(transaction)}
+                          >
                             {getInstrumentDisplay(transaction)}
                           </div>
                         </td>
@@ -367,7 +375,12 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                           {formatCurrency(transaction.balanceAfter || 0)}
                         </td>
                         <td className="py-2 px-2 text-[#b3b3b3] text-xs">
-                          {transaction.memo || '-'}
+                          <div 
+                            className="truncate max-w-[150px]" 
+                            title={transaction.memo || '-'}
+                          >
+                            {transaction.memo || '-'}
+                          </div>
                         </td>
                       </tr>
                     ))

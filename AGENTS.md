@@ -415,6 +415,29 @@ Common permission/RLS issues and their solutions:
 8. **Database not initialized**: User must run `clean-database-schema.sql` first
 9. **Chicken-and-egg problem**: Don't query users table before user is created
 
+### **Account Data Synchronization Pattern** ⭐ **NEW**
+
+**Purpose**: Ensure that when account information is updated in settings, the transaction data reflects the new account names and details.
+
+**Problem**: Transactions are loaded with JOINed account data at startup. When account names are updated in settings, the in-memory transaction data still contains the old account names.
+
+**Solution**: 
+1. **Add refresh method** to PortfolioContext: `refreshOnAccountChange()`
+2. **Call refresh** from settings page after account updates (create, update, delete)
+3. **Re-fetch transactions** with fresh JOINed account data
+4. **Recalculate portfolio** with updated account information
+
+**Implementation**:
+- **PortfolioContext**: Add `refreshOnAccountChange()` method that calls `fetchTransactions()`
+- **Settings Page**: Call `refreshOnAccountChange()` after successful account operations
+- **Automatic Sync**: Account changes immediately reflect in all transaction displays
+
+**Benefits**:
+- **Data Consistency**: Transaction displays always show current account names
+- **User Experience**: Changes are immediately visible across the app
+- **Minimal Overhead**: Only refreshes when accounts actually change
+- **Clean Architecture**: Settings page triggers refresh, PortfolioContext handles the logic
+
 ### **Database Specification Update Pattern**
 1. **Update `src/docs/database_spec.md`** with new requirements
 2. **Update `clean-database-schema.sql`** to match specification

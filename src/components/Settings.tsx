@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePortfolio } from "@/contexts/PortfolioContext";
 import { useAccounts, type Account, type AccountFormData } from "@/hooks/useAccounts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeButton, CancelButton, DestructiveButton } from "@/components/ui/theme-button";
@@ -21,6 +22,7 @@ interface SettingsProps {
 
 export default function Settings({ updateProfile, profile }: SettingsProps) {
   const { user } = useAuth();
+  const { refreshOnAccountChange } = usePortfolio();
   const [tempName, setTempName] = useState("");
   const [saving, setSaving] = useState(false);
   
@@ -88,6 +90,9 @@ export default function Settings({ updateProfile, profile }: SettingsProps) {
         return;
       }
       
+      // Refresh portfolio data to get updated account names in transactions
+      await refreshOnAccountChange();
+      
       setIsAccountFormOpen(false);
       setEditingAccount(null);
     } catch (error) {
@@ -103,6 +108,9 @@ export default function Settings({ updateProfile, profile }: SettingsProps) {
       if (result.error) {
         console.error('Error deleting account:', result.error);
         // You could add a toast notification here
+      } else {
+        // Refresh portfolio data after account deletion
+        await refreshOnAccountChange();
       }
     }
   };
