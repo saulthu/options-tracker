@@ -41,10 +41,8 @@ export default function TimeRangeSelector({
           endDate,
           scale,
           label: date.toLocaleDateString('en-US', { 
-            weekday: 'short',
             month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
+            day: 'numeric'
           })
         };
 
@@ -230,7 +228,7 @@ export default function TimeRangeSelector({
   }, [currentScale, calculateTimeRange, notifyParent]);
 
   return (
-    <div className="flex flex-col items-center gap-1.5 w-full max-w-[200px]">
+    <div className="flex flex-col items-center gap-1.5 w-full max-w-[160px]">
       {/* Navigation */}
       <div className="flex items-center gap-0.5 w-full">
         <ThemeButton
