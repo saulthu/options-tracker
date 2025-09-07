@@ -41,7 +41,7 @@ export default function TimeRangeSelector({
           endDate,
           scale,
           label: date.toLocaleDateString('en-US', { 
-            month: 'short', 
+            month: 'numeric', 
             day: 'numeric'
           })
         };
@@ -90,7 +90,7 @@ export default function TimeRangeSelector({
           startDate,
           endDate,
           scale,
-          label: `${endDate.toLocaleDateString('en-US', { 
+          label: `End ${endDate.toLocaleDateString('en-US', { 
             month: 'numeric', 
             day: 'numeric' 
           })}`
@@ -109,8 +109,7 @@ export default function TimeRangeSelector({
           endDate,
           scale,
           label: date.toLocaleDateString('en-US', { 
-            month: 'short',
-            year: '2-digit'
+            month: 'short'
           })
         };
 
@@ -234,7 +233,7 @@ export default function TimeRangeSelector({
         <ThemeButton
           onClick={goToPrevious}
           size="sm"
-          className="p-1 flex-shrink-0"
+          className="p-1 flex-shrink-0 h-7"
         >
           <ChevronLeft className="h-3 w-3" />
         </ThemeButton>
@@ -250,7 +249,7 @@ export default function TimeRangeSelector({
         <ThemeButton
           onClick={goToNext}
           size="sm"
-          className="p-1 flex-shrink-0"
+          className="p-1 flex-shrink-0 h-7"
         >
           <ChevronRight className="h-3 w-3" />
         </ThemeButton>
