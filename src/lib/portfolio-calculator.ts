@@ -125,37 +125,9 @@ export function filterTransactionsByTimeRange(
   transactions: Transaction[], 
   timeRange: TimeRange
 ): Transaction[] {
-  console.log('Filtering transactions:', {
-    totalTransactions: transactions.length,
-    timeRange: {
-      start: timeRange.startDate.toISOString(),
-      end: timeRange.endDate.toISOString()
-    }
-  });
-
   const filtered = transactions.filter(tx => {
     const txDate = new Date(tx.timestamp);
-    const isInRange = txDate >= timeRange.startDate && txDate <= timeRange.endDate;
-    
-    console.log('Transaction filter check:', {
-      txId: tx.id,
-      txTimestamp: tx.timestamp,
-      txDate: txDate.toISOString(),
-      startDate: timeRange.startDate.toISOString(),
-      endDate: timeRange.endDate.toISOString(),
-      isInRange,
-      comparison: {
-        afterStart: txDate >= timeRange.startDate,
-        beforeEnd: txDate <= timeRange.endDate
-      }
-    });
-    
-    return isInRange;
-  });
-
-  console.log('Filtered result:', {
-    filteredCount: filtered.length,
-    filteredIds: filtered.map(tx => tx.id)
+    return txDate >= timeRange.startDate && txDate <= timeRange.endDate;
   });
 
   return filtered;
