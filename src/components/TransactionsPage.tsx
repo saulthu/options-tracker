@@ -102,42 +102,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
   const sortedTransactions = useMemo((): TransactionWithDetails[] => {
     if (!filteredTransactions.length) return [];
 
-    // Calculate running balances from ALL transactions (not just filtered ones)
-    // This ensures balances include accumulated history from previous periods
-    const accountBalances: Record<string, number> = {};
-    
-    // Process ALL transactions in chronological order to build accurate running balances
-    const allSortedTransactions = [...allTransactions].sort((a, b) => 
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-    
-    allSortedTransactions.forEach(transaction => {
-      const accountId = transaction.account_id;
-      
-      // Initialize account balance if not exists
-      if (!(accountId in accountBalances)) {
-        accountBalances[accountId] = 0;
-      }
-      
-      // Calculate cash delta for this transaction
-      let cashDelta = 0;
-      
-      if (transaction.instrument_kind === 'CASH') {
-        // Cash transactions: qty is the cash amount
-        cashDelta = transaction.qty;
-      } else if (transaction.side === 'BUY') {
-        // Buying shares/options: negative cash flow
-        const totalCost = (transaction.price || 0) * transaction.qty;
-        cashDelta = -(totalCost + transaction.fees);
-      } else if (transaction.side === 'SELL') {
-        // Selling shares/options: positive cash flow
-        const totalProceeds = (transaction.price || 0) * transaction.qty;
-        cashDelta = totalProceeds - transaction.fees;
-      }
-
-      // Update running balance for this account
-      accountBalances[accountId] += cashDelta;
-    });
+    // Note: We no longer need to track accountBalances here since we use the portfolio calculator's ledger
 
     // Now sort the FILTERED transactions by selected field
     const sorted = [...filteredTransactions].sort((a, b) => {
@@ -226,53 +191,10 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
 
     // Use the pre-calculated account balances and calculate cash deltas for filtered transactions
     return sorted.map(transaction => {
-      const accountId = transaction.account_id;
-      
-      // Calculate cash delta for this transaction
-      let cashDelta = 0;
-      
-      if (transaction.instrument_kind === 'CASH') {
-        // Cash transactions: qty is the cash amount
-        cashDelta = transaction.qty;
-      } else if (transaction.side === 'BUY') {
-        // Buying shares/options: negative cash flow
-        const totalCost = (transaction.price || 0) * transaction.qty;
-        cashDelta = -(totalCost + transaction.fees);
-      } else if (transaction.side === 'SELL') {
-        // Selling shares/options: positive cash flow
-        const totalProceeds = (transaction.price || 0) * transaction.qty;
-        cashDelta = totalProceeds - transaction.fees;
-      }
-
-      // Get the running balance at the time of this transaction
-      // We need to find the balance after this specific transaction
-      let balanceAfter = accountBalances[accountId] || 0;
-      
-      // If this transaction is in the filtered set, we need to calculate
-      // the balance up to this point by processing all transactions up to this timestamp
-      const transactionTime = new Date(transaction.timestamp).getTime();
-      let runningBalance = 0;
-      
-      // Process all transactions up to this point to get accurate balance
-      allSortedTransactions.forEach(tx => {
-        if (new Date(tx.timestamp).getTime() <= transactionTime && tx.account_id === accountId) {
-          let txCashDelta = 0;
-          
-          if (tx.instrument_kind === 'CASH') {
-            txCashDelta = tx.qty;
-          } else if (tx.side === 'BUY') {
-            const totalCost = (tx.price || 0) * tx.qty;
-            txCashDelta = -(totalCost + tx.fees);
-          } else if (tx.side === 'SELL') {
-            const totalProceeds = (tx.price || 0) * tx.qty;
-            txCashDelta = totalProceeds - tx.fees;
-          }
-          
-          runningBalance += txCashDelta;
-        }
-      });
-      
-      balanceAfter = runningBalance;
+      // Get cash delta and balance from the portfolio calculator's ledger
+      const ledgerEntry = fullPortfolio?.ledger.find(entry => entry.txnId === transaction.id);
+      const cashDelta = ledgerEntry?.cashDelta || 0;
+      const balanceAfter = ledgerEntry?.balanceAfter || 0;
 
       return {
         ...transaction,
@@ -280,7 +202,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
         balanceAfter
       };
     });
-  }, [filteredTransactions, allTransactions, sortField, sortDirection]);
+  }, [filteredTransactions, sortField, sortDirection, fullPortfolio?.ledger]);
 
   // Memoize summary statistics
   const summaryStats = useMemo(() => {
@@ -417,16 +339,16 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                   {fullPortfolio ? JSON.stringify({
                     positions: Object.fromEntries(
                       Array.from(fullPortfolio.positions.entries()).map(([key, position]) => {
-                        // Show both account name and UUID for clarity and uniqueness
+                        // Show account name (unique per user)
                         const accountName = allTransactions.find(t => t.account_id === position.accountId)?.accounts?.name || 'Unknown';
-                        const readableKey = key.replace(position.accountId, `${accountName}(${position.accountId.slice(0, 8)})`);
+                        const readableKey = key.replace(position.accountId, accountName);
                         return [readableKey, position];
                       })
                     ),
                     balances: Object.fromEntries(
                       Array.from(fullPortfolio.balances.entries()).map(([accountId, balance]) => {
                         const accountName = allTransactions.find(t => t.account_id === accountId)?.accounts?.name || 'Unknown';
-                        return [`${accountName}(${accountId.slice(0, 8)})`, balance];
+                        return [accountName, balance];
                       })
                     ),
                     ledgerCount: fullPortfolio.ledger.length,

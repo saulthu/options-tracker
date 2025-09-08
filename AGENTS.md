@@ -489,6 +489,44 @@ Common authentication issues and their solutions:
 - **Minimal Overhead**: Only refreshes when accounts actually change
 - **Clean Architecture**: Settings page triggers refresh, PortfolioContext handles the logic
 
+### **Single Responsibility & No Redundancy Pattern** ⭐ **NEW**
+
+**Purpose**: Ensure that each module has a single, well-defined responsibility and avoid duplicating logic across components.
+
+**Key Principles**:
+- **Single Source of Truth**: Each business logic calculation should exist in exactly one place
+- **Module Responsibility**: Each module should have one clear purpose (e.g., portfolio-calculator.ts for all portfolio calculations)
+- **No Duplication**: Never reimplement business logic that already exists in a specialized module
+- **Use Existing APIs**: Always use existing methods from specialized modules instead of reimplementing
+- **Centralized Logic**: Keep all related calculations in the same module for consistency
+
+**Common Violations**:
+- ❌ **Reimplementing calculations** in UI components that already exist in business logic modules
+- ❌ **Duplicating data processing** across multiple components
+- ❌ **Creating parallel state management** when centralized state already exists
+- ❌ **Manual calculations** when automated calculations are available
+- ❌ **Redundant data fetching** when data is already available in context
+
+**Examples of Correct Usage**:
+- ✅ **Portfolio Calculations**: Use `portfolio-calculator.ts` for all P&L, balances, positions
+- ✅ **Data Access**: Use `PortfolioContext` methods instead of direct Supabase queries
+- ✅ **Time Filtering**: Use `getFilteredPortfolio()` instead of manual date filtering
+- ✅ **State Management**: Use context hooks instead of local state for shared data
+
+**Redundancy Detection Checklist**:
+1. **Before implementing any calculation**, check if it already exists in a specialized module
+2. **Before creating new state**, check if it's already available in a context
+3. **Before writing data processing**, check if there's an existing method that does it
+4. **Before duplicating logic**, refactor to use the existing implementation
+5. **Always prefer composition** over duplication
+
+**Benefits**:
+- **Consistency**: All calculations use the same logic
+- **Maintainability**: Changes only need to be made in one place
+- **Accuracy**: Reduces risk of calculation discrepancies
+- **Performance**: Avoids redundant processing
+- **Testing**: Easier to test centralized logic
+
 ### **Database Specification Update Pattern**
 1. **Update `src/docs/database_spec.md`** with new requirements
 2. **Update `clean-database-schema.sql`** to match specification
