@@ -298,6 +298,7 @@ export default function Settings({ updateProfile, profile }: SettingsProps) {
           onSubmit={handleAccountSubmit}
           account={editingAccount}
           loading={accountLoading}
+          existingAccounts={accounts}
         />
 
       </div>

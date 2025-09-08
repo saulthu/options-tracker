@@ -73,7 +73,13 @@ export function useAccounts() {
 
       if (createError) {
         console.error('Error creating account:', createError);
-        return { error: createError.message };
+        
+        // Handle unique constraint violation specifically
+        if (createError.code === '23505' && createError.message.includes('unique constraint')) {
+          return { error: 'An account with this name already exists. Please choose a different name.' };
+        }
+        
+        return { error: createError.message || 'Failed to create account' };
       }
 
       // Update local state
@@ -100,7 +106,13 @@ export function useAccounts() {
 
       if (updateError) {
         console.error('Error updating account:', updateError);
-        return { error: updateError.message };
+        
+        // Handle unique constraint violation specifically
+        if (updateError.code === '23505' && updateError.message.includes('unique constraint')) {
+          return { error: 'An account with this name already exists. Please choose a different name.' };
+        }
+        
+        return { error: updateError.message || 'Failed to update account' };
       }
 
       // Update local state
