@@ -9,7 +9,7 @@ import SharesPage from "@/components/SharesPage";
 import OverviewPage from "@/components/OverviewPage";
 import ReportPage from "@/components/ReportPage";
 import OptionsPage from "@/components/OptionsPage";
-import EpisodesPage from "@/components/EpisodesPage";
+import PositionsPage from "@/components/EpisodesPage";
 
 import DebugSupabase from "@/components/DebugSupabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,7 +52,7 @@ export default function Home() {
         };
       case 'transactions':
         return {
-          title: "Position Episodes",
+          title: "Positions",
           icon: List,
           description: "View your trading positions grouped by episodes and strategies."
         };
@@ -133,7 +133,7 @@ export default function Home() {
       case 'options':
         return <OptionsPage selectedRange={selectedRange} />;
       case 'transactions':
-        return <EpisodesPage selectedRange={selectedRange} />;
+        return <PositionsPage selectedRange={selectedRange} />;
       case 'weekly-report':
         return <ReportPage selectedRange={selectedRange} />;
       case 'overview':

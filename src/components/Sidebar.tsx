@@ -141,7 +141,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
 
     { key: 'shares', icon: TrendingUp, text: 'Shares', hasAction: true },
     { key: 'options', icon: Activity, text: 'Options', hasAction: true },
-    { key: 'transactions', icon: List, text: 'Position Episodes', hasAction: true },
+    { key: 'transactions', icon: List, text: 'Positions', hasAction: true },
     { key: 'ai-assistant', icon: Brain, text: 'AI Assistant' },
     { key: 'settings', icon: Settings, text: 'Settings', hasAction: true },
   ].map(item => ({
