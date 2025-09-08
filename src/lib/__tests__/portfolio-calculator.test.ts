@@ -708,4 +708,91 @@ describe('Portfolio Calculator - Integration Tests', () => {
     const balances = Array.from(portfolio.balances.entries());
     expect(balances[0][1]).toBeGreaterThan(10000); // Should be profitable
   });
+
+  it('should handle real-world data structure with joined ticker data', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 'tx1',
+        user_id: 'user-1',
+        account_id: 'account-1',
+        timestamp: '2025-01-01T10:00:00Z',
+        created_at: '2025-01-01T10:00:00Z',
+        updated_at: '2025-01-01T10:00:00Z',
+        instrument_kind: 'SHARES',
+        ticker_id: '550e8400-e29b-41d4-a716-446655440000', // UUID
+        side: 'BUY',
+        qty: 100,
+        price: 150.00,
+        fees: 1.00,
+        memo: 'Test purchase',
+        // Joined data from PortfolioContext
+        tickers: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: 'AAPL', // This should be used, not the UUID
+          icon: 'https://example.com/aapl.png'
+        },
+        accounts: {
+          id: 'account-1',
+          name: 'Test Account',
+          type: 'Individual',
+          institution: 'Test Broker'
+        }
+      }
+    ];
+
+    const portfolio = buildPortfolio(transactions);
+
+    // Verify that the instrumentKey uses the ticker name, not the UUID
+    const positions = Array.from(portfolio.positions.values());
+    expect(positions).toHaveLength(1);
+    expect(positions[0].instrumentKey).toBe('AAPL'); // Should be ticker name, not UUID
+    expect(positions[0].ticker).toBe('AAPL');
+  });
+
+  it('should throw error when ticker information is missing', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 'tx1',
+        user_id: 'user-1',
+        account_id: 'account-1',
+        timestamp: '2025-01-01T10:00:00Z',
+        created_at: '2025-01-01T10:00:00Z',
+        updated_at: '2025-01-01T10:00:00Z',
+        instrument_kind: 'SHARES',
+        // Missing both ticker_id and tickers.name
+        side: 'BUY',
+        qty: 100,
+        price: 150.00,
+        fees: 1.00,
+        memo: 'Test purchase'
+      }
+    ];
+
+    expect(() => buildPortfolio(transactions)).toThrow(
+      'Transaction tx1 missing ticker information (neither tickers.name nor ticker_id provided)'
+    );
+  });
+
+  it('should handle CASH transactions without ticker information', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 'tx1',
+        user_id: 'user-1',
+        account_id: 'account-1',
+        timestamp: '2025-01-01T10:00:00Z',
+        created_at: '2025-01-01T10:00:00Z',
+        updated_at: '2025-01-01T10:00:00Z',
+        instrument_kind: 'CASH',
+        qty: 1000.00, // Cash amount
+        fees: 0,
+        memo: 'Cash deposit'
+      }
+    ];
+
+    const portfolio = buildPortfolio(transactions);
+
+    expect(portfolio.positions.size).toBe(0); // CASH doesn't create positions
+    expect(portfolio.balances.size).toBe(1);
+    expect(portfolio.balances.get('account-1')).toBe(1000.00);
+  });
 });

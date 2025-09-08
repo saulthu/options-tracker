@@ -192,11 +192,74 @@ export function sharesQty(
 /**
  * Main portfolio calculation function
  * Processes transactions and derives all positions, balances, and P&L
+ * 
+ * @param transactions - Array of transactions with joined ticker and account data
+ * @param openingBalances - Optional opening balances per account
+ * @returns Complete portfolio state with positions, balances, and P&L
+ * 
+ * @example
+ * ```typescript
+ * const transactions = [
+ *   {
+ *     id: 'tx1',
+ *     account_id: 'acc1',
+ *     instrument_kind: 'SHARES',
+ *     tickers: { name: 'AAPL' }, // Must have ticker name, not just ticker_id
+ *     side: 'BUY',
+ *     qty: 100,
+ *     price: 150.00,
+ *     fees: 1.00,
+ *     // ... other required fields
+ *   }
+ * ];
+ * const portfolio = buildPortfolio(transactions);
+ * ```
  */
+/**
+ * Validates and normalizes transaction data for portfolio calculations
+ */
+function validateTransaction(t: Transaction, index: number): void {
+  if (!t.id) {
+    throw new Error(`Transaction at index ${index} missing id`);
+  }
+  if (!t.account_id) {
+    throw new Error(`Transaction ${t.id} missing account_id`);
+  }
+  if (!t.instrument_kind) {
+    throw new Error(`Transaction ${t.id} missing instrument_kind`);
+  }
+  if (!t.timestamp) {
+    throw new Error(`Transaction ${t.id} missing timestamp`);
+  }
+  if (t.qty === undefined || t.qty === null) {
+    throw new Error(`Transaction ${t.id} missing qty`);
+  }
+  if (t.fees === undefined || t.fees === null) {
+    throw new Error(`Transaction ${t.id} missing fees`);
+  }
+
+  // For non-CASH transactions, validate ticker information
+  if (t.instrument_kind !== 'CASH') {
+    const ticker = t.tickers?.name || t.ticker_id;
+    if (!ticker) {
+      throw new Error(`Transaction ${t.id} missing ticker information (neither tickers.name nor ticker_id provided)`);
+    }
+    if (!t.side) {
+      throw new Error(`Transaction ${t.id} missing side`);
+    }
+    if (t.price === undefined || t.price === null) {
+      throw new Error(`Transaction ${t.id} missing price`);
+    }
+  }
+}
+
 export function buildPortfolio(
   transactions: Transaction[],
   openingBalances: Record<string, number> = {}
 ): PortfolioState {
+  // Validate all transactions first
+  transactions.forEach((t, index) => validateTransaction(t, index));
+
   // Sort deterministically by (timestamp ASC, id ASC)
   const sortedTxns = [...transactions].sort((a, b) => {
     const timeCompare = a.timestamp.localeCompare(b.timestamp);
