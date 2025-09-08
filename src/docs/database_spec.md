@@ -48,6 +48,7 @@ constraints:
 ```yaml
 tickers:
   id: string                    # UUID primary key
+  user_id: string               # foreign key to users.id
   name: string                  # ticker symbol (AAPL, MSFT, etc.)
   icon?: string                 # path/URL to cached icon file
 ```

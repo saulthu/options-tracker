@@ -4,18 +4,20 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { createClient } from '@supabase/supabase-js';
 import { useAuth } from './AuthContext';
 import { 
-  buildPortfolio, 
-  PortfolioState, 
-  Transaction, 
-  Position, 
-  RealizedEvent,
-  TimeRange,
-  getAccountPositions,
-  getAccountRealizedPnL,
-  getAccountBalance,
+  buildPortfolioView,
+  createTickerLookup,
+  filterEpisodesByDateRange,
+  getAccountEpisodes,
   getTotalRealizedPnL,
-  filterTransactionsByTimeRange
-} from '@/lib/portfolio-calculator';
+  getAccountRealizedPnL,
+  getAccountBalance
+} from '@/lib/episode-portfolio-calculator';
+import { 
+  PortfolioResult,
+  PositionEpisode,
+  RawTransaction
+} from '@/types/episodes';
+import { TimeRange } from '@/components/TimeRangeSelector';
 
 // Supabase client
 const supabase = createClient(
@@ -25,26 +27,27 @@ const supabase = createClient(
 
 interface PortfolioContextType {
   // Raw data
-  transactions: Transaction[];
+  transactions: RawTransaction[];
   loading: boolean;
   error: string | null;
   
   // Derived state
-  portfolio: PortfolioState | null;
+  portfolio: PortfolioResult | null;
   
   // Helper functions
-  getPositions: (accountId: string) => Position[];
-  getRealizedPnL: (accountId: string) => RealizedEvent[];
+  getEpisodes: (accountId?: string) => PositionEpisode[];
+  getOpenEpisodes: (accountId?: string) => PositionEpisode[];
+  getClosedEpisodes: (accountId?: string) => PositionEpisode[];
+  getEpisodesByKind: (kindGroup: 'CASH' | 'SHARES' | 'OPTION', accountId?: string) => PositionEpisode[];
   getBalance: (accountId: string) => number;
-  getTotalPnL: (accountId: string) => number;
-  getFilteredTransactions: (timeRange: TimeRange) => Transaction[];
-  getFilteredPortfolio: (timeRange: TimeRange) => PortfolioState | null;
+  getTotalPnL: (accountId?: string) => number;
+  getFilteredEpisodes: (timeRange: TimeRange, accountId?: string) => PositionEpisode[];
   
   // Actions
   refreshPortfolio: () => Promise<void>;
   refreshOnAccountChange: () => Promise<void>;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
+  addTransaction: (transaction: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateTransaction: (id: string, updates: Partial<RawTransaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
 }
 
@@ -56,8 +59,8 @@ interface PortfolioProviderProps {
 
 export function PortfolioProvider({ children }: PortfolioProviderProps) {
   const { user, loading: authLoading, error: authError } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
+  const [transactions, setTransactions] = useState<RawTransaction[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -171,7 +174,9 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   // Recalculate portfolio when transactions change
   useEffect(() => {
     if (transactions.length > 0) {
-      const newPortfolio = buildPortfolio(transactions);
+      const tickerLookup = createTickerLookup(transactions);
+      const openingBalances = new Map<string, number>(); // No opening balances for now
+      const newPortfolio = buildPortfolioView(transactions, tickerLookup, openingBalances);
       setPortfolio(newPortfolio);
     } else {
       setPortfolio(null);
@@ -196,34 +201,51 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   }, [authLoading, user, authError, fetchTransactions]);
 
   // Helper functions
-  const getPositions = useCallback((accountId: string): Position[] => {
+  const getEpisodes = useCallback((accountId?: string): PositionEpisode[] => {
     if (!portfolio) return [];
-    return getAccountPositions(portfolio, accountId);
+    if (accountId) {
+      return getAccountEpisodes(portfolio.episodes, accountId);
+    }
+    return portfolio.episodes;
   }, [portfolio]);
 
-  const getRealizedPnL = useCallback((accountId: string): RealizedEvent[] => {
+  const getOpenEpisodes = useCallback((accountId?: string): PositionEpisode[] => {
     if (!portfolio) return [];
-    return getAccountRealizedPnL(portfolio, accountId);
+    const episodes = accountId ? getAccountEpisodes(portfolio.episodes, accountId) : portfolio.episodes;
+    return episodes.filter(episode => episode.qty !== 0);
+  }, [portfolio]);
+
+  const getClosedEpisodes = useCallback((accountId?: string): PositionEpisode[] => {
+    if (!portfolio) return [];
+    const episodes = accountId ? getAccountEpisodes(portfolio.episodes, accountId) : portfolio.episodes;
+    return episodes.filter(episode => episode.qty === 0);
+  }, [portfolio]);
+
+  const getEpisodesByKind = useCallback((kindGroup: 'CASH' | 'SHARES' | 'OPTION', accountId?: string): PositionEpisode[] => {
+    if (!portfolio) return [];
+    const episodes = accountId ? getAccountEpisodes(portfolio.episodes, accountId) : portfolio.episodes;
+    return episodes.filter(episode => episode.kindGroup === kindGroup);
   }, [portfolio]);
 
   const getBalance = useCallback((accountId: string): number => {
     if (!portfolio) return 0;
-    return getAccountBalance(portfolio, accountId);
+    return getAccountBalance(portfolio.balances, accountId);
   }, [portfolio]);
 
-  const getTotalPnL = useCallback((accountId: string): number => {
+  const getTotalPnL = useCallback((accountId?: string): number => {
     if (!portfolio) return 0;
-    return getTotalRealizedPnL(portfolio, accountId);
+    if (accountId) {
+      return getAccountRealizedPnL(portfolio.episodes, accountId);
+    }
+    return getTotalRealizedPnL(portfolio.episodes);
   }, [portfolio]);
 
-  const getFilteredTransactions = useCallback((timeRange: TimeRange): Transaction[] => {
-    return filterTransactionsByTimeRange(transactions, timeRange);
-  }, [transactions]);
-
-  const getFilteredPortfolio = useCallback((): PortfolioState | null => {
-    // Always use the full portfolio (built from ALL transactions)
-    // The filtering should only affect the display, not the calculation
-    return portfolio;
+  const getFilteredEpisodes = useCallback((timeRange: TimeRange, accountId?: string): PositionEpisode[] => {
+    if (!portfolio) return [];
+    const episodes = accountId ? getAccountEpisodes(portfolio.episodes, accountId) : portfolio.episodes;
+    const startDate = timeRange.startDate.toISOString();
+    const endDate = timeRange.endDate.toISOString();
+    return filterEpisodesByDateRange(episodes, startDate, endDate);
   }, [portfolio]);
 
   // Actions
@@ -237,7 +259,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     await fetchTransactions();
   }, [fetchTransactions]);
 
-  const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+  const addTransaction = useCallback(async (transaction: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { error: insertError } = await supabase
         .from('transactions')
@@ -257,7 +279,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, [refreshPortfolio]);
 
-  const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
+  const updateTransaction = useCallback(async (id: string, updates: Partial<RawTransaction>) => {
     try {
       const { error: updateError } = await supabase
         .from('transactions')
@@ -300,12 +322,13 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     loading: loading || authLoading,
     error: error || authError,
     portfolio,
-    getPositions,
-    getRealizedPnL,
+    getEpisodes,
+    getOpenEpisodes,
+    getClosedEpisodes,
+    getEpisodesByKind,
     getBalance,
     getTotalPnL,
-    getFilteredTransactions,
-    getFilteredPortfolio,
+    getFilteredEpisodes,
     refreshPortfolio,
     refreshOnAccountChange,
     addTransaction,

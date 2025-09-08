@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function OverviewPage() {
   const { user } = useAuth();
-  const { transactions, getPositions, getBalance, getTotalPnL, loading } = usePortfolio();
+  const { transactions, getEpisodes, getBalance, getTotalPnL, loading } = usePortfolio();
   
   if (loading) {
     return (
@@ -29,8 +29,8 @@ export default function OverviewPage() {
 
   // Calculate portfolio metrics using the new business logic
   const totalTrades = transactions.length;
-  const positions = getPositions(user.id);
-  const openPositions = positions.filter(pos => pos.qty !== 0).length;
+  const episodes = getEpisodes();
+  const openPositions = episodes.filter(ep => ep.qty !== 0).length;
   const cashBalance = getBalance(user.id);
   const realizedPnL = getTotalPnL(user.id);
   

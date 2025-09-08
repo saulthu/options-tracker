@@ -311,6 +311,50 @@ describe('Portfolio Calculator - Options Trading', () => {
     expect(balances[0][1]).toBe(-15001 + 499); // -$15,001 + $499 premium
   });
 
+  it('should correctly apply 100x multiplier for options cash deltas', () => {
+    const transactions = [
+      // Sell 1 AMD call for $4.50
+      createTransaction({
+        instrument_kind: 'CALL',
+        ticker_id: 'AMD',
+        side: 'SELL',
+        qty: 1,
+        price: 4.50,
+        strike: 100,
+        expiry: '2025-09-19',
+        fees: 0.50,
+      }),
+      // Sell 2 AMD puts for $2.00 each
+      createTransaction({
+        instrument_kind: 'PUT',
+        ticker_id: 'AMD',
+        side: 'SELL',
+        qty: 2,
+        price: 2.00,
+        strike: 90,
+        expiry: '2025-09-26',
+        fees: 1.00,
+      }),
+    ];
+
+    const portfolio = buildPortfolio(transactions);
+
+    // Check ledger entries for correct cash deltas
+    const ledger = portfolio.ledger;
+    
+    // First transaction: SELL 1 call @ $4.50, fees $0.50
+    // Expected: +(4.50 * 1 * 100) - 0.50 = +450 - 0.50 = +449.50
+    expect(ledger[0].cashDelta).toBeCloseTo(449.50, 2);
+    
+    // Second transaction: SELL 2 puts @ $2.00 each, fees $1.00
+    // Expected: +(2.00 * 2 * 100) - 1.00 = +400 - 1.00 = +399.00
+    expect(ledger[1].cashDelta).toBeCloseTo(399.00, 2);
+
+    // Check final balance
+    const balances = Array.from(portfolio.balances.entries());
+    expect(balances[0][1]).toBeCloseTo(449.50 + 399.00, 2); // 848.50
+  });
+
   it('should handle cash-secured put writing', () => {
     const transactions = [
       // Initial cash deposit to secure the put
