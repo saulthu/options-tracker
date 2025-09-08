@@ -21,29 +21,31 @@ export function TimeRangeProvider({ children }: TimeRangeProviderProps) {
     const now = new Date();
     const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
-    // Find the Friday of this week (Saturday to Friday)
-    let daysToFriday;
-    if (dayOfWeek === 5) { // Friday
-      daysToFriday = 0;
-    } else if (dayOfWeek === 6) { // Saturday
-      daysToFriday = -6; // Go to previous Friday (current week)
-    } else { // Sunday (0) through Thursday (4)
-      daysToFriday = (5 - dayOfWeek + 7) % 7;
+    // Find the Saturday of this week (Sunday to Saturday)
+    let daysToSaturday;
+    if (dayOfWeek === 6) { // Saturday
+      daysToSaturday = 0;
+    } else { // Sunday (0) through Friday (5)
+      daysToSaturday = (6 - dayOfWeek + 7) % 7;
     }
     
-    // Calculate Friday date
-    const fridayDate = new Date(now);
-    fridayDate.setDate(now.getDate() + daysToFriday);
-    fridayDate.setHours(23, 59, 59, 999);
+    // Calculate Saturday date
+    const saturdayDate = new Date(now);
+    saturdayDate.setDate(now.getDate() + daysToSaturday);
+    saturdayDate.setHours(23, 59, 59, 999);
     
-    // Calculate Saturday date (6 days before Friday)
-    const saturdayDate = new Date(fridayDate);
-    saturdayDate.setDate(fridayDate.getDate() - 6);
-    saturdayDate.setHours(0, 0, 0, 0);
+    // Calculate Sunday date (6 days before Saturday)
+    const sundayDate = new Date(saturdayDate);
+    sundayDate.setDate(saturdayDate.getDate() - 6);
+    sundayDate.setHours(0, 0, 0, 0);
+    
+    // Calculate Friday for the label (5 days before Saturday)
+    const fridayDate = new Date(saturdayDate);
+    fridayDate.setDate(saturdayDate.getDate() - 1);
     
     return {
-      startDate: saturdayDate,
-      endDate: fridayDate,
+      startDate: sundayDate,
+      endDate: saturdayDate,
       scale: 'week',
       label: `End ${fridayDate.toLocaleDateString('en-US', { 
         month: 'numeric', 

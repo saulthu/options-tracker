@@ -51,38 +51,40 @@ export default function TimeRangeSelector({
         };
 
       case 'week':
-        // Week: Saturday to Friday
+        // Week: Sunday to Saturday (but label shows Friday)
         const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         
-        // Find the Friday of this week
-        let daysToFriday;
-        if (dayOfWeek === 5) { // Friday
-          daysToFriday = 0;
-        } else if (dayOfWeek === 6) { // Saturday
-          daysToFriday = -6; // Go to previous Friday (current week)
-        } else { // Sunday (0) through Thursday (4)
-          daysToFriday = (5 - dayOfWeek + 7) % 7;
+        // Find the Saturday of this week
+        let daysToSaturday;
+        if (dayOfWeek === 6) { // Saturday
+          daysToSaturday = 0;
+        } else { // Sunday (0) through Friday (5)
+          daysToSaturday = (6 - dayOfWeek + 7) % 7;
         }
         
-        // Calculate Friday date first
-        const fridayDate = new Date(date);
-        fridayDate.setDate(date.getDate() + daysToFriday);
-        fridayDate.setHours(23, 59, 59, 999);
+        // Calculate Saturday date first
+        const saturdayDate = new Date(date);
+        saturdayDate.setDate(date.getDate() + daysToSaturday);
+        saturdayDate.setHours(23, 59, 59, 999);
         
-        // Calculate Saturday date (6 days before Friday)
-        const saturdayDate = new Date(fridayDate);
-        saturdayDate.setDate(fridayDate.getDate() - 6);
-        saturdayDate.setHours(0, 0, 0, 0);
+        // Calculate Sunday date (6 days before Saturday)
+        const sundayDate = new Date(saturdayDate);
+        sundayDate.setDate(saturdayDate.getDate() - 6);
+        sundayDate.setHours(0, 0, 0, 0);
         
         // Set the dates by copying values
-        startDate.setTime(saturdayDate.getTime());
-        endDate.setTime(fridayDate.getTime());
+        startDate.setTime(sundayDate.getTime());
+        endDate.setTime(saturdayDate.getTime());
+        
+        // Calculate Friday for the label (5 days before Saturday)
+        const fridayDate = new Date(saturdayDate);
+        fridayDate.setDate(saturdayDate.getDate() - 1);
         
         return {
           startDate,
           endDate,
           scale,
-          label: `End ${endDate.toLocaleDateString('en-US', { 
+          label: `End ${fridayDate.toLocaleDateString('en-US', { 
             month: 'numeric', 
             day: 'numeric' 
           })}`
@@ -133,7 +135,7 @@ export default function TimeRangeSelector({
     let newDate: Date;
     
     if (currentScale === 'week' && selectedRange) {
-      // For week navigation, use the Friday date (endDate) as reference
+      // For week navigation, use the Saturday date (endDate) as reference
       newDate = new Date(selectedRange.endDate);
       newDate.setDate(selectedRange.endDate.getDate() - 7);
     } else {
@@ -160,7 +162,7 @@ export default function TimeRangeSelector({
     let newDate: Date;
     
     if (currentScale === 'week' && selectedRange) {
-      // For week navigation, use the Friday date (endDate) as reference
+      // For week navigation, use the Saturday date (endDate) as reference
       newDate = new Date(selectedRange.endDate);
       newDate.setDate(selectedRange.endDate.getDate() + 7);
     } else {
@@ -280,18 +282,332 @@ export default function TimeRangeSelector({
           ref={calendarRef}
           className="absolute top-full left-0 mt-2 bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg shadow-lg z-50 p-3"
         >
-          <CalendarGrid 
-            selectedDate={currentDate}
-            onDateSelect={handleDateSelect}
-          />
+          {currentScale === 'month' && (
+            <MonthSelector 
+              selectedDate={currentDate}
+              onDateSelect={handleDateSelect}
+            />
+          )}
+          {currentScale === 'year' && (
+            <YearSelector 
+              selectedDate={currentDate}
+              onDateSelect={handleDateSelect}
+            />
+          )}
+          {currentScale === 'week' && (
+            <WeekCalendar 
+              selectedDate={currentDate}
+              onDateSelect={handleDateSelect}
+            />
+          )}
+          {currentScale === 'day' && (
+            <DayCalendar 
+              selectedDate={currentDate}
+              onDateSelect={handleDateSelect}
+            />
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// Simple Calendar Grid Component
-function CalendarGrid({ selectedDate, onDateSelect }: { selectedDate: Date; onDateSelect: (date: Date) => void }) {
+// Month Selector - List of months with year navigation
+function MonthSelector({ selectedDate, onDateSelect }: { selectedDate: Date; onDateSelect: (date: Date) => void }) {
+  const [currentYear, setCurrentYear] = useState(selectedDate.getFullYear());
+  const currentMonth = selectedDate.getMonth();
+  
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  const handleMonthSelect = (monthIndex: number) => {
+    const newDate = new Date(currentYear, monthIndex, 1);
+    onDateSelect(newDate);
+  };
+  
+  const goToPreviousYear = () => {
+    setCurrentYear(prev => prev - 1);
+  };
+  
+  const goToNextYear = () => {
+    setCurrentYear(prev => prev + 1);
+  };
+  
+  return (
+    <div className="w-64">
+      {/* Year Navigation */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={goToPreviousYear}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-lg font-medium text-white">{currentYear}</span>
+        <button
+          onClick={goToNextYear}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      
+      {/* Month List */}
+      <div className="grid grid-cols-3 gap-2">
+        {months.map((month, index) => (
+          <button
+            key={index}
+            onClick={() => handleMonthSelect(index)}
+            className={`p-2 text-sm rounded hover:bg-gray-700 transition-colors ${
+              index === currentMonth && currentYear === selectedDate.getFullYear()
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            {month.substring(0, 3)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Year Selector - List of years
+function YearSelector({ selectedDate, onDateSelect }: { selectedDate: Date; onDateSelect: (date: Date) => void }) {
+  const currentYear = selectedDate.getFullYear();
+  const [displayYear, setDisplayYear] = useState(currentYear);
+  
+  const years = [];
+  for (let year = displayYear - 5; year <= displayYear + 6; year++) {
+    years.push(year);
+  }
+  
+  const handleYearSelect = (year: number) => {
+    const newDate = new Date(year, 0, 1);
+    onDateSelect(newDate);
+  };
+  
+  const goToPreviousDecade = () => {
+    setDisplayYear(prev => prev - 12);
+  };
+  
+  const goToNextDecade = () => {
+    setDisplayYear(prev => prev + 12);
+  };
+  
+  return (
+    <div className="w-64">
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={goToPreviousDecade}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-medium text-white">
+          {displayYear - 5} - {displayYear + 6}
+        </span>
+        <button
+          onClick={goToNextDecade}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {years.map((year) => (
+          <button
+            key={year}
+            onClick={() => handleYearSelect(year)}
+            className={`p-2 text-sm rounded hover:bg-gray-700 transition-colors ${
+              year === currentYear
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            {year}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Week Calendar - Calendar with week row highlighting
+function WeekCalendar({ 
+  selectedDate, 
+  onDateSelect
+}: { 
+  selectedDate: Date; 
+  onDateSelect: (date: Date) => void;
+}) {
+  const [currentMonth, setCurrentMonth] = useState(selectedDate);
+  const [hoveredWeek, setHoveredWeek] = useState<number | null>(null);
+  
+  const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  const startDate = new Date(monthStart);
+  startDate.setDate(startDate.getDate() - startDate.getDay());
+  
+  const days = [];
+  const today = new Date();
+  
+  for (let i = 0; i < 42; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    days.push(date);
+  }
+  
+  // Group days into weeks for highlighting (Sunday to Saturday)
+  const weeks: Date[][] = [];
+  
+  // Find the Sunday of the first week in our grid
+  const firstSunday = new Date(startDate);
+  const firstDayOfWeek = startDate.getDay();
+  const daysToFirstSunday = firstDayOfWeek === 0 ? 0 : (7 - firstDayOfWeek) % 7;
+  firstSunday.setDate(startDate.getDate() - daysToFirstSunday);
+  
+  // Create weeks starting from the first Sunday
+  for (let weekIndex = 0; weekIndex < 6; weekIndex++) {
+    const weekStart = new Date(firstSunday);
+    weekStart.setDate(firstSunday.getDate() + (weekIndex * 7));
+    
+    const weekDays: Date[] = [];
+    for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+      const dayDate = new Date(weekStart);
+      dayDate.setDate(weekStart.getDate() + dayIndex);
+      weekDays.push(dayDate);
+    }
+    weeks.push(weekDays);
+  }
+  
+  
+  const isToday = (date: Date) => {
+    return date.toDateString() === today.toDateString();
+  };
+  
+  const isCurrentMonth = (date: Date) => {
+    return date.getMonth() === currentMonth.getMonth();
+  };
+  
+  // Check if a date is in the current selected week (Sunday to Saturday)
+  const isInCurrentWeek = (date: Date) => {
+    // Find the Saturday of the week containing the selected date
+    const selectedDayOfWeek = selectedDate.getDay();
+    let selectedDaysToSaturday;
+    if (selectedDayOfWeek === 6) { // Saturday
+      selectedDaysToSaturday = 0;
+    } else { // Sunday (0) through Friday (5)
+      selectedDaysToSaturday = (6 - selectedDayOfWeek + 7) % 7;
+    }
+    
+    const selectedSaturday = new Date(selectedDate);
+    selectedSaturday.setDate(selectedDate.getDate() + selectedDaysToSaturday);
+    
+    // Find the Saturday of the week containing the current date
+    const dayOfWeek = date.getDay();
+    let daysToSaturday;
+    if (dayOfWeek === 6) { // Saturday
+      daysToSaturday = 0;
+    } else { // Sunday (0) through Friday (5)
+      daysToSaturday = (6 - dayOfWeek + 7) % 7;
+    }
+    
+    const saturdayDate = new Date(date);
+    saturdayDate.setDate(date.getDate() + daysToSaturday);
+    
+    return saturdayDate.toDateString() === selectedSaturday.toDateString();
+  };
+  
+  // Check if a date is the Friday of the current selected week
+  const isCurrentWeekFriday = (date: Date) => {
+    if (!isInCurrentWeek(date)) return false;
+    
+    // Check if this date is a Friday (day 5)
+    return date.getDay() === 5;
+  };
+  
+  // Get week number for a date (Sunday to Saturday weeks)
+  const getWeekNumber = (date: Date) => {
+    // Find which Sunday-to-Saturday week this date belongs to
+    for (let i = 0; i < weeks.length; i++) {
+      if (weeks[i].some(weekDate => weekDate.toDateString() === date.toDateString())) {
+        return i;
+      }
+    }
+    return -1;
+  };
+  
+  return (
+    <div className="w-64">
+      {/* Month Header */}
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-medium text-white">
+          {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </span>
+        <button
+          onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+          className="p-1 hover:bg-gray-700 rounded"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      
+      {/* Day Headers */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+          <div key={index} className="text-xs text-gray-400 text-center p-1">
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      {/* Calendar Grid with Week Highlighting */}
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((date, index) => {
+          const weekNumber = getWeekNumber(date);
+          const isHoveredWeek = hoveredWeek === weekNumber;
+          const isInWeek = isInCurrentWeek(date);
+          const isFriday = isCurrentWeekFriday(date);
+          
+          return (
+            <button
+              key={index}
+              onClick={() => onDateSelect(date)}
+              onMouseEnter={() => setHoveredWeek(weekNumber)}
+              onMouseLeave={() => setHoveredWeek(null)}
+              className={`text-xs p-1 rounded transition-colors ${
+                isFriday
+                  ? 'bg-blue-500 text-white' // Friday of selected week - brightest blue
+                  : isToday(date)
+                  ? 'bg-gray-600 text-white'
+                  : isInWeek
+                  ? 'bg-blue-500/40 text-white' // Other days of selected week - darker blue
+                  : isHoveredWeek
+                  ? 'bg-blue-500/20 text-white' // Hovered week - lighter blue
+                  : isCurrentMonth(date)
+                  ? 'text-white hover:bg-gray-700'
+                  : 'text-gray-500 hover:bg-gray-700'
+              }`}
+            >
+              {date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Day Calendar - Traditional calendar for day selection
+function DayCalendar({ selectedDate, onDateSelect }: { selectedDate: Date; onDateSelect: (date: Date) => void }) {
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
   
   const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -307,9 +623,6 @@ function CalendarGrid({ selectedDate, onDateSelect }: { selectedDate: Date; onDa
     days.push(date);
   }
   
-  const isSelected = (date: Date) => {
-    return date.toDateString() === selectedDate.toDateString();
-  };
   
   const isToday = (date: Date) => {
     return date.toDateString() === today.toDateString();
@@ -317,6 +630,10 @@ function CalendarGrid({ selectedDate, onDateSelect }: { selectedDate: Date; onDa
   
   const isCurrentMonth = (date: Date) => {
     return date.getMonth() === currentMonth.getMonth();
+  };
+
+  const isSelected = (date: Date) => {
+    return date.toDateString() === selectedDate.toDateString();
   };
   
   return (

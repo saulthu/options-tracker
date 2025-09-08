@@ -34,7 +34,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function TransactionsPage({ selectedRange }: TransactionsPageProps) {
   const { user } = useAuth();
-  const { getFilteredTransactions, getFilteredPortfolio, loading } = usePortfolio();
+  const { getFilteredTransactions, loading } = usePortfolio();
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('timestamp');
@@ -141,8 +141,8 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
 
     // Now sort the FILTERED transactions by selected field
     const sorted = [...filteredTransactions].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: string | number;
+      let bValue: string | number;
 
       switch (sortField) {
         case 'timestamp':
@@ -202,9 +202,12 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
       // Handle string comparison
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         primaryComparison = aValue.localeCompare(bValue);
-      } else {
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
         // Handle numeric comparison
         primaryComparison = aValue - bValue;
+      } else {
+        // Fallback to string comparison
+        primaryComparison = String(aValue).localeCompare(String(bValue));
       }
 
       // Apply sort direction to primary comparison

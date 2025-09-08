@@ -75,7 +75,7 @@ src/
 - **Time Ranges**: All pages use `TimeRange` interface with proper time boundaries
 - **Database Queries**: Use full ISO timestamps (preserve `00:00:00.000` to `23:59:59.999`)
 - **Date Fields**: Use `opened` field for trade execution dates, not `created`
-- **Week Definition**: Saturday to Friday (displayed as "Ending 9/5")
+- **Week Definition**: Sunday to Saturday (displayed as "Ending 9/5" - shows Friday)
 
 ### **Data Consistency**
 - **Type Safety**: All database entities have TypeScript interfaces

@@ -215,7 +215,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return filterTransactionsByTimeRange(transactions, timeRange);
   }, [transactions]);
 
-  const getFilteredPortfolio = useCallback((timeRange: TimeRange): PortfolioState | null => {
+  const getFilteredPortfolio = useCallback((): PortfolioState | null => {
     // Always use the full portfolio (built from ALL transactions)
     // The filtering should only affect the display, not the calculation
     return portfolio;
