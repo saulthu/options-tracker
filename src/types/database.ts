@@ -47,6 +47,18 @@ export interface Transaction {
   price?: number
   fees: number
   memo?: string
+  // Joined data from PortfolioContext
+  tickers?: {
+    id: string
+    name: string
+    icon?: string
+  }
+  accounts?: {
+    id: string
+    name: string
+    type: string
+    institution: string
+  }
 }
 
 // Legacy Trade interface for backward compatibility during transition

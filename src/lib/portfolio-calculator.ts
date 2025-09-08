@@ -30,6 +30,18 @@ export interface Transaction {
   price?: number;
   fees: number;
   memo?: string;
+  // Joined data from PortfolioContext
+  tickers?: {
+    id: string;
+    name: string;
+    icon?: string;
+  };
+  accounts?: {
+    id: string;
+    name: string;
+    type: string;
+    institution: string;
+  };
 }
 
 export interface Position {
@@ -236,7 +248,7 @@ export function buildPortfolio(
     }
 
     // Handle SHARES/CALL/PUT transactions
-    const ticker = t.ticker_id!;
+    const ticker = t.tickers?.name || t.ticker_id!;
     const expiry = t.expiry;
     const strike = t.strike;
     const price = t.price!;
