@@ -36,10 +36,30 @@ export function useUserProfile() {
         .select()
         .single();
 
-      console.log('📊 Profile creation response:', { data: profileData, error: profileError });
+      console.log('📊 Profile creation response:', { 
+        data: profileData, 
+        error: profileError,
+        errorType: typeof profileError,
+        errorKeys: profileError ? Object.keys(profileError) : 'no error',
+        errorStringified: JSON.stringify(profileError)
+      });
+
+      // Check if we have data despite an error (sometimes Supabase returns both)
+      if (profileData) {
+        console.log('✅ Profile created successfully despite error:', profileData);
+        setProfile(profileData);
+        return;
+      }
 
       if (profileError) {
         console.error('Failed to create profile:', profileError);
+        console.error('Error details:', {
+          type: typeof profileError,
+          keys: Object.keys(profileError),
+          stringified: JSON.stringify(profileError),
+          isArray: Array.isArray(profileError),
+          constructor: profileError.constructor?.name
+        });
         
         // Handle different error types
         let errorMessage = 'Unknown database error';
@@ -58,6 +78,27 @@ export function useUserProfile() {
           return;
         } else if (typeof profileError === 'object' && Object.keys(profileError).length === 0) {
           errorMessage = 'Empty error object - possible race condition or duplicate key';
+          console.log('Empty error object detected, this might be a Supabase client issue');
+          
+          // Try to fetch the profile anyway in case it was actually created
+          console.log('🔄 Attempting to fetch profile despite empty error...');
+          try {
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+            
+            if (fallbackData && !fallbackError) {
+              console.log('✅ Profile found despite empty error:', fallbackData);
+              setProfile(fallbackData);
+              return;
+            } else {
+              console.log('❌ Fallback fetch also failed:', fallbackError);
+            }
+          } catch (fallbackErr) {
+            console.log('❌ Fallback fetch threw error:', fallbackErr);
+          }
         } else {
           // Log the full error object for debugging
           console.error('Unexpected error structure:', JSON.stringify(profileError, null, 2));
@@ -68,8 +109,7 @@ export function useUserProfile() {
         return;
       }
 
-
-
+      // If we get here, we have data and no error
       setProfile(profileData);
     } catch (err) {
       console.error('Failed to create default profile:', err);
