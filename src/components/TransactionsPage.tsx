@@ -34,7 +34,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function TransactionsPage({ selectedRange }: TransactionsPageProps) {
   const { user } = useAuth();
-  const { getFilteredTransactions, loading } = usePortfolio();
+  const { getFilteredTransactions, getFilteredPortfolio, loading } = usePortfolio();
   
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('timestamp');
@@ -52,8 +52,36 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     }
   };
 
-  // Get filtered transactions for the selected date range
+  // Get all transactions and full portfolio (not filtered)
+  const allTransactions = usePortfolio().transactions as TransactionWithDetails[];
+  const fullPortfolio = usePortfolio().portfolio;
+  
+  // Get filtered transactions for display only
   const filteredTransactions = getFilteredTransactions(selectedRange) as TransactionWithDetails[];
+
+  // Log portfolio calculator results to console
+  console.log('Portfolio Calculator Results:', {
+    fullPortfolio: fullPortfolio ? {
+      positions: Array.from(fullPortfolio.positions.entries()),
+      balances: Array.from(fullPortfolio.balances.entries()),
+      ledger: fullPortfolio.ledger,
+      realized: fullPortfolio.realized,
+      ledgerCount: fullPortfolio.ledger.length,
+      realizedCount: fullPortfolio.realized.length
+    } : null,
+    allTransactionsCount: allTransactions.length,
+    filteredTransactionsCount: filteredTransactions.length,
+    sampleFilteredTransactions: filteredTransactions.slice(0, 5).map(tx => ({
+      id: tx.id,
+      timestamp: tx.timestamp,
+      instrument_kind: tx.instrument_kind,
+      ticker: tx.tickers?.name,
+      account: tx.accounts?.name,
+      side: tx.side,
+      qty: tx.qty,
+      price: tx.price
+    }))
+  });
 
   // Debug logging for date filtering
   console.log('Date filtering debug:', {
@@ -70,11 +98,48 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     }))
   });
 
-  // Sort all transactions by selected field and calculate running balances
+  // Sort filtered transactions by selected field and calculate running balances per account
   const sortedTransactions = useMemo((): TransactionWithDetails[] => {
     if (!filteredTransactions.length) return [];
 
-    // Sort transactions by selected field
+    // Calculate running balances from ALL transactions (not just filtered ones)
+    // This ensures balances include accumulated history from previous periods
+    const accountBalances: Record<string, number> = {};
+    
+    // Process ALL transactions in chronological order to build accurate running balances
+    const allSortedTransactions = [...allTransactions].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    
+    allSortedTransactions.forEach(transaction => {
+      const accountId = transaction.account_id;
+      
+      // Initialize account balance if not exists
+      if (!(accountId in accountBalances)) {
+        accountBalances[accountId] = 0;
+      }
+      
+      // Calculate cash delta for this transaction
+      let cashDelta = 0;
+      
+      if (transaction.instrument_kind === 'CASH') {
+        // Cash transactions: qty is the cash amount
+        cashDelta = transaction.qty;
+      } else if (transaction.side === 'BUY') {
+        // Buying shares/options: negative cash flow
+        const totalCost = (transaction.price || 0) * transaction.qty;
+        cashDelta = -(totalCost + transaction.fees);
+      } else if (transaction.side === 'SELL') {
+        // Selling shares/options: positive cash flow
+        const totalProceeds = (transaction.price || 0) * transaction.qty;
+        cashDelta = totalProceeds - transaction.fees;
+      }
+
+      // Update running balance for this account
+      accountBalances[accountId] += cashDelta;
+    });
+
+    // Now sort the FILTERED transactions by selected field
     const sorted = [...filteredTransactions].sort((a, b) => {
       let aValue: any;
       let bValue: any;
@@ -89,8 +154,26 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
           bValue = b.accounts?.name || '';
           break;
         case 'instrument_kind':
-          aValue = a.instrument_kind;
-          bValue = b.instrument_kind;
+          // Sort by ticker name first, then by instrument type
+          const aTicker = a.tickers?.name || '';
+          const bTicker = b.tickers?.name || '';
+          
+          // If both have tickers, sort by ticker name
+          if (aTicker && bTicker) {
+            const tickerComparison = aTicker.localeCompare(bTicker);
+            if (tickerComparison !== 0) {
+              aValue = aTicker;
+              bValue = bTicker;
+            } else {
+              // Same ticker, sort by instrument type
+              aValue = a.instrument_kind;
+              bValue = b.instrument_kind;
+            }
+          } else {
+            // One or both are CASH, sort by instrument type
+            aValue = a.instrument_kind;
+            bValue = b.instrument_kind;
+          }
           break;
         case 'qty':
           aValue = a.qty;
@@ -113,20 +196,35 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
           bValue = 0;
       }
 
+      // Primary comparison based on selected field
+      let primaryComparison: number;
+      
       // Handle string comparison
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        const comparison = aValue.localeCompare(bValue);
-        return sortDirection === 'asc' ? comparison : -comparison;
+        primaryComparison = aValue.localeCompare(bValue);
+      } else {
+        // Handle numeric comparison
+        primaryComparison = aValue - bValue;
       }
 
-      // Handle numeric comparison
-      const comparison = aValue - bValue;
-      return sortDirection === 'asc' ? comparison : -comparison;
+      // Apply sort direction to primary comparison
+      const primaryResult = sortDirection === 'asc' ? primaryComparison : -primaryComparison;
+
+      // If primary values are equal and we're not sorting by timestamp, use timestamp as secondary sort
+      if (primaryComparison === 0 && sortField !== 'timestamp') {
+        const aTimestamp = new Date(a.timestamp).getTime();
+        const bTimestamp = new Date(b.timestamp).getTime();
+        const timestampComparison = aTimestamp - bTimestamp;
+        return timestampComparison; // Always sort timestamps ascending for secondary sort
+      }
+
+      return primaryResult;
     });
 
-    // Calculate running balance for each transaction
-    let runningBalance = 0;
+    // Use the pre-calculated account balances and calculate cash deltas for filtered transactions
     return sorted.map(transaction => {
+      const accountId = transaction.account_id;
+      
       // Calculate cash delta for this transaction
       let cashDelta = 0;
       
@@ -143,15 +241,43 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
         cashDelta = totalProceeds - transaction.fees;
       }
 
-      runningBalance += cashDelta;
+      // Get the running balance at the time of this transaction
+      // We need to find the balance after this specific transaction
+      let balanceAfter = accountBalances[accountId] || 0;
+      
+      // If this transaction is in the filtered set, we need to calculate
+      // the balance up to this point by processing all transactions up to this timestamp
+      const transactionTime = new Date(transaction.timestamp).getTime();
+      let runningBalance = 0;
+      
+      // Process all transactions up to this point to get accurate balance
+      allSortedTransactions.forEach(tx => {
+        if (new Date(tx.timestamp).getTime() <= transactionTime && tx.account_id === accountId) {
+          let txCashDelta = 0;
+          
+          if (tx.instrument_kind === 'CASH') {
+            txCashDelta = tx.qty;
+          } else if (tx.side === 'BUY') {
+            const totalCost = (tx.price || 0) * tx.qty;
+            txCashDelta = -(totalCost + tx.fees);
+          } else if (tx.side === 'SELL') {
+            const totalProceeds = (tx.price || 0) * tx.qty;
+            txCashDelta = totalProceeds - tx.fees;
+          }
+          
+          runningBalance += txCashDelta;
+        }
+      });
+      
+      balanceAfter = runningBalance;
 
       return {
         ...transaction,
         cashDelta,
-        balanceAfter: runningBalance
+        balanceAfter
       };
     });
-  }, [filteredTransactions, sortField, sortDirection]);
+  }, [filteredTransactions, allTransactions, sortField, sortDirection]);
 
   // Memoize summary statistics
   const summaryStats = useMemo(() => {
@@ -204,7 +330,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
 
   const getInstrumentDisplay = (transaction: TransactionWithDetails) => {
     if (transaction.instrument_kind === 'CASH') {
-      return 'Cash';
+      return { ticker: 'Cash', details: '' };
     }
     
     const ticker = transaction.tickers?.name || 'Unknown';
@@ -212,14 +338,15 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     const kind = transaction.instrument_kind;
     
     if (kind === 'SHARES') {
-      return `${side} ${ticker}`;
+      return { ticker, details: side };
     } else if (kind === 'CALL' || kind === 'PUT') {
       const strike = transaction.strike ? `$${transaction.strike}` : '';
       const expiry = transaction.expiry ? new Date(transaction.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-      return `${side} ${ticker} ${kind} ${strike} ${expiry}`.trim();
+      const details = `${side} ${kind} ${strike} ${expiry}`.trim();
+      return { ticker, details };
     }
     
-    return `${side} ${kind}`;
+    return { ticker: kind, details: side };
   };
 
   if (loading) {
@@ -243,37 +370,69 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
       {/* Debug Information */}
       <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
         <CardHeader>
-          <CardTitle className="text-sm text-[#b3b3b3]">Debug Information</CardTitle>
+          <CardTitle className="text-sm text-[#b3b3b3]">Portfolio Positions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-sm space-y-2">
-            <div>
-              <span className="text-[#b3b3b3]">Date Range: </span>
-              <span className="text-white">
-                {selectedRange.startDate.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })} - {selectedRange.endDate.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </span>
+          <div className="text-sm space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <span className="text-[#b3b3b3]">Date Range: </span>
+                <span className="text-white">
+                  {selectedRange.startDate.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} - {selectedRange.endDate.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[#b3b3b3]">Filtered Transactions: </span>
+                <span className="text-white">{filteredTransactions.length}</span>
+              </div>
             </div>
+            
             <div>
               <span className="text-[#b3b3b3]">ISO Range: </span>
               <span className="text-white font-mono text-xs">
                 {selectedRange.startDate.toISOString()} to {selectedRange.endDate.toISOString()}
               </span>
             </div>
-            <div>
-              <span className="text-[#b3b3b3]">Filtered Transactions: </span>
-              <span className="text-white">{filteredTransactions.length}</span>
+
+            {/* Portfolio Positions */}
+            <div className="border-t border-[#2d2d2d] pt-4">
+              <div className="text-[#b3b3b3] font-medium mb-2">Current Positions (Full Portfolio):</div>
+              <div className="bg-[#0f0f0f] p-3 rounded text-xs font-mono overflow-x-auto">
+                <pre className="whitespace-pre-wrap">
+                  {fullPortfolio ? JSON.stringify({
+                    positions: Object.fromEntries(
+                      Array.from(fullPortfolio.positions.entries()).map(([key, position]) => {
+                        // Convert UUID account ID to account name for readability
+                        const accountName = allTransactions.find(t => t.account_id === position.accountId)?.accounts?.name || position.accountId;
+                        const readableKey = key.replace(position.accountId, accountName);
+                        return [readableKey, position];
+                      })
+                    ),
+                    balances: Object.fromEntries(
+                      Array.from(fullPortfolio.balances.entries()).map(([accountId, balance]) => {
+                        const accountName = allTransactions.find(t => t.account_id === accountId)?.accounts?.name || accountId;
+                        return [accountName, balance];
+                      })
+                    ),
+                    ledgerCount: fullPortfolio.ledger.length,
+                    realizedCount: fullPortfolio.realized.length,
+                    sampleLedgerEntry: fullPortfolio.ledger[0] || null,
+                    sampleRealizedEvent: fullPortfolio.realized[0] || null
+                  }, null, 2) : 'No portfolio data available'}
+                </pre>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -352,8 +511,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                   <tr className="border-b border-[#2d2d2d]">
                     {renderSortableHeader('timestamp', 'Date')}
                     {renderSortableHeader('account', 'Account')}
-                    {renderSortableHeader('instrument_kind', 'Type')}
-                    <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Instrument</th>
+                    {renderSortableHeader('instrument_kind', 'Instrument')}
                     {renderSortableHeader('qty', 'Qty', 'right')}
                     {renderSortableHeader('price', 'Price', 'right')}
                     {renderSortableHeader('fees', 'Fees', 'right')}
@@ -385,21 +543,15 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                         </div>
                       </td>
                       <td className="py-2 px-2">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${
-                            transaction.side === 'BUY' || (transaction.instrument_kind === 'CASH' && transaction.qty > 0) 
-                              ? 'bg-green-400' 
-                              : 'bg-red-400'
-                          }`} />
-                          <span className="text-white">{transaction.instrument_kind}</span>
-                        </div>
-                      </td>
-                      <td className="py-2 px-2">
-                        <div 
-                          className="text-white truncate max-w-[200px]" 
-                          title={getInstrumentDisplay(transaction)}
-                        >
-                          {getInstrumentDisplay(transaction)}
+                        <div className="flex flex-col h-8 justify-center">
+                          <div className="text-white font-semibold text-sm">
+                            {getInstrumentDisplay(transaction).ticker}
+                          </div>
+                          {getInstrumentDisplay(transaction).details && (
+                            <div className="text-[#b3b3b3] text-xs">
+                              {getInstrumentDisplay(transaction).details}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="py-2 px-2 text-right text-white">

@@ -216,10 +216,10 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   }, [transactions]);
 
   const getFilteredPortfolio = useCallback((timeRange: TimeRange): PortfolioState | null => {
-    const filteredTransactions = getFilteredTransactions(timeRange);
-    if (filteredTransactions.length === 0) return null;
-    return buildPortfolio(filteredTransactions);
-  }, [getFilteredTransactions]);
+    // Always use the full portfolio (built from ALL transactions)
+    // The filtering should only affect the display, not the calculation
+    return portfolio;
+  }, [portfolio]);
 
   // Actions
   const refreshPortfolio = useCallback(async () => {
