@@ -417,16 +417,16 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                   {fullPortfolio ? JSON.stringify({
                     positions: Object.fromEntries(
                       Array.from(fullPortfolio.positions.entries()).map(([key, position]) => {
-                        // Convert UUID account ID to account name for readability
-                        const accountName = allTransactions.find(t => t.account_id === position.accountId)?.accounts?.name || position.accountId;
-                        const readableKey = key.replace(position.accountId, accountName);
+                        // Show both account name and UUID for clarity and uniqueness
+                        const accountName = allTransactions.find(t => t.account_id === position.accountId)?.accounts?.name || 'Unknown';
+                        const readableKey = key.replace(position.accountId, `${accountName}(${position.accountId.slice(0, 8)})`);
                         return [readableKey, position];
                       })
                     ),
                     balances: Object.fromEntries(
                       Array.from(fullPortfolio.balances.entries()).map(([accountId, balance]) => {
-                        const accountName = allTransactions.find(t => t.account_id === accountId)?.accounts?.name || accountId;
-                        return [accountName, balance];
+                        const accountName = allTransactions.find(t => t.account_id === accountId)?.accounts?.name || 'Unknown';
+                        return [`${accountName}(${accountId.slice(0, 8)})`, balance];
                       })
                     ),
                     ledgerCount: fullPortfolio.ledger.length,

@@ -30,12 +30,15 @@ users:
 accounts:
   id: string                    # UUID primary key
   user_id: string               # foreign key to users.id
-  name: string                  # account display name
+  name: string                  # account display name (unique per user)
   type: string                  # account type (Individual, IRA, etc.)
   institution: string           # broker/institution name
   account_number?: string       # broker account number
   description?: string          # optional description
   created_at: datetime          # account creation time
+
+constraints:
+  - UNIQUE(user_id, name)       # account names must be unique per user
 ```
 
 ---

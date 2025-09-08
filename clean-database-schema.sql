@@ -28,7 +28,9 @@ CREATE TABLE public.accounts (
   institution TEXT NOT NULL,
   account_number TEXT,
   description TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Ensure account names are unique per user
+  UNIQUE(user_id, name)
 );
 
 -- 3) Ticker table (financial instruments)
