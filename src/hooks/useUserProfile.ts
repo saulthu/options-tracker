@@ -14,11 +14,13 @@ export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
 
   const createDefaultProfile = useCallback(async () => {
-    if (!user) return;
+    if (!user || isCreatingProfile) return;
     
     try {
+      setIsCreatingProfile(true);
       // Create user profile with default name
       const defaultName = user.email?.split('@')[0] || 'User';
       
@@ -38,7 +40,30 @@ export function useUserProfile() {
 
       if (profileError) {
         console.error('Failed to create profile:', profileError);
-        const errorMessage = profileError.message || profileError.details || profileError.hint || 'Unknown database error';
+        
+        // Handle different error types
+        let errorMessage = 'Unknown database error';
+        
+        if (profileError.message) {
+          errorMessage = profileError.message;
+        } else if (profileError.details) {
+          errorMessage = profileError.details;
+        } else if (profileError.hint) {
+          errorMessage = profileError.hint;
+        } else if (profileError.code === '23505') {
+          // Unique constraint violation - profile already exists
+          errorMessage = 'Profile already exists (race condition)';
+          console.log('Profile already exists, this is likely a race condition');
+          // Don't set error state for this case, just return
+          return;
+        } else if (typeof profileError === 'object' && Object.keys(profileError).length === 0) {
+          errorMessage = 'Empty error object - possible race condition or duplicate key';
+        } else {
+          // Log the full error object for debugging
+          console.error('Unexpected error structure:', JSON.stringify(profileError, null, 2));
+          errorMessage = `Database error: ${JSON.stringify(profileError)}`;
+        }
+        
         setError(`Failed to create profile: ${errorMessage}`);
         return;
       }
@@ -49,8 +74,10 @@ export function useUserProfile() {
     } catch (err) {
       console.error('Failed to create default profile:', err);
       setError(`Failed to create default profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsCreatingProfile(false);
     }
-  }, [user]);
+  }, [user, isCreatingProfile]);
 
   useEffect(() => {
     if (!user) {
@@ -78,6 +105,20 @@ export function useUserProfile() {
           if (fetchError.code === 'PGRST116') {
             // No profile found - create one automatically
             await createDefaultProfile();
+            
+            // After creating profile, try to fetch it again
+            const { data: retryData, error: retryError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+            
+            if (retryError) {
+              console.error('Failed to fetch profile after creation:', retryError);
+              setError(`Failed to fetch profile after creation: ${retryError.message || 'Unknown error'}`);
+            } else {
+              setProfile(retryData);
+            }
           } else {
             setError(`Database error: ${fetchError.message || 'Unknown error occurred'}`);
           }
