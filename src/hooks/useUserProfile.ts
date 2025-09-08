@@ -64,18 +64,19 @@ export function useUserProfile() {
         // Handle different error types
         let errorMessage = 'Unknown database error';
         
-        if (profileError.message) {
+        // Check for unique constraint violation first (most common case)
+        if (profileError.code === '23505') {
+          // Unique constraint violation - profile already exists
+          console.log('Profile already exists (race condition), code:', profileError.code);
+          console.log('Profile already exists, this is likely a race condition');
+          // Don't set error state for this case, just return
+          return;
+        } else if (profileError.message) {
           errorMessage = profileError.message;
         } else if (profileError.details) {
           errorMessage = profileError.details;
         } else if (profileError.hint) {
           errorMessage = profileError.hint;
-        } else if (profileError.code === '23505') {
-          // Unique constraint violation - profile already exists
-          errorMessage = 'Profile already exists (race condition)';
-          console.log('Profile already exists, this is likely a race condition');
-          // Don't set error state for this case, just return
-          return;
         } else if (typeof profileError === 'object' && Object.keys(profileError).length === 0) {
           errorMessage = 'Empty error object - possible race condition or duplicate key';
           console.log('Empty error object detected, this might be a Supabase client issue');
