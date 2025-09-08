@@ -44,10 +44,10 @@ export default function TimeRangeSelector({
           startDate,
           endDate,
           scale,
-          label: date.toLocaleDateString('en-US', { 
+          label: `${date.toLocaleDateString('en-US', { weekday: 'short' })} ${date.toLocaleDateString('en-US', { 
             month: 'numeric', 
             day: 'numeric'
-          })
+          })}`
         };
 
       case 'week':
@@ -102,9 +102,7 @@ export default function TimeRangeSelector({
           startDate,
           endDate,
           scale,
-          label: date.toLocaleDateString('en-US', { 
-            month: 'short'
-          })
+          label: `${date.toLocaleDateString('en-US', { month: 'short' })} '${date.getFullYear().toString().slice(-2)}`
         };
 
       case 'year':
@@ -243,11 +241,11 @@ export default function TimeRangeSelector({
         <ThemeButton
           onClick={toggleCalendar}
           size="sm"
-          className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7 flex items-center gap-1"
+          className="px-1.5 py-1 text-xs font-medium flex-1 min-w-0 h-7 flex items-center justify-start gap-1"
           data-calendar-trigger
         >
-          <Calendar className="h-3 w-3" />
-          {currentRange.label}
+          <Calendar className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{currentRange.label}</span>
         </ThemeButton>
 
         <ThemeButton
