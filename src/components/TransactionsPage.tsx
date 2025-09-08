@@ -53,50 +53,12 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
   };
 
   // Get all transactions and full portfolio (not filtered)
-  const allTransactions = usePortfolio().transactions as TransactionWithDetails[];
   const fullPortfolio = usePortfolio().portfolio;
   
   // Get filtered transactions for display only
   const filteredTransactions = getFilteredTransactions(selectedRange) as TransactionWithDetails[];
 
-  // Log portfolio calculator results to console
-  console.log('Portfolio Calculator Results:', {
-    fullPortfolio: fullPortfolio ? {
-      positions: Array.from(fullPortfolio.positions.entries()),
-      balances: Array.from(fullPortfolio.balances.entries()),
-      ledger: fullPortfolio.ledger,
-      realized: fullPortfolio.realized,
-      ledgerCount: fullPortfolio.ledger.length,
-      realizedCount: fullPortfolio.realized.length
-    } : null,
-    allTransactionsCount: allTransactions.length,
-    filteredTransactionsCount: filteredTransactions.length,
-    sampleFilteredTransactions: filteredTransactions.slice(0, 5).map(tx => ({
-      id: tx.id,
-      timestamp: tx.timestamp,
-      instrument_kind: tx.instrument_kind,
-      ticker: tx.tickers?.name,
-      account: tx.accounts?.name,
-      side: tx.side,
-      qty: tx.qty,
-      price: tx.price
-    }))
-  });
 
-  // Debug logging for date filtering
-  console.log('Date filtering debug:', {
-    selectedRange: {
-      start: selectedRange.startDate.toISOString(),
-      end: selectedRange.endDate.toISOString()
-    },
-    filteredCount: filteredTransactions.length,
-    sampleTransactions: filteredTransactions.slice(0, 3).map(tx => ({
-      id: tx.id,
-      timestamp: tx.timestamp,
-      parsedDate: new Date(tx.timestamp).toISOString(),
-      instrument: tx.instrument_kind
-    }))
-  });
 
   // Sort filtered transactions by selected field and calculate running balances per account
   const sortedTransactions = useMemo((): TransactionWithDetails[] => {
@@ -292,76 +254,6 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
 
   return (
     <div className="space-y-8">
-      {/* Debug Information */}
-      <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
-        <CardHeader>
-          <CardTitle className="text-sm text-[#b3b3b3]">Portfolio Positions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <span className="text-[#b3b3b3]">Date Range: </span>
-                <span className="text-white">
-                  {selectedRange.startDate.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })} - {selectedRange.endDate.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-              </div>
-              <div>
-                <span className="text-[#b3b3b3]">Filtered Transactions: </span>
-                <span className="text-white">{filteredTransactions.length}</span>
-              </div>
-            </div>
-            
-            <div>
-              <span className="text-[#b3b3b3]">ISO Range: </span>
-              <span className="text-white font-mono text-xs">
-                {selectedRange.startDate.toISOString()} to {selectedRange.endDate.toISOString()}
-              </span>
-            </div>
-
-            {/* Portfolio Positions */}
-            <div className="border-t border-[#2d2d2d] pt-4">
-              <div className="text-[#b3b3b3] font-medium mb-2">Current Positions (Full Portfolio):</div>
-              <div className="bg-[#0f0f0f] p-3 rounded text-xs font-mono overflow-x-auto">
-                <pre className="whitespace-pre-wrap">
-                  {fullPortfolio ? JSON.stringify({
-                    positions: Object.fromEntries(
-                      Array.from(fullPortfolio.positions.entries()).map(([key, position]) => {
-                        // Show account name (unique per user)
-                        const accountName = allTransactions.find(t => t.account_id === position.accountId)?.accounts?.name || 'Unknown';
-                        const readableKey = key.replace(position.accountId, accountName);
-                        return [readableKey, position];
-                      })
-                    ),
-                    balances: Object.fromEntries(
-                      Array.from(fullPortfolio.balances.entries()).map(([accountId, balance]) => {
-                        const accountName = allTransactions.find(t => t.account_id === accountId)?.accounts?.name || 'Unknown';
-                        return [accountName, balance];
-                      })
-                    ),
-                    ledgerCount: fullPortfolio.ledger.length,
-                    realizedCount: fullPortfolio.realized.length,
-                    sampleLedgerEntry: fullPortfolio.ledger[0] || null,
-                    sampleRealizedEvent: fullPortfolio.realized[0] || null
-                  }, null, 2) : 'No portfolio data available'}
-                </pre>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
