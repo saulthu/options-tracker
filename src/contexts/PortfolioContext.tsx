@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useAuth } from './AuthContext';
 import { 
@@ -178,17 +178,22 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, [transactions]);
 
+  // Track if we've already fetched data to prevent unnecessary re-fetching
+  const hasFetchedRef = useRef(false);
+
   // Initial fetch - only when auth is ready and user is available
   useEffect(() => {
-    if (!authLoading && user && !authError) {
+    if (!authLoading && user && !authError && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
       fetchTransactions();
     } else if (!authLoading && !user) {
       // User is not authenticated, clear data
+      hasFetchedRef.current = false;
       setTransactions([]);
       setPortfolio(null);
       setLoading(false);
     }
-  }, [fetchTransactions, authLoading, user, authError]);
+  }, [authLoading, user, authError, fetchTransactions]);
 
   // Helper functions
   const getPositions = useCallback((accountId: string): Position[] => {
@@ -228,6 +233,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const refreshOnAccountChange = useCallback(async () => {
     // Refresh portfolio data when accounts change to get updated account names
+    hasFetchedRef.current = false; // Reset fetch flag to allow re-fetch
     await fetchTransactions();
   }, [fetchTransactions]);
 
