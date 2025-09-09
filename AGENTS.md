@@ -49,13 +49,13 @@ src/
 
 ### **Documentation Sync Rules** ⚠️ **CRITICAL**
 
-#### **Database Specification Sync**
-- **ALWAYS keep `src/docs/database_spec.md` in sync** with the actual database implementation
-- **Before making ANY database changes**, update the specification first
-- **The database_spec.md is the single source of truth** for all database design decisions
-- **Any schema changes must be reflected** in both the SQL files AND the specification
-- **TypeScript interfaces must match** the specification exactly
-- **Business logic must implement** the rules defined in the specification
+#### **Database Implementation Sync**
+- **ALWAYS keep database implementation in sync** with the episode-based portfolio calculation system
+- **Before making ANY database changes**, ensure they align with the episode-based architecture
+- **The episode-portfolio-calculator.ts is the single source of truth** for all business logic
+- **Any schema changes must be reflected** in both the SQL files AND the TypeScript interfaces
+- **TypeScript interfaces must match** the episode-based data structures exactly
+- **Business logic must implement** the rules defined in the episode-based system
 
 #### **AGENTS.md Self-Maintenance** ⚠️ **CRITICAL**
 - **ALWAYS keep `AGENTS.md` up-to-date** with any important architectural or process changes
@@ -495,7 +495,7 @@ Common authentication issues and their solutions:
 
 **Key Principles**:
 - **Single Source of Truth**: Each business logic calculation should exist in exactly one place
-- **Module Responsibility**: Each module should have one clear purpose (e.g., portfolio-calculator.ts for all portfolio calculations)
+- **Module Responsibility**: Each module should have one clear purpose (e.g., episode-portfolio-calculator.ts for all portfolio calculations)
 - **No Duplication**: Never reimplement business logic that already exists in a specialized module
 - **Use Existing APIs**: Always use existing methods from specialized modules instead of reimplementing
 - **Centralized Logic**: Keep all related calculations in the same module for consistency
@@ -508,7 +508,7 @@ Common authentication issues and their solutions:
 - ❌ **Redundant data fetching** when data is already available in context
 
 **Examples of Correct Usage**:
-- ✅ **Portfolio Calculations**: Use `portfolio-calculator.ts` for all P&L, balances, positions
+- ✅ **Portfolio Calculations**: Use `episode-portfolio-calculator.ts` for all P&L, balances, positions
 - ✅ **Data Access**: Use `PortfolioContext` methods instead of direct Supabase queries
 - ✅ **Time Filtering**: Use `getFilteredPortfolio()` instead of manual date filtering
 - ✅ **State Management**: Use context hooks instead of local state for shared data
@@ -527,12 +527,12 @@ Common authentication issues and their solutions:
 - **Performance**: Avoids redundant processing
 - **Testing**: Easier to test centralized logic
 
-### **Database Specification Update Pattern**
-1. **Update `src/docs/database_spec.md`** with new requirements
-2. **Update `clean-database-schema.sql`** to match specification
-3. **Update TypeScript interfaces** in `src/types/database.ts`
-4. **Update business logic** in `src/lib/portfolio-calculator.ts`
+### **Database Implementation Update Pattern**
+1. **Update `src/lib/episode-portfolio-calculator.ts`** with new business logic requirements
+2. **Update `clean-database-schema.sql`** to match the episode-based system
+3. **Update TypeScript interfaces** in `src/types/episodes.ts` and `src/types/database.ts`
+4. **Update business logic** in `src/lib/episode-portfolio-calculator.ts`
 5. **Update sample data** in `insert-sample-data.sql`
 6. **Test and build** to ensure everything works
 
-Remember: This is a **trading application** - accuracy in calculations, proper date handling, and consistent data presentation are critical for user trust and financial accuracy. **The database specification is the foundation of all data integrity.**
+Remember: This is a **trading application** - accuracy in calculations, proper date handling, and consistent data presentation are critical for user trust and financial accuracy. **The episode-based portfolio calculator is the foundation of all data integrity.**

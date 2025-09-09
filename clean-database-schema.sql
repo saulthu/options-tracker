@@ -1,6 +1,6 @@
 -- Clean database schema for options tracker
 -- Run this in your Supabase SQL Editor to start fresh
--- This schema matches the updated database_spec.md with User, Account, Ticker, and Transaction tables
+-- This schema implements the episode-based portfolio calculation system
 
 -- Drop everything first (since you said you have no data to lose)
 DROP SCHEMA IF EXISTS public CASCADE;
