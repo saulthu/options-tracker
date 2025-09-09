@@ -19,7 +19,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     portfolio, 
     loading, 
     error, 
-    getFilteredEpisodes
+    getFilteredPositions
   } = usePortfolio();
 
   // Sorting state
@@ -38,17 +38,17 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     }
   };
 
-  // Get filtered episodes for the selected time range
-  const filteredEpisodes = useMemo(() => {
+  // Get filtered positions for the selected time range
+  const filteredPositions = useMemo(() => {
     if (!portfolio) return [];
-    return getFilteredEpisodes(selectedRange);
-  }, [portfolio, selectedRange, getFilteredEpisodes]);
+    return getFilteredPositions(selectedRange);
+  }, [portfolio, selectedRange, getFilteredPositions]);
 
-  // Sort filtered episodes by selected field
-  const sortedEpisodes = useMemo(() => {
-    if (!filteredEpisodes.length) return [];
+  // Sort filtered positions by selected field
+  const sortedPositions = useMemo(() => {
+    if (!filteredPositions.length) return [];
 
-    const sorted = [...filteredEpisodes].sort((a, b) => {
+    const sorted = [...filteredPositions].sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
 
@@ -111,18 +111,18 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     });
 
     return sorted;
-  }, [filteredEpisodes, sortField, sortDirection]);
+  }, [filteredPositions, sortField, sortDirection]);
 
   // Memoize summary statistics
   const summaryStats = useMemo(() => {
-    const totalEpisodes = filteredEpisodes.length;
-    const openEpisodes = filteredEpisodes.filter(ep => ep.qty !== 0).length;
-    const closedEpisodes = filteredEpisodes.filter(ep => ep.qty === 0).length;
-    const totalRealizedPnL = filteredEpisodes.reduce((sum, ep) => sum + ep.realizedPnLTotal, 0);
-    const totalCashFlow = filteredEpisodes.reduce((sum, ep) => sum + ep.cashTotal, 0);
+    const totalPositions = filteredPositions.length;
+    const openPositions = filteredPositions.filter(pos => pos.qty !== 0).length;
+    const closedPositions = filteredPositions.filter(pos => pos.qty === 0).length;
+    const totalRealizedPnL = filteredPositions.reduce((sum, pos) => sum + pos.realizedPnLTotal, 0);
+    const totalCashFlow = filteredPositions.reduce((sum, pos) => sum + pos.cashTotal, 0);
 
-    return { totalEpisodes, openEpisodes, closedEpisodes, totalRealizedPnL, totalCashFlow };
-  }, [filteredEpisodes]);
+    return { totalPositions, openPositions, closedPositions, totalRealizedPnL, totalCashFlow };
+  }, [filteredPositions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -159,24 +159,24 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     );
   };
 
-  const getEpisodeDisplay = (episode: { kindGroup: string; episodeKey: string; qty: number; currentRight?: string; currentStrike?: number; currentExpiry?: string }) => {
-    if (episode.kindGroup === 'CASH') {
+  const getPositionDisplay = (position: { kindGroup: string; episodeKey: string; qty: number; currentRight?: string; currentStrike?: number; currentExpiry?: string }) => {
+    if (position.kindGroup === 'CASH') {
       return { ticker: 'Cash', details: '' };
     }
 
-    if (episode.kindGroup === 'SHARES') {
-      return { ticker: episode.episodeKey, details: `${episode.qty} shares` };
+    if (position.kindGroup === 'SHARES') {
+      return { ticker: position.episodeKey, details: `${position.qty} shares` };
     }
 
-    if (episode.kindGroup === 'OPTION') {
-      const right = episode.currentRight || 'UNKNOWN';
-      const strike = episode.currentStrike ? `$${episode.currentStrike}` : '';
-      const expiry = episode.currentExpiry ? new Date(episode.currentExpiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-      const details = `${episode.qty} contracts ${right} ${strike} ${expiry}`.trim();
-      return { ticker: episode.episodeKey.split('|')[0] || episode.episodeKey, details };
+    if (position.kindGroup === 'OPTION') {
+      const right = position.currentRight || 'UNKNOWN';
+      const strike = position.currentStrike ? `$${position.currentStrike}` : '';
+      const expiry = position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const details = `${position.qty} contracts ${right} ${strike} ${expiry}`.trim();
+      return { ticker: position.episodeKey.split('|')[0] || position.episodeKey, details };
     }
 
-    return { ticker: episode.episodeKey, details: '' };
+    return { ticker: position.episodeKey, details: '' };
   };
 
   if (loading) {
@@ -202,11 +202,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-[#b3b3b3]">Total Episodes</CardTitle>
+            <CardTitle className="text-sm font-medium text-[#b3b3b3]">Total Positions</CardTitle>
             <Activity className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{summaryStats.totalEpisodes}</div>
+            <div className="text-2xl font-bold text-white">{summaryStats.totalPositions}</div>
             <p className="text-xs text-[#b3b3b3]">In selected period</p>
           </CardContent>
         </Card>
@@ -217,7 +217,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             <TrendingUp className="h-4 w-4 text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-400">{summaryStats.openEpisodes}</div>
+            <div className="text-2xl font-bold text-green-400">{summaryStats.openPositions}</div>
             <p className="text-xs text-[#b3b3b3]">Active positions</p>
           </CardContent>
         </Card>
@@ -257,11 +257,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             Positions Table
           </CardTitle>
           <CardDescription>
-            All position episodes in the selected time period
+            All positions in the selected time period
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {sortedEpisodes.length === 0 ? (
+          {sortedPositions.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-lg text-[#b3b3b3]">No positions found</div>
               <div className="text-sm text-[#b3b3b3] mt-2">Try adjusting your time range or add some transactions</div>
@@ -282,15 +282,15 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedEpisodes.map((episode, index) => (
+                  {sortedPositions.map((position, index) => (
                     <tr
-                      key={episode.episodeId}
+                      key={position.episodeId}
                       className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] ${
                         index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]'
                       }`}
                     >
                       <td className="py-2 px-2 text-white font-mono text-xs">
-                        {new Date(episode.openTimestamp).toLocaleDateString('en-US', {
+                        {new Date(position.openTimestamp).toLocaleDateString('en-US', {
                           month: '2-digit',
                           day: '2-digit',
                           year: '2-digit'
@@ -299,11 +299,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       <td className="py-2 px-2">
                         <div className="flex flex-col h-8 justify-center">
                           <div className="text-white font-semibold text-sm">
-                            {getEpisodeDisplay(episode).ticker}
+                            {getPositionDisplay(position).ticker}
                           </div>
-                          {getEpisodeDisplay(episode).details && (
+                          {getPositionDisplay(position).details && (
                             <div className="text-[#b3b3b3] text-xs">
-                              {getEpisodeDisplay(episode).details}
+                              {getPositionDisplay(position).details}
                             </div>
                           )}
                         </div>
@@ -312,38 +312,38 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         <Badge 
                           variant="outline" 
                           className={`text-xs ${
-                            episode.kindGroup === 'CASH' ? 'bg-blue-600 text-white border-blue-600' :
-                            episode.kindGroup === 'SHARES' ? 'bg-green-600 text-white border-green-600' :
+                            position.kindGroup === 'CASH' ? 'bg-blue-600 text-white border-blue-600' :
+                            position.kindGroup === 'SHARES' ? 'bg-green-600 text-white border-green-600' :
                             'bg-purple-600 text-white border-purple-600'
                           }`}
                         >
-                          {episode.kindGroup}
+                          {position.kindGroup}
                         </Badge>
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {episode.qty}
+                        {position.qty}
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {episode.avgPrice > 0 ? formatCurrency(episode.avgPrice) : '-'}
+                        {position.avgPrice > 0 ? formatCurrency(position.avgPrice) : '-'}
                       </td>
                       <td className="py-2 px-2 text-right">
-                        <span className={episode.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {episode.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(episode.realizedPnLTotal)}
+                        <span className={position.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          {position.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(position.realizedPnLTotal)}
                         </span>
                       </td>
                       <td className="py-2 px-2 text-right">
-                        <span className={episode.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {episode.cashTotal >= 0 ? '+' : ''}{formatCurrency(episode.cashTotal)}
+                        <span className={position.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          {position.cashTotal >= 0 ? '+' : ''}{formatCurrency(position.cashTotal)}
                         </span>
                       </td>
                       <td className="py-2 px-2">
                         <Badge 
                           variant="outline" 
                           className={`text-xs ${
-                            episode.qty === 0 ? 'bg-gray-600 text-white border-gray-600' : 'bg-green-600 text-white border-green-600'
+                            position.qty === 0 ? 'bg-gray-600 text-white border-gray-600' : 'bg-green-600 text-white border-green-600'
                           }`}
                         >
-                          {episode.qty === 0 ? 'CLOSED' : 'OPEN'}
+                          {position.qty === 0 ? 'CLOSED' : 'OPEN'}
                         </Badge>
                       </td>
                     </tr>

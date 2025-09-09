@@ -17,6 +17,7 @@ import {
   PositionEpisode,
   RawTransaction
 } from '@/types/episodes';
+import { Account } from '@/types/database';
 import { TimeRange } from '@/components/TimeRangeSelector';
 
 // Supabase client
@@ -28,6 +29,7 @@ const supabase = createClient(
 interface PortfolioContextType {
   // Raw data
   transactions: RawTransaction[];
+  accounts: Account[]; // Add accounts for the debug page
   loading: boolean;
   error: string | null;
   
@@ -42,6 +44,8 @@ interface PortfolioContextType {
   getBalance: (accountId: string) => number;
   getTotalPnL: (accountId?: string) => number;
   getFilteredEpisodes: (timeRange: TimeRange, accountId?: string) => PositionEpisode[];
+  getFilteredPositions: (timeRange: TimeRange, accountId?: string) => PositionEpisode[];
+  getFilteredTransactions: (timeRange: TimeRange) => RawTransaction[];
   
   // Actions
   refreshPortfolio: () => Promise<void>;
@@ -60,6 +64,7 @@ interface PortfolioProviderProps {
 export function PortfolioProvider({ children }: PortfolioProviderProps) {
   const { user, loading: authLoading, error: authError } = useAuth();
   const [transactions, setTransactions] = useState<RawTransaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +161,19 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
       }
 
       setTransactions(data || []);
+
+      // Also fetch accounts for the debug page
+      const { data: accountsData, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (accountsError) {
+        console.warn('Error fetching accounts:', accountsError);
+        setAccounts([]);
+      } else {
+        setAccounts(accountsData || []);
+      }
     } catch (err) {
       console.error('Error fetching transactions:', err);
       console.error('Error details:', {
@@ -248,6 +266,26 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return filterEpisodesByDateRange(episodes, startDate, endDate);
   }, [portfolio]);
 
+  const getFilteredPositions = useCallback((timeRange: TimeRange, accountId?: string): PositionEpisode[] => {
+    if (!portfolio) return [];
+    const positions = accountId ? getAccountEpisodes(portfolio.episodes, accountId) : portfolio.episodes;
+    const startDate = timeRange.startDate.toISOString();
+    const endDate = timeRange.endDate.toISOString();
+    return filterEpisodesByDateRange(positions, startDate, endDate);
+  }, [portfolio]);
+
+  const getFilteredTransactions = useCallback((timeRange: TimeRange): RawTransaction[] => {
+    if (!transactions.length) return [];
+    
+    const startDate = timeRange.startDate.toISOString();
+    const endDate = timeRange.endDate.toISOString();
+    
+    return transactions.filter(transaction => {
+      const transactionDate = transaction.timestamp;
+      return transactionDate >= startDate && transactionDate <= endDate;
+    });
+  }, [transactions]);
+
   // Actions
   const refreshPortfolio = useCallback(async () => {
     await fetchTransactions();
@@ -319,6 +357,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const value: PortfolioContextType = {
     transactions,
+    accounts,
     loading: loading || authLoading,
     error: error || authError,
     portfolio,
@@ -329,6 +368,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     getBalance,
     getTotalPnL,
     getFilteredEpisodes,
+    getFilteredPositions,
+    getFilteredTransactions,
     refreshPortfolio,
     refreshOnAccountChange,
     addTransaction,
