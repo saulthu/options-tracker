@@ -62,7 +62,7 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div ref={modalRef} className={`bg-[#1a1a1a] border border-[#2d2d2d] text-white w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] overflow-y-auto rounded-lg shadow-2xl`}>
+            <div ref={modalRef} className={`bg-[#1a1a1a] border border-[#2d2d2d] text-white w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] overflow-y-auto rounded-lg shadow-2xl custom-scrollbar`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 pb-4 border-b border-[#2d2d2d]">
           <div>
@@ -84,7 +84,12 @@ export default function Modal({
         </div>
         
         {/* Content */}
-        <div className="p-6 pt-4">
+        {/* 
+          Note: Modal content should use custom div elements instead of Card components
+          to avoid default padding/spacing conflicts. Use space-y-4 for consistent spacing
+          between top-level content sections.
+        */}
+        <div className="p-6 pt-4 space-y-4">
           {children}
         </div>
       </div>

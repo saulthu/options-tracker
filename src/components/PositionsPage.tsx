@@ -5,7 +5,9 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { TimeRange } from '@/components/TimeRangeSelector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown } from 'lucide-react';
+import Modal from '@/components/ui/modal';
+import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Eye, Clock, ArrowUpDown, Target, FileText } from 'lucide-react';
+import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
 
 interface PositionsPageProps {
   selectedRange: TimeRange;
@@ -25,6 +27,10 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('openTimestamp');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  
+  // Modal state
+  const [selectedPosition, setSelectedPosition] = useState<PositionEpisode | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Handle column sorting
   const handleSort = (field: SortField) => {
@@ -36,6 +42,18 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       setSortField(field);
       setSortDirection('asc');
     }
+  };
+
+  // Handle position click
+  const handlePositionClick = (position: PositionEpisode) => {
+    setSelectedPosition(position);
+    setIsModalOpen(true);
+  };
+
+  // Close modal
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedPosition(null);
   };
 
   // Get filtered positions for the selected time range
@@ -131,6 +149,16 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     }).format(amount);
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   // const formatNumber = (num: number) => {
   //   return new Intl.NumberFormat('en-US', {
   //     minimumFractionDigits: 0,
@@ -177,6 +205,86 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     }
 
     return { ticker: position.episodeKey, details: '' };
+  };
+
+  // Render transaction details in modal
+  const renderTransactionDetails = (txn: EpisodeTxn) => {
+    const getInstrumentDisplay = () => {
+      if (txn.instrumentKind === 'CASH') {
+        return 'Cash';
+      }
+      if (txn.instrumentKind === 'SHARES') {
+        return `${txn.side} ${txn.ticker}`;
+      }
+      if (txn.instrumentKind === 'CALL' || txn.instrumentKind === 'PUT') {
+        const expiry = txn.expiry ? new Date(txn.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        return `${txn.side} ${txn.ticker} ${txn.instrumentKind} $${txn.strike} ${expiry}`.trim();
+      }
+      return `${txn.side} ${txn.ticker}`;
+    };
+
+    return (
+      <div key={txn.txnId} className="border border-[#2d2d2d] rounded p-2 bg-[#0f0f0f]">
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant="outline" 
+              className={`text-xs ${
+                txn.side === 'BUY' ? 'bg-green-600 text-white border-green-600' :
+                txn.side === 'SELL' ? 'bg-red-600 text-white border-red-600' :
+                'bg-blue-600 text-white border-blue-600'
+              }`}
+            >
+              {txn.side || 'CASH'}
+            </Badge>
+            <span className="text-xs text-[#b3b3b3] font-mono">
+              {txn.txnId.slice(0, 6)}...
+            </span>
+          </div>
+          <span className="text-xs text-[#b3b3b3]">
+            {new Date(txn.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="text-sm text-white font-medium">{getInstrumentDisplay()}</div>
+          
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-[#b3b3b3]">Qty:</span>
+              <span className="text-white">{txn.qty}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#b3b3b3]">Price:</span>
+              <span className="text-white">
+                {txn.price ? formatCurrency(txn.price) : '-'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#b3b3b3]">Fees:</span>
+              <span className="text-white">{formatCurrency(txn.fees)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#b3b3b3]">Cash:</span>
+              <span className={`${txn.cashDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {txn.cashDelta >= 0 ? '+' : ''}{formatCurrency(txn.cashDelta)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#b3b3b3]">P&L:</span>
+              <span className={`${txn.realizedPnLDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {txn.realizedPnLDelta >= 0 ? '+' : ''}{formatCurrency(txn.realizedPnLDelta)}
+              </span>
+            </div>
+            {txn.note && (
+              <div className="col-span-3 text-center">
+                <span className="text-[#b3b3b3] text-xs">{txn.note}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -257,7 +365,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             Positions Table
           </CardTitle>
           <CardDescription>
-            All positions in the selected time period
+            Click on any position to view detailed information
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -279,15 +387,17 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     {renderSortableHeader('realizedPnLTotal', 'Realized P&L', 'right')}
                     {renderSortableHeader('cashTotal', 'Cash Flow', 'right')}
                     <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Status</th>
+                    <th className="text-center py-2 px-2 text-[#b3b3b3] font-medium">Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedPositions.map((position, index) => (
                     <tr
                       key={position.episodeId}
-                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] ${
+                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] cursor-pointer ${
                         index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]'
                       }`}
+                      onClick={() => handlePositionClick(position)}
                     >
                       <td className="py-2 px-2 text-white font-mono text-xs">
                         {new Date(position.openTimestamp).toLocaleDateString('en-US', {
@@ -346,6 +456,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                           {position.qty === 0 ? 'CLOSED' : 'OPEN'}
                         </Badge>
                       </td>
+                      <td className="py-2 px-2 text-center">
+                        <Eye className="h-4 w-4 text-[#b3b3b3] hover:text-white" />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -354,6 +467,183 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Position Details Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={selectedPosition ? `Position Details: ${getPositionDisplay(selectedPosition).ticker}` : ''}
+        description={selectedPosition ? `Episode ID: ${selectedPosition.episodeId}` : ''}
+        maxWidth="2xl"
+        showCloseButton={true}
+      >
+        {selectedPosition && (
+          <div className="space-y-4">
+            {/* Position Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Position Summary</h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Type:</span>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${
+                        selectedPosition.kindGroup === 'CASH' ? 'bg-blue-600 text-white border-blue-600' :
+                        selectedPosition.kindGroup === 'SHARES' ? 'bg-green-600 text-white border-green-600' :
+                        'bg-purple-600 text-white border-purple-600'
+                      }`}
+                    >
+                      {selectedPosition.kindGroup}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Quantity:</span>
+                    <span className="text-white">{selectedPosition.qty}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Avg Price:</span>
+                    <span className="text-white">
+                      {selectedPosition.avgPrice > 0 ? formatCurrency(selectedPosition.avgPrice) : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Total Fees:</span>
+                    <span className="text-white">{formatCurrency(selectedPosition.totalFees)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Status:</span>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${
+                        selectedPosition.qty === 0 ? 'bg-gray-600 text-white border-gray-600' : 'bg-green-600 text-white border-green-600'
+                      }`}
+                    >
+                      {selectedPosition.qty === 0 ? 'CLOSED' : 'OPEN'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <DollarSign className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Financial Summary</h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Realized P&L:</span>
+                    <span className={selectedPosition.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {selectedPosition.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.realizedPnLTotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Cash Flow:</span>
+                    <span className={selectedPosition.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {selectedPosition.cashTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.cashTotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Rolled:</span>
+                    <span className="text-white">{selectedPosition.rolled ? 'Yes' : 'No'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="h-5 w-5" />
+                <h3 className="text-lg font-semibold">Timeline</h3>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-[#b3b3b3]">Opened:</span>
+                  <span className="text-white">{formatDate(selectedPosition.openTimestamp)}</span>
+                </div>
+                {selectedPosition.closeTimestamp && (
+                  <div className="flex justify-between">
+                    <span className="text-[#b3b3b3]">Closed:</span>
+                    <span className="text-white">{formatDate(selectedPosition.closeTimestamp)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-[#b3b3b3]">Duration:</span>
+                  <span className="text-white">
+                    {selectedPosition.closeTimestamp 
+                      ? `${Math.ceil((new Date(selectedPosition.closeTimestamp).getTime() - new Date(selectedPosition.openTimestamp).getTime()) / (1000 * 60 * 60 * 24))} days`
+                      : `${Math.ceil((Date.now() - new Date(selectedPosition.openTimestamp).getTime()) / (1000 * 60 * 60 * 24))} days (ongoing)`
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Current Leg Details (for options) */}
+            {selectedPosition.kindGroup === 'OPTION' && (selectedPosition.currentRight || selectedPosition.currentStrike || selectedPosition.currentExpiry) && (
+              <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowUpDown className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Current Option Details</h3>
+                </div>
+                <div className="space-y-2">
+                  {selectedPosition.currentRight && (
+                    <div className="flex justify-between">
+                      <span className="text-[#b3b3b3]">Right:</span>
+                      <Badge variant="outline" className="text-xs bg-purple-600 text-white border-purple-600">
+                        {selectedPosition.currentRight}
+                      </Badge>
+                    </div>
+                  )}
+                  {selectedPosition.currentStrike && (
+                    <div className="flex justify-between">
+                      <span className="text-[#b3b3b3]">Strike:</span>
+                      <span className="text-white">${selectedPosition.currentStrike}</span>
+                    </div>
+                  )}
+                  {selectedPosition.currentExpiry && (
+                    <div className="flex justify-between">
+                      <span className="text-[#b3b3b3]">Expiry:</span>
+                      <span className="text-white">{formatDate(selectedPosition.currentExpiry)}</span>
+                    </div>
+                  )}
+                  {selectedPosition.currentInstrumentKey && (
+                    <div className="flex justify-between">
+                      <span className="text-[#b3b3b3]">Instrument Key:</span>
+                      <span className="text-white font-mono text-xs">{selectedPosition.currentInstrumentKey}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Transaction History */}
+            <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="h-5 w-5" />
+                <h3 className="text-lg font-semibold">Transaction History ({selectedPosition.txns.length} transactions)</h3>
+              </div>
+              <div>
+                <div className="space-y-2">
+                  {selectedPosition.txns.length === 0 ? (
+                    <div className="text-center py-4 text-[#b3b3b3]">
+                      No transactions found
+                    </div>
+                  ) : (
+                    selectedPosition.txns
+                      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                      .map(renderTransactionDetails)
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

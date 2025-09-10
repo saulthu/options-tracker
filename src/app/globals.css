@@ -133,7 +133,7 @@
   }
   
   .sidebar-icon-expanded {
-    @apply relative;
+    @apply relative pl-3;
   }
   
   .sidebar-text-collapsed {
@@ -149,7 +149,7 @@
   }
   
   .sidebar-button-width-collapsed {
-    @apply w-14 mx-auto;
+    @apply w-14;
   }
   
   .sidebar-button-width-expanded {
@@ -169,7 +169,7 @@
   }
   
   .sidebar-nav-container-expanded {
-    @apply p-4;
+    @apply px-1 py-4;
   }
   
   .sidebar-user-text-collapsed {
@@ -202,5 +202,28 @@
   
   .sidebar-nav-item-active {
     @apply bg-[#2d2d2d] text-white;
+  }
+  
+  /* Custom scrollbar styles */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #2d2d2d transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #2d2d2d;
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #404040;
   }
 }

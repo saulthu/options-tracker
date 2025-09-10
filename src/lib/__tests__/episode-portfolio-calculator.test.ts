@@ -125,7 +125,7 @@ describe('Episode Portfolio Calculator', () => {
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('OPTION');
-      expect(result.episodes[0].episodeKey).toBe('AAPL|CALL');
+      expect(result.episodes[0].episodeKey).toBe('AAPL|CALL|160|2025-09-19');
       expect(result.episodes[0].qty).toBe(-1); // Short position
       expect(result.episodes[0].currentRight).toBe('CALL');
       expect(result.episodes[0].currentStrike).toBe(160);
@@ -336,17 +336,24 @@ describe('Episode Portfolio Calculator', () => {
 
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
-      // Should have only 1 episode (rolled)
-      expect(result.episodes).toHaveLength(1);
-      const episode = result.episodes[0];
+      // Should have 2 episodes (different strikes are separate contracts, no roll)
+      expect(result.episodes).toHaveLength(2);
       
-      expect(episode.rolled).toBe(true);
-      expect(episode.qty).toBe(-1); // Short position
-      expect(episode.currentStrike).toBe(165); // New strike
-      expect(episode.currentExpiry).toBe('2025-09-26'); // New expiry
-      expect(episode.txns).toHaveLength(3);
-      expect(episode.txns[1].note).toBe('ROLL-CLOSE');
-      expect(episode.txns[2].note).toBe('ROLL-OPEN');
+      const episodes = result.episodes.sort((a, b) => a.openTimestamp.localeCompare(b.openTimestamp));
+      const firstEpisode = episodes[0];
+      const secondEpisode = episodes[1];
+      
+      // First episode (closed)
+      expect(firstEpisode.qty).toBe(0); // Closed position
+      expect(firstEpisode.currentStrike).toBe(160); // Original strike
+      expect(firstEpisode.currentExpiry).toBe('2025-09-19'); // Original expiry
+      expect(firstEpisode.txns).toHaveLength(2);
+      
+      // Second episode (new contract)
+      expect(secondEpisode.qty).toBe(-1); // Short position
+      expect(secondEpisode.currentStrike).toBe(165); // New strike
+      expect(secondEpisode.currentExpiry).toBe('2025-09-26'); // New expiry
+      expect(secondEpisode.txns).toHaveLength(1);
     });
 
     it('should not roll options after 10 hours', () => {
@@ -545,13 +552,63 @@ describe('Episode Portfolio Calculator', () => {
 
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
-      expect(result.episodes).toHaveLength(2); // 2 episodes (call spread and put spread are closed)
+      expect(result.episodes).toHaveLength(4); // 4 episodes (each unique option contract is separate)
       
       const callEpisodes = result.episodes.filter(e => e.kindGroup === 'OPTION' && e.currentRight === 'CALL');
       const putEpisodes = result.episodes.filter(e => e.kindGroup === 'OPTION' && e.currentRight === 'PUT');
       
-      expect(callEpisodes).toHaveLength(1);
-      expect(putEpisodes).toHaveLength(1);
+      expect(callEpisodes).toHaveLength(2); // 2 call episodes (different strikes)
+      expect(putEpisodes).toHaveLength(2); // 2 put episodes (different strikes)
+    });
+
+    it('should separate different option strikes into different episodes', () => {
+      const transactions = [
+        // Sell MSFT $300 PUT
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'PUT',
+          ticker_id: 'ticker-2', // MSFT
+          side: 'SELL',
+          qty: 1,
+          price: 2.00,
+          strike: 300,
+          expiry: '2025-10-17',
+          fees: 0.50,
+          timestamp: '2025-09-11T10:00:00Z'
+        }),
+        // Buy MSFT $295 PUT (different strike - should be separate episode)
+        createTestTransaction({
+          id: 'txn-2',
+          instrument_kind: 'PUT',
+          ticker_id: 'ticker-2', // MSFT
+          side: 'BUY',
+          qty: 1,
+          price: 1.00,
+          strike: 295,
+          expiry: '2025-10-17',
+          fees: 0.50,
+          timestamp: '2025-09-11T10:01:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+
+      // Should have 2 separate episodes (different strikes)
+      expect(result.episodes).toHaveLength(2);
+      
+      const episodes = result.episodes.sort((a, b) => a.openTimestamp.localeCompare(b.openTimestamp));
+      
+      // First episode: SELL $300 PUT
+      expect(episodes[0].episodeKey).toBe('MSFT|PUT|300|2025-10-17');
+      expect(episodes[0].qty).toBe(-1); // Short position
+      expect(episodes[0].currentStrike).toBe(300);
+      expect(episodes[0].txns).toHaveLength(1);
+      
+      // Second episode: BUY $295 PUT
+      expect(episodes[1].episodeKey).toBe('MSFT|PUT|295|2025-10-17');
+      expect(episodes[1].qty).toBe(1); // Long position
+      expect(episodes[1].currentStrike).toBe(295);
+      expect(episodes[1].txns).toHaveLength(1);
     });
 
     it('should handle calendar spread', () => {
@@ -586,11 +643,11 @@ describe('Episode Portfolio Calculator', () => {
 
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
-      expect(result.episodes).toHaveLength(1); // Calendar spread is closed (opposite sides)
+      expect(result.episodes).toHaveLength(2); // 2 episodes (different expiries are separate contracts)
       
-      const episode = result.episodes[0];
-      expect(episode.qty).toBe(0); // Closed position
-      expect(episode.currentExpiry).toBe('2025-10-17'); // Last transaction's expiry
+      const episodes = result.episodes.sort((a, b) => a.openTimestamp.localeCompare(b.openTimestamp));
+      expect(episodes[0].currentExpiry).toBe('2025-09-19'); // First transaction's expiry
+      expect(episodes[1].currentExpiry).toBe('2025-10-17'); // Second transaction's expiry
     });
   });
 

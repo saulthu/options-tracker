@@ -36,11 +36,11 @@ function instrumentKey(kind: InstrumentKind, ticker?: string, expiry?: string, s
 /**
  * Create episode key for grouping transactions
  */
-function episodeKey(kind: InstrumentKind, ticker?: string): string {
+function episodeKey(kind: InstrumentKind, ticker?: string, strike?: number, expiry?: string): string {
   if (kind === 'CASH') return 'CASH';
   if (kind === 'SHARES') return ticker || '';
-  // Options: group by ticker + right (CALL or PUT), never mixing rights
-  return `${ticker}|${kind}`;
+  // Options: group by ticker + right + strike + expiry (each unique contract is separate)
+  return `${ticker}|${kind}|${strike}|${expiry}`;
 }
 
 /**
@@ -394,7 +394,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
    * Start a new episode
    */
   function startNewEpisode(lr: LedgerRow, note?: string): PositionEpisode {
-    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker);
+    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike, lr.expiry);
     const kindGroup: KindGroup = isOption(lr.instrumentKind) ? 'OPTION' : lr.instrumentKind as KindGroup;
     
     const episode: PositionEpisode = {
@@ -430,7 +430,9 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     const accountId = lr.accountId;
     const ticker = lr.ticker;
     const right = lr.instrumentKind;
-    const rollKey = `${userId}|${accountId}|${ticker}|${right}`;
+    const strike = lr.strike;
+    const expiry = lr.expiry;
+    const rollKey = `${userId}|${accountId}|${ticker}|${right}|${strike}|${expiry}`;
     
     const closedEpisode = closedOptionEpisodes.get(rollKey);
     if (!closedEpisode || !closedEpisode.closeTimestamp) return null;
@@ -449,7 +451,12 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
                           (lastTxn.side === 'SELL' && lr.side === 'BUY');
     const isEqualQuantity = Math.abs(lastTxn.qty) === Math.abs(lr.qty);
     
-    if (!isOppositeSide || !isEqualQuantity) return null;
+    // For a roll, strike or expiry must be different (indicating a new contract)
+    const isDifferentStrike = lastTxn.strike !== lr.strike;
+    const isDifferentExpiry = lastTxn.expiry !== lr.expiry;
+    const isDifferentContract = isDifferentStrike || isDifferentExpiry;
+    
+    if (!isOppositeSide || !isEqualQuantity || !isDifferentContract) return null;
 
     // Roll the episode
     closedEpisode.rolled = true;
@@ -459,7 +466,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     closedEpisode.avgPrice = 0;
     
     applyTradeToEpisode(closedEpisode, lr, 'ROLL-OPEN');
-    activeEpisodes.set(`${userId}|${accountId}|${episodeKey(right, ticker)}`, closedEpisode);
+    activeEpisodes.set(`${userId}|${accountId}|${episodeKey(right, ticker, lr.strike, lr.expiry)}`, closedEpisode);
     closedOptionEpisodes.delete(rollKey);
     
     return closedEpisode;
@@ -472,7 +479,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       continue;
     }
 
-    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker);
+    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike, lr.expiry);
     const activeKey = `${lr.userId}|${lr.accountId}|${episodeKeyStr}`;
     let episode = activeEpisodes.get(activeKey);
 
@@ -493,7 +500,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       if (episode.qty === 0) {
         if (isOption(lr.instrumentKind) && lr.ticker) {
           // Store closed option episode for potential roll
-          const rollKey = `${lr.userId}|${lr.accountId}|${lr.ticker}|${lr.instrumentKind}`;
+          const rollKey = `${lr.userId}|${lr.accountId}|${lr.ticker}|${lr.instrumentKind}|${lr.strike}|${lr.expiry}`;
           closedOptionEpisodes.set(rollKey, episode);
         }
         activeEpisodes.delete(activeKey);
