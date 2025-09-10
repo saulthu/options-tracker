@@ -141,7 +141,7 @@ export default function OverviewPage() {
                     <div>
                       <p className="text-sm font-medium text-white">
                         {transaction.instrument_kind} {transaction.side || 'CASH'}
-                        {transaction.ticker_id && ` ${transaction.ticker_id}`}
+                        {transaction.tickers?.name && ` ${transaction.tickers.name}`}
                       </p>
                       <p className="text-xs text-[#b3b3b3]">
                         {new Date(transaction.timestamp).toLocaleDateString()}

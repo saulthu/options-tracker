@@ -26,7 +26,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('openTimestamp');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   // Modal state
   const [selectedPosition, setSelectedPosition] = useState<PositionEpisode | null>(null);
@@ -237,9 +237,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             >
               {txn.side || 'CASH'}
             </Badge>
-            <span className="text-xs text-[#b3b3b3] font-mono">
-              {txn.txnId.slice(0, 6)}...
-            </span>
           </div>
           <span className="text-xs text-[#b3b3b3]">
             {new Date(txn.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -473,7 +470,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         isOpen={isModalOpen}
         onClose={closeModal}
         title={selectedPosition ? `Position Details: ${getPositionDisplay(selectedPosition).ticker}` : ''}
-        description={selectedPosition ? `Episode ID: ${selectedPosition.episodeId}` : ''}
         maxWidth="2xl"
         showCloseButton={true}
       >
@@ -635,7 +631,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     </div>
                   ) : (
                     selectedPosition.txns
-                      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                       .map(renderTransactionDetails)
                   )}
                 </div>
