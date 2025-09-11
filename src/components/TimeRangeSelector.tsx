@@ -261,12 +261,12 @@ function MonthSelector({ selectedDate, onDateSelect }: { selectedDate: Date; onD
       </div>
       
       {/* Month List */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3">
         {months.map((month, index) => (
           <button
             key={index}
             onClick={() => handleMonthSelect(index)}
-            className={`p-2 text-sm rounded hover:bg-gray-700 transition-colors ${
+            className={`h-10 w-full flex items-center justify-center text-sm hover:bg-gray-700 transition-colors ${
               index === currentMonth && currentYear === selectedDate.getFullYear()
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-300 hover:text-white'
@@ -322,12 +322,12 @@ function YearSelector({ selectedDate, onDateSelect }: { selectedDate: Date; onDa
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4">
         {years.map((year) => (
           <button
             key={year}
             onClick={() => handleYearSelect(year)}
-            className={`p-2 text-sm rounded hover:bg-gray-700 transition-colors ${
+            className={`h-10 w-full flex items-center justify-center text-sm hover:bg-gray-700 transition-colors ${
               year === currentYear
                 ? 'bg-blue-600 text-white'
                 : 'text-gray-300 hover:text-white'
@@ -467,16 +467,16 @@ function WeekCalendar({
       </div>
       
       {/* Day Headers */}
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 mb-1">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-          <div key={index} className="text-xs text-gray-400 text-center p-1">
+          <div key={index} className="text-xs text-gray-400 text-center h-6 flex items-center justify-center">
             {day}
           </div>
         ))}
       </div>
       
       {/* Calendar Grid with Week Highlighting */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7">
         {days.map((date, index) => {
           const weekNumber = getWeekNumber(date);
           const isHoveredWeek = hoveredWeek === weekNumber;
@@ -489,7 +489,7 @@ function WeekCalendar({
               onClick={() => onDateSelect(date)}
               onMouseEnter={() => setHoveredWeek(weekNumber)}
               onMouseLeave={() => setHoveredWeek(null)}
-              className={`text-xs p-1 rounded transition-colors ${
+              className={`text-xs h-8 w-full flex items-center justify-center transition-colors ${
                 isFriday
                   ? 'bg-blue-500 text-white' // Friday of selected week - brightest blue
                   : isToday(date)
@@ -564,21 +564,21 @@ function DayCalendar({ selectedDate, onDateSelect }: { selectedDate: Date; onDat
       </div>
       
       {/* Day Headers */}
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-7 mb-1">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-          <div key={index} className="text-xs text-gray-400 text-center p-1">
+          <div key={index} className="text-xs text-gray-400 text-center h-6 flex items-center justify-center">
             {day}
           </div>
         ))}
       </div>
       
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7">
         {days.map((date, index) => (
           <button
             key={index}
             onClick={() => onDateSelect(date)}
-            className={`text-xs p-1 rounded hover:bg-gray-700 ${
+            className={`text-xs h-8 w-full flex items-center justify-center hover:bg-gray-700 ${
               isSelected(date)
                 ? 'bg-blue-600 text-white'
                 : isToday(date)
