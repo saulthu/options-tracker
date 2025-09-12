@@ -51,6 +51,53 @@ function isOption(kind: InstrumentKind): boolean {
 }
 
 /**
+ * Determine option directionality based on opening transaction
+ */
+function getOptionDirection(side: 'BUY' | 'SELL', right: 'CALL' | 'PUT'): 'CSP' | 'CC' | 'CALL' | 'PUT' {
+  if (side === 'SELL' && right === 'PUT') {
+    return 'CSP'; // Cash Secured Put
+  } else if (side === 'SELL' && right === 'CALL') {
+    return 'CC'; // Covered Call
+  } else if (side === 'BUY' && right === 'CALL') {
+    return 'CALL';
+  } else if (side === 'BUY' && right === 'PUT') {
+    return 'PUT';
+  }
+  // Fallback
+  return right;
+}
+
+/**
+ * Determine action term for a transaction based on position opening
+ */
+function getActionTerm(
+  side: 'BUY' | 'SELL', 
+  instrumentKind: InstrumentKind, 
+  openingSide?: 'BUY' | 'SELL'
+): 'BTO' | 'STO' | 'BTC' | 'STC' | 'BUY' | 'SELL' {
+  if (instrumentKind === 'CASH' || instrumentKind === 'SHARES') {
+    return side; // Keep BUY/SELL for cash and shares
+  }
+  
+  if (instrumentKind === 'CALL' || instrumentKind === 'PUT') {
+    if (!openingSide) {
+      // If we don't know the opening side, assume it's opening
+      return side === 'BUY' ? 'BTO' : 'STO';
+    }
+    
+    const wasOpenedWithSell = openingSide === 'SELL';
+    
+    if (side === 'BUY') {
+      return wasOpenedWithSell ? 'BTC' : 'BTO'; // Buy To Close if opened with sell, Buy To Open otherwise
+    } else if (side === 'SELL') {
+      return wasOpenedWithSell ? 'STO' : 'STC'; // Sell To Open if opened with sell, Sell To Close otherwise
+    }
+  }
+  
+  return side; // Fallback
+}
+
+/**
  * Get multiplier for instrument (100 for options, 1 for shares)
  */
 function multiplierFor(kind: InstrumentKind): number {
@@ -366,6 +413,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     episode.totalFees += fees;
     episode.cashTotal += lr.cashDelta;
 
+    // Determine action term based on opening transaction
+    const openingSide = episode.txns.length === 0 ? lr.side : episode.txns[0].side;
+    const actionTerm = lr.side ? getActionTerm(lr.side, lr.instrumentKind, openingSide) : undefined;
+
     // Add transaction to episode
     episode.txns.push({
       txnId: lr.txnId,
@@ -380,7 +431,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       fees: lr.fees,
       cashDelta: lr.cashDelta,
       realizedPnLDelta: round2(realizedPnL),
-      note
+      note,
+      actionTerm
     });
 
     // Check if position is closed
@@ -397,6 +449,11 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike, lr.expiry);
     const kindGroup: KindGroup = isOption(lr.instrumentKind) ? 'OPTION' : lr.instrumentKind as KindGroup;
     
+    // Determine option directionality for options
+    const optionDirection = isOption(lr.instrumentKind) && lr.side && lr.instrumentKind !== 'CASH' && lr.instrumentKind !== 'SHARES'
+      ? getOptionDirection(lr.side, lr.instrumentKind as 'CALL' | 'PUT')
+      : undefined;
+    
     const episode: PositionEpisode = {
       episodeId: `${lr.userId}|${lr.accountId}|${episodeKeyStr}|${lr.txnId}`,
       userId: lr.userId,
@@ -411,6 +468,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       totalFees: 0,
       cashTotal: 0,
       realizedPnLTotal: 0,
+      optionDirection,
       txns: []
     };
 

@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/modal';
 import PositionFilterSelector from '@/components/PositionFilterSelector';
-import PositionBadgeDisplay from '@/components/PositionBadgeDisplay';
-import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Eye, Target, FileText } from 'lucide-react';
+import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Eye, Target, FileText, Copy } from 'lucide-react';
 import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
 import { PositionFilterType } from '@/types/navigation';
 
@@ -281,7 +280,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       return firstTxn.side || 'UNKNOWN';
     };
 
-    const right = position.currentRight || 'UNKNOWN';
     const strike = position.currentStrike || 'N/A';
     const contracts = Math.abs(position.qty); // Make unsigned
     const direction = getPositionDirection();
@@ -290,14 +288,18 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     return (
       <div className="space-y-2">
         <div className="text-center">
-          <div className="text-lg font-semibold text-white mb-1 flex justify-center">
-            <PositionBadgeDisplay
-              side={direction}
-              right={right}
-              ticker={ticker}
-              strike={strike}
-              expiry={position.currentExpiry}
-            />
+          <div className="text-lg font-semibold text-white mb-1 flex justify-center items-center gap-2">
+            <Badge 
+              variant="outline" 
+              className={`text-xs ${
+                position.optionDirection === 'CSP' || position.optionDirection === 'CC' ? 'bg-red-600 text-white border-red-600' :
+                position.optionDirection === 'CALL' || position.optionDirection === 'PUT' ? 'bg-green-600 text-white border-green-600' :
+                'bg-blue-600 text-white border-blue-600'
+              }`}
+            >
+              {position.optionDirection || direction}
+            </Badge>
+            <span>{ticker} ${strike} {position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
           </div>
         </div>
         <div className="flex justify-between">
@@ -327,18 +329,48 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
   // Render transaction details in modal
   const renderTransactionDetails = (txn: EpisodeTxn) => {
+    const getTransactionDescription = () => {
+      const price = formatCurrency(txn.price || 0);
+      
+      // Use the actionTerm from the episode data (calculated during processing)
+      const actionTerm = txn.actionTerm || txn.side || 'UNKNOWN';
+      
+      if (txn.instrumentKind === 'CASH') {
+        return `${actionTerm} ${txn.ticker} @ ${price}`;
+      }
+      if (txn.instrumentKind === 'SHARES') {
+        return `${actionTerm} ${txn.ticker} @ ${price}`;
+      }
+      if (txn.instrumentKind === 'CALL' || txn.instrumentKind === 'PUT') {
+        const rightSuffix = txn.instrumentKind === 'PUT' ? 'p' : 'c';
+        const expiry = txn.expiry ? new Date(txn.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        return `${actionTerm} ${txn.ticker} $${txn.strike}${rightSuffix} ${expiry} @ ${price}`.trim();
+      }
+      return `${actionTerm} ${txn.ticker} @ ${price}`;
+    };
+
+    const copyToClipboard = async () => {
+      const description = getTransactionDescription();
+      try {
+        await navigator.clipboard.writeText(description);
+      } catch (err) {
+        console.error('Failed to copy: ', err);
+      }
+    };
 
     return (
       <div key={txn.txnId} className="border border-[#2d2d2d] rounded p-2 bg-[#0f0f0f]">
         <div className="flex justify-between items-center mb-2">
-          <PositionBadgeDisplay
-            side={txn.side || 'CASH'}
-            right={txn.instrumentKind === 'CALL' || txn.instrumentKind === 'PUT' ? txn.instrumentKind : undefined}
-            ticker={txn.ticker}
-            strike={txn.strike}
-            expiry={txn.expiry}
-            className="text-sm font-medium"
-          />
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-white font-medium">{getTransactionDescription()}</span>
+            <button
+              onClick={copyToClipboard}
+              className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+              title="Copy to clipboard"
+            >
+              <Copy className="h-3 w-3 text-[#b3b3b3] hover:text-white" />
+            </button>
+          </div>
           <span className="text-xs text-[#b3b3b3]">
             {new Date(txn.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>

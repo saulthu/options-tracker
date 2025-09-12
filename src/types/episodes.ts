@@ -48,6 +48,9 @@ export interface EpisodeTxn {
   cashDelta: number;
   realizedPnLDelta: number; // P&L realized in this specific transaction
   note?: string; // "ROLL-CLOSE", "ROLL-OPEN", etc.
+  
+  // Options trading terminology
+  actionTerm?: 'BTO' | 'STO' | 'BTC' | 'STC' | 'BUY' | 'SELL'; // BTO/STO/BTC/STC for options, BUY/SELL for others
 }
 
 /**
@@ -66,6 +69,9 @@ export interface PositionEpisode {
   currentRight?: 'CALL' | 'PUT';
   currentExpiry?: string;
   currentStrike?: number;
+  
+  // Options directionality
+  optionDirection?: 'CSP' | 'CC' | 'CALL' | 'PUT'; // Logical position meaning for options
 
   // Lifecycle
   openTimestamp: string;

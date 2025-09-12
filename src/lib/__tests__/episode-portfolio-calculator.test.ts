@@ -722,4 +722,200 @@ describe('Episode Portfolio Calculator', () => {
       expect(result.episodes).toHaveLength(1); // Zero quantity still creates an episode
     });
   });
+
+  describe('Options Trading Terminology', () => {
+    it('should set correct option directionality for CSP position', () => {
+      const transactions = [
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'PUT',
+          ticker_id: 'ticker-1',
+          side: 'SELL',
+          qty: 1,
+          price: 2.50,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-01T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const episode = result.episodes[0];
+
+      expect(episode.optionDirection).toBe('CSP');
+      expect(episode.txns[0].actionTerm).toBe('STO');
+    });
+
+    it('should set correct option directionality for CC position', () => {
+      const transactions = [
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'CALL',
+          ticker_id: 'ticker-1',
+          side: 'SELL',
+          qty: 1,
+          price: 2.50,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-01T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const episode = result.episodes[0];
+
+      expect(episode.optionDirection).toBe('CC');
+      expect(episode.txns[0].actionTerm).toBe('STO');
+    });
+
+    it('should set correct option directionality for long CALL position', () => {
+      const transactions = [
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'CALL',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 1,
+          price: 2.50,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-01T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const episode = result.episodes[0];
+
+      expect(episode.optionDirection).toBe('CALL');
+      expect(episode.txns[0].actionTerm).toBe('BTO');
+    });
+
+    it('should set correct option directionality for long PUT position', () => {
+      const transactions = [
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'PUT',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 1,
+          price: 2.50,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-01T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const episode = result.episodes[0];
+
+      expect(episode.optionDirection).toBe('PUT');
+      expect(episode.txns[0].actionTerm).toBe('BTO');
+    });
+
+    it('should use correct terminology for closing transactions', () => {
+      const transactions = [
+        // Open CSP position
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'PUT',
+          ticker_id: 'ticker-1',
+          side: 'SELL',
+          qty: 1,
+          price: 2.50,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-01T10:00:00Z'
+        }),
+        // Close CSP position
+        createTestTransaction({
+          id: 'txn-2',
+          instrument_kind: 'PUT',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 1,
+          price: 1.25,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-02T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const episode = result.episodes[0];
+
+      expect(episode.optionDirection).toBe('CSP');
+      expect(episode.txns[0].actionTerm).toBe('STO'); // Opening
+      expect(episode.txns[1].actionTerm).toBe('BTC'); // Closing
+    });
+
+    it('should use correct terminology for closing long positions', () => {
+      const transactions = [
+        // Open long CALL position
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'CALL',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 1,
+          price: 2.50,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-01T10:00:00Z'
+        }),
+        // Close long CALL position
+        createTestTransaction({
+          id: 'txn-2',
+          instrument_kind: 'CALL',
+          ticker_id: 'ticker-1',
+          side: 'SELL',
+          qty: 1,
+          price: 3.75,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-02T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const episode = result.episodes[0];
+
+      expect(episode.optionDirection).toBe('CALL');
+      expect(episode.txns[0].actionTerm).toBe('BTO'); // Opening
+      expect(episode.txns[1].actionTerm).toBe('STC'); // Closing
+    });
+
+    it('should use BUY/SELL for non-options', () => {
+      const transactions = [
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'SHARES',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 100,
+          price: 150,
+          fees: 1,
+          timestamp: '2025-09-01T10:00:00Z'
+        }),
+        createTestTransaction({
+          id: 'txn-2',
+          instrument_kind: 'CASH',
+          qty: 1000,
+          timestamp: '2025-09-01T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+
+      expect(result.episodes[0].txns[0].actionTerm).toBe('BUY'); // Shares
+      expect(result.episodes[1].txns[0].actionTerm).toBeUndefined(); // Cash has no side
+    });
+  });
 });
