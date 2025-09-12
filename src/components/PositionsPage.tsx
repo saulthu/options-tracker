@@ -314,7 +314,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                position.optionDirection === 'PUT' ? 'Put' :
                position.optionDirection || direction}
             </Badge>
-            <span>{ticker} ${strike} {position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+            <span>{ticker} ${strike} {position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : ''}</span>
           </div>
         </div>
         <div className="flex justify-between">
@@ -387,7 +387,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       }
       if (txn.instrumentKind === 'CALL' || txn.instrumentKind === 'PUT') {
         const rightSuffix = txn.instrumentKind === 'PUT' ? 'p' : 'c';
-        const expiry = txn.expiry ? new Date(txn.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const expiry = txn.expiry ? new Date(txn.expiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : '';
         return `${actionTerm} ${txn.ticker} $${txn.strike}${rightSuffix} ${expiry} @ ${price}`.trim();
       }
       return `${actionTerm} ${txn.ticker} @ ${price}`;
@@ -583,9 +583,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     >
                       <td className="py-2 px-2 text-white text-xs">
                         {new Date(position.openTimestamp).toLocaleDateString('en-US', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          year: '2-digit'
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
                         })}
                       </td>
                       <td className="py-2 px-2">
@@ -597,7 +597,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         <div className="flex items-center gap-2">
                           <Badge 
                             variant="outline" 
-                            className={BADGE_STYLES.default}
+                            className={`${BADGE_STYLES.default} w-16 text-center`}
                           >
                             {position.kindGroup === 'OPTION' ? 
                               (position.optionDirection === 'CALL' ? 'Call' :
