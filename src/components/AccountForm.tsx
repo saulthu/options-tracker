@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { ThemeButton, CancelButton } from "@/components/ui/theme-button";
 import { Save } from "lucide-react";
 import Modal from "@/components/ui/modal";
-import { type Account, type AccountFormData } from "@/hooks/useAccounts";
+import { type Account, type AccountFormData } from "@/types/database";
 interface AccountFormProps {
   isOpen: boolean;
   onClose: () => void;

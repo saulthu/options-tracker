@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortfolio } from "@/contexts/PortfolioContext";
-import { useAccounts, type Account, type AccountFormData } from "@/hooks/useAccounts";
+import { type Account, type AccountFormData } from "@/types/database";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeButton, CancelButton, DestructiveButton } from "@/components/ui/theme-button";
 import { User, Save, Plus, Building2, Edit } from "lucide-react";
@@ -22,12 +22,15 @@ interface SettingsProps {
 
 export default function Settings({ updateProfile, profile }: SettingsProps) {
   const { user } = useAuth();
-  const { refreshOnAccountChange } = usePortfolio();
+  const { 
+    accounts, 
+    loading: accountsLoading, 
+    createAccount, 
+    updateAccount, 
+    deleteAccount
+  } = usePortfolio();
   const [tempName, setTempName] = useState("");
   const [saving, setSaving] = useState(false);
-  
-  // Use the accounts hook
-  const { accounts, loading: accountsLoading, createAccount, updateAccount, deleteAccount } = useAccounts();
   const [isAccountFormOpen, setIsAccountFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [accountLoading, setAccountLoading] = useState(false);
@@ -90,8 +93,7 @@ export default function Settings({ updateProfile, profile }: SettingsProps) {
         return;
       }
       
-      // Refresh portfolio data to get updated account names in transactions
-      await refreshOnAccountChange();
+      // PortfolioContext automatically updates local state, no need to refresh
       
       setIsAccountFormOpen(false);
       setEditingAccount(null);
@@ -109,8 +111,7 @@ export default function Settings({ updateProfile, profile }: SettingsProps) {
         console.error('Error deleting account:', result.error);
         // You could add a toast notification here
       } else {
-        // Refresh portfolio data after account deletion
-        await refreshOnAccountChange();
+        // PortfolioContext automatically updates local state, no need to refresh
       }
     }
   };

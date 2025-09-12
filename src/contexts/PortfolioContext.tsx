@@ -53,6 +53,12 @@ interface PortfolioContextType {
   addTransaction: (transaction: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateTransaction: (id: string, updates: Partial<RawTransaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  
+  // Account management
+  createAccount: (accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>) => Promise<{ data?: Account; error?: string }>;
+  updateAccount: (accountId: string, accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>) => Promise<{ data?: Account; error?: string }>;
+  deleteAccount: (accountId: string) => Promise<{ error?: string }>;
+  refreshAccounts: () => Promise<void>;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -355,6 +361,118 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, [refreshPortfolio]);
 
+  // Account management functions
+  const createAccount = useCallback(async (accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>): Promise<{ data?: Account; error?: string }> => {
+    if (!user) return { error: 'No user found' };
+
+    try {
+      const { data, error: createError } = await supabase
+        .from('accounts')
+        .insert({
+          user_id: user.id,
+          ...accountData
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating account:', createError);
+        
+        // Handle unique constraint violation specifically
+        if (createError.code === '23505' && createError.message.includes('unique constraint')) {
+          return { error: 'An account with this name already exists. Please choose a different name.' };
+        }
+        
+        return { error: createError.message || 'Failed to create account' };
+      }
+
+      // Update local state
+      setAccounts(prev => [data, ...prev]);
+      return { data };
+    } catch (err) {
+      console.error('Unexpected error creating account:', err);
+      return { error: 'Failed to create account' };
+    }
+  }, [user]);
+
+  const updateAccount = useCallback(async (accountId: string, accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>): Promise<{ data?: Account; error?: string }> => {
+    if (!user) return { error: 'No user found' };
+
+    try {
+      const { data, error: updateError } = await supabase
+        .from('accounts')
+        .update(accountData)
+        .eq('id', accountId)
+        .eq('user_id', user.id) // Ensure user owns the account
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating account:', updateError);
+        
+        // Handle unique constraint violation specifically
+        if (updateError.code === '23505' && updateError.message.includes('unique constraint')) {
+          return { error: 'An account with this name already exists. Please choose a different name.' };
+        }
+        
+        return { error: updateError.message || 'Failed to update account' };
+      }
+
+      // Update local state
+      setAccounts(prev => prev.map(acc => 
+        acc.id === accountId ? data : acc
+      ));
+      return { data };
+    } catch (err) {
+      console.error('Unexpected error updating account:', err);
+      return { error: 'Failed to update account' };
+    }
+  }, [user]);
+
+  const deleteAccount = useCallback(async (accountId: string): Promise<{ error?: string }> => {
+    if (!user) return { error: 'No user found' };
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('accounts')
+        .delete()
+        .eq('id', accountId)
+        .eq('user_id', user.id); // Ensure user owns the account
+
+      if (deleteError) {
+        console.error('Error deleting account:', deleteError);
+        return { error: deleteError.message };
+      }
+
+      // Update local state
+      setAccounts(prev => prev.filter(acc => acc.id !== accountId));
+      return {};
+    } catch (err) {
+      console.error('Unexpected error deleting account:', err);
+      return { error: 'Failed to delete account' };
+    }
+  }, [user]);
+
+  const refreshAccounts = useCallback(async (): Promise<void> => {
+    if (!user) return;
+
+    try {
+      const { data: accountsData, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (accountsError) {
+        console.warn('Error fetching accounts:', accountsError);
+        setAccounts([]);
+      } else {
+        setAccounts(accountsData || []);
+      }
+    } catch (err) {
+      console.error('Error refreshing accounts:', err);
+    }
+  }, [user]);
+
   const value: PortfolioContextType = {
     transactions,
     accounts,
@@ -375,6 +493,10 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    createAccount,
+    updateAccount,
+    deleteAccount,
+    refreshAccounts,
   };
 
   return (

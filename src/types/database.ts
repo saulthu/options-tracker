@@ -25,6 +25,8 @@ export interface Account {
   created_at: string
 }
 
+export type AccountFormData = Omit<Account, 'id' | 'user_id' | 'created_at'>;
+
 export interface Ticker {
   id: string
   name: string
