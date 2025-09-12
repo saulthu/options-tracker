@@ -917,5 +917,44 @@ describe('Episode Portfolio Calculator', () => {
       expect(result.episodes[0].txns[0].actionTerm).toBe('BUY'); // Shares
       expect(result.episodes[1].txns[0].actionTerm).toBeUndefined(); // Cash has no side
     });
+
+    it('should preserve average price when position is closed', () => {
+      const transactions = [
+        // Open position
+        createTestTransaction({
+          id: 'txn-1',
+          instrument_kind: 'CALL',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 1,
+          price: 2.50,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-01T10:00:00Z'
+        }),
+        // Close position
+        createTestTransaction({
+          id: 'txn-2',
+          instrument_kind: 'CALL',
+          ticker_id: 'ticker-1',
+          side: 'SELL',
+          qty: 1,
+          price: 3.75,
+          fees: 1,
+          strike: 150,
+          expiry: '2025-12-19',
+          timestamp: '2025-09-02T10:00:00Z'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const episode = result.episodes[0];
+
+      expect(episode.qty).toBe(0); // Position is closed
+      expect(episode.closeTimestamp).toBeDefined();
+      expect(episode.avgPrice).toBe(2.51); // Should preserve average price (2.50 + 1/100)
+      expect(episode.realizedPnLTotal).toBeCloseTo(123, 0); // (3.75 - 2.51) * 100 - 1, accounting for floating point precision
+    });
   });
 });

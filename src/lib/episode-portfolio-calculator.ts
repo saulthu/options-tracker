@@ -437,7 +437,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
 
     // Check if position is closed
     if (episode.qty === 0) {
-      episode.avgPrice = 0;
+      // Don't reset avgPrice to 0 - preserve historical context
+      // The avgPrice represents the average entry price for the position
       episode.closeTimestamp = lr.timestamp;
     }
   }
@@ -516,12 +517,12 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     
     if (!isOppositeSide || !isEqualQuantity || !isDifferentContract) return null;
 
-    // Roll the episode
+    // Roll the episode - reset for new position
     closedEpisode.rolled = true;
     closedEpisode.txns[closedEpisode.txns.length - 1].note = 'ROLL-CLOSE';
     closedEpisode.closeTimestamp = undefined;
     closedEpisode.qty = 0;
-    closedEpisode.avgPrice = 0;
+    closedEpisode.avgPrice = 0; // Reset for new position in roll
     
     applyTradeToEpisode(closedEpisode, lr, 'ROLL-OPEN');
     activeEpisodes.set(`${userId}|${accountId}|${episodeKey(right, ticker, lr.strike, lr.expiry)}`, closedEpisode);
