@@ -18,6 +18,12 @@ interface PositionsPageProps {
 type SortField = 'openTimestamp' | 'episodeKey' | 'kindGroup' | 'qty' | 'avgPrice' | 'realizedPnLTotal' | 'cashTotal';
 type SortDirection = 'asc' | 'desc';
 
+// Centralized badge styling
+const BADGE_STYLES = {
+  default: 'text-xs bg-gray-800 text-gray-200 border-gray-700',
+  open: 'text-xs bg-gray-300 text-gray-800 border-gray-400',
+} as const;
+
 export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   const { 
     portfolio, 
@@ -207,26 +213,24 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   const renderCashPositionSummary = (position: PositionEpisode) => (
     <div className="space-y-2">
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Type:</span>
-        <Badge variant="outline" className="text-xs bg-blue-600 text-white border-blue-600">
-          CASH
+        <span className="text-[#b3b3b3]">Type</span>
+        <Badge variant="outline" className={BADGE_STYLES.default}>
+          Cash
         </Badge>
       </div>
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Amount:</span>
+        <span className="text-[#b3b3b3]">Amount</span>
         <span className={`text-white font-semibold ${position.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
           {position.cashTotal >= 0 ? '+' : ''}{formatCurrency(position.cashTotal)}
         </span>
       </div>
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Status:</span>
+        <span className="text-[#b3b3b3]">Status</span>
         <Badge 
           variant="outline" 
-          className={`text-xs ${
-            position.cashTotal >= 0 ? 'bg-green-600 text-white border-green-600' : 'bg-red-600 text-white border-red-600'
-          }`}
+          className={BADGE_STYLES.default}
         >
-          {position.cashTotal >= 0 ? 'DEPOSIT' : 'WITHDRAWAL'}
+          {position.cashTotal >= 0 ? 'Deposit' : 'Withdraw'}
         </Badge>
       </div>
     </div>
@@ -235,36 +239,40 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   const renderSharesPositionSummary = (position: PositionEpisode) => (
     <div className="space-y-2">
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Type:</span>
-        <Badge variant="outline" className="text-xs bg-green-600 text-white border-green-600">
-          SHARES
+        <span className="text-[#b3b3b3]">Type</span>
+        <Badge variant="outline" className={BADGE_STYLES.default}>
+          Shares
         </Badge>
       </div>
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Quantity:</span>
+        <span className="text-[#b3b3b3]">Quantity</span>
         <span className="text-white font-semibold">{position.qty} shares</span>
       </div>
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Avg Price:</span>
+        <span className="text-[#b3b3b3]">Avg Price</span>
         <span className="text-white">
           {formatCurrency(position.avgPrice || 0)}
         </span>
       </div>
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Total Value:</span>
+        <span className="text-[#b3b3b3]">Cost Basis</span>
         <span className="text-white font-semibold">
           {formatCurrency((position.avgPrice || 0) * position.qty)}
         </span>
       </div>
       <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Status:</span>
+        <span className="text-[#b3b3b3]">Mkt. Value</span>
+        <span className="text-white font-semibold">
+          {formatCurrency(0)} {/* Placeholder for future live data */}
+        </span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-[#b3b3b3]">Status</span>
         <Badge 
           variant="outline" 
-          className={`text-xs ${
-            position.qty === 0 ? 'bg-gray-600 text-white border-gray-600' : 'bg-green-600 text-white border-green-600'
-          }`}
+          className={position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open}
         >
-          {position.qty === 0 ? 'CLOSED' : 'OPEN'}
+          {position.qty === 0 ? 'Closed' : 'Open'}
         </Badge>
       </div>
     </div>
@@ -291,36 +299,44 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           <div className="text-lg font-semibold text-white mb-1 flex justify-center items-center gap-2">
             <Badge 
               variant="outline" 
-              className={`text-xs ${
-                position.optionDirection === 'CSP' || position.optionDirection === 'CC' ? 'bg-red-600 text-white border-red-600' :
-                position.optionDirection === 'CALL' || position.optionDirection === 'PUT' ? 'bg-green-600 text-white border-green-600' :
-                'bg-blue-600 text-white border-blue-600'
-              }`}
+              className={BADGE_STYLES.default}
             >
-              {position.optionDirection || direction}
+              {position.optionDirection === 'CALL' ? 'Call' :
+               position.optionDirection === 'PUT' ? 'Put' :
+               position.optionDirection || direction}
             </Badge>
             <span>{ticker} ${strike} {position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
           </div>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#b3b3b3]">Contracts:</span>
+          <span className="text-[#b3b3b3]">Contracts</span>
           <span className="text-white">{contracts}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#b3b3b3]">Avg Price:</span>
+          <span className="text-[#b3b3b3]">Avg Price</span>
           <span className="text-white">
             {formatCurrency(position.avgPrice || 0)}
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#b3b3b3]">Status:</span>
+          <span className="text-[#b3b3b3]">Cost Basis</span>
+          <span className="text-white font-semibold">
+            {formatCurrency((position.avgPrice || 0) * position.qty * 100)}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[#b3b3b3]">Mkt. Value</span>
+          <span className="text-white font-semibold">
+            {formatCurrency(0)} {/* Placeholder for future live data */}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[#b3b3b3]">Status</span>
           <Badge 
             variant="outline" 
-            className={`text-xs ${
-              position.qty === 0 ? 'bg-gray-600 text-white border-gray-600' : 'bg-green-600 text-white border-green-600'
-            }`}
+            className={position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open}
           >
-            {position.qty === 0 ? 'CLOSED' : 'OPEN'}
+            {position.qty === 0 ? 'Closed' : 'Open'}
           </Badge>
         </div>
       </div>
@@ -380,27 +396,27 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-[#b3b3b3]">Qty:</span>
+              <span className="text-[#b3b3b3]">Qty</span>
               <span className="text-white">{txn.qty}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#b3b3b3]">Price:</span>
+              <span className="text-[#b3b3b3]">Price</span>
               <span className="text-white">
                 {formatCurrency(txn.price || 0)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#b3b3b3]">Fees:</span>
+              <span className="text-[#b3b3b3]">Fees</span>
               <span className="text-white">{formatCurrency(txn.fees)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#b3b3b3]">Cash:</span>
+              <span className="text-[#b3b3b3]">Cash</span>
               <span className={`${txn.cashDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {txn.cashDelta >= 0 ? '+' : ''}{formatCurrency(txn.cashDelta)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#b3b3b3]">P&L:</span>
+              <span className="text-[#b3b3b3]">P&L</span>
               <span className={`${txn.realizedPnLDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {txn.realizedPnLDelta >= 0 ? '+' : ''}{formatCurrency(txn.realizedPnLDelta)}
               </span>
@@ -561,13 +577,14 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       <td className="py-2 px-2">
                         <Badge 
                           variant="outline" 
-                          className={`text-xs ${
-                            position.kindGroup === 'CASH' ? 'bg-blue-600 text-white border-blue-600' :
-                            position.kindGroup === 'SHARES' ? 'bg-green-600 text-white border-green-600' :
-                            'bg-purple-600 text-white border-purple-600'
-                          }`}
+                          className={BADGE_STYLES.default}
                         >
-                          {position.kindGroup}
+                          {position.kindGroup === 'OPTION' ? 
+                            (position.optionDirection === 'CALL' ? 'Call' :
+                             position.optionDirection === 'PUT' ? 'Put' :
+                             position.optionDirection || 'Option') : 
+                           position.kindGroup === 'CASH' ? 'Cash' :
+                           position.kindGroup === 'SHARES' ? 'Shares' : position.kindGroup}
                         </Badge>
                       </td>
                       <td className="py-2 px-2 text-right text-white">
@@ -589,19 +606,19 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       <td className="py-2 px-2">
                         <Badge 
                           variant="outline" 
-                          className={`text-xs ${
+                          className={
                             position.kindGroup === 'CASH' 
-                              ? (position.cashTotal >= 0 ? 'bg-green-600 text-white border-green-600' : 'bg-red-600 text-white border-red-600')
+                              ? BADGE_STYLES.default
                               : position.qty === 0 
-                                ? 'bg-gray-600 text-white border-gray-600' 
-                                : 'bg-green-600 text-white border-green-600'
-                          }`}
+                                ? BADGE_STYLES.default
+                                : BADGE_STYLES.open
+                          }
                         >
                           {position.kindGroup === 'CASH' 
-                            ? (position.cashTotal >= 0 ? 'DEPOSIT' : 'WITHDRAWAL')
+                            ? (position.cashTotal >= 0 ? 'Deposit' : 'Withdraw')
                             : position.qty === 0 
-                              ? 'CLOSED' 
-                              : 'OPEN'
+                              ? 'Closed' 
+                              : 'Open'
                           }
                         </Badge>
                       </td>
@@ -621,7 +638,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={selectedPosition ? `Position Details: ${getPositionDisplay(selectedPosition).ticker}` : ''}
+        title={selectedPosition ? `Position Details` : ''}
         maxWidth="2xl"
         showCloseButton={true}
       >
@@ -645,22 +662,26 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   <h3 className="text-lg font-semibold">Financial Summary</h3>
                 </div>
                 <div className="space-y-2">
+                  {selectedPosition.kindGroup !== 'CASH' && (
+                    <div className="flex justify-between">
+                      <span className="text-[#b3b3b3]">Realized P&L</span>
+                      <span className={selectedPosition.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        {selectedPosition.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.realizedPnLTotal)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
-                    <span className="text-[#b3b3b3]">Realized P&L:</span>
-                    <span className={selectedPosition.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      {selectedPosition.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.realizedPnLTotal)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#b3b3b3]">Cash Flow:</span>
+                    <span className="text-[#b3b3b3]">Cash Flow</span>
                     <span className={selectedPosition.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
                       {selectedPosition.cashTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.cashTotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#b3b3b3]">Rolled:</span>
-                    <span className="text-white">{selectedPosition.rolled ? 'Yes' : 'No'}</span>
-                  </div>
+                  {selectedPosition.kindGroup === 'OPTION' && (
+                    <div className="flex justify-between">
+                      <span className="text-[#b3b3b3]">Rolled</span>
+                      <span className="text-white">{selectedPosition.rolled ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

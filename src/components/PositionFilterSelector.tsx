@@ -38,7 +38,7 @@ export default function PositionFilterSelector({
     <div className={`flex items-center gap-2 ${className}`}>
       <div className="flex items-center gap-2 text-[#b3b3b3]">
         <Filter className="h-4 w-4" />
-        <span className="text-sm font-medium">Date Range:</span>
+        <span className="text-sm font-medium">Date Range</span>
       </div>
       
       <div className="min-w-0">
