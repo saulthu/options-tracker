@@ -6,8 +6,10 @@ import { TimeRange } from '@/components/TimeRangeSelector';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/modal';
+import PositionFilterSelector from '@/components/PositionFilterSelector';
 import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Eye, Clock, ArrowUpDown, Target, FileText } from 'lucide-react';
 import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
+import { PositionFilterType } from '@/types/navigation';
 
 interface PositionsPageProps {
   selectedRange: TimeRange;
@@ -27,6 +29,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('openTimestamp');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Filter state
+  const [positionFilter, setPositionFilter] = useState<PositionFilterType>('overlap');
   
   // Modal state
   const [selectedPosition, setSelectedPosition] = useState<PositionEpisode | null>(null);
@@ -59,8 +64,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   // Get filtered positions for the selected time range
   const filteredPositions = useMemo(() => {
     if (!portfolio) return [];
-    return getFilteredPositions(selectedRange);
-  }, [portfolio, selectedRange, getFilteredPositions]);
+    return getFilteredPositions(selectedRange, undefined, positionFilter);
+  }, [portfolio, selectedRange, positionFilter, getFilteredPositions]);
 
   // Sort filtered positions by selected field
   const sortedPositions = useMemo(() => {
@@ -357,13 +362,24 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       {/* Positions Table */}
       <Card className="bg-[#1a1a1a] border-[#2d2d2d] text-white">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Positions Table
-          </CardTitle>
-          <CardDescription>
-            Click on any position to view detailed information
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Positions Table
+              </CardTitle>
+              <CardDescription>
+                Click on any position to view detailed information
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-4">
+              <PositionFilterSelector
+                value={positionFilter}
+                onChange={setPositionFilter}
+              />
+              {/* Future filters can be added here */}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {sortedPositions.length === 0 ? (
@@ -447,10 +463,19 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         <Badge 
                           variant="outline" 
                           className={`text-xs ${
-                            position.qty === 0 ? 'bg-gray-600 text-white border-gray-600' : 'bg-green-600 text-white border-green-600'
+                            position.kindGroup === 'CASH' 
+                              ? (position.cashTotal >= 0 ? 'bg-green-600 text-white border-green-600' : 'bg-red-600 text-white border-red-600')
+                              : position.qty === 0 
+                                ? 'bg-gray-600 text-white border-gray-600' 
+                                : 'bg-green-600 text-white border-green-600'
                           }`}
                         >
-                          {position.qty === 0 ? 'CLOSED' : 'OPEN'}
+                          {position.kindGroup === 'CASH' 
+                            ? (position.cashTotal >= 0 ? 'DEPOSIT' : 'WITHDRAWAL')
+                            : position.qty === 0 
+                              ? 'CLOSED' 
+                              : 'OPEN'
+                          }
                         </Badge>
                       </td>
                       <td className="py-2 px-2 text-center">
@@ -515,10 +540,19 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     <Badge 
                       variant="outline" 
                       className={`text-xs ${
-                        selectedPosition.qty === 0 ? 'bg-gray-600 text-white border-gray-600' : 'bg-green-600 text-white border-green-600'
+                        selectedPosition.kindGroup === 'CASH' 
+                          ? (selectedPosition.cashTotal >= 0 ? 'bg-green-600 text-white border-green-600' : 'bg-red-600 text-white border-red-600')
+                          : selectedPosition.qty === 0 
+                            ? 'bg-gray-600 text-white border-gray-600' 
+                            : 'bg-green-600 text-white border-green-600'
                       }`}
                     >
-                      {selectedPosition.qty === 0 ? 'CLOSED' : 'OPEN'}
+                      {selectedPosition.kindGroup === 'CASH' 
+                        ? (selectedPosition.cashTotal >= 0 ? 'DEPOSIT' : 'WITHDRAWAL')
+                        : selectedPosition.qty === 0 
+                          ? 'CLOSED' 
+                          : 'OPEN'
+                      }
                     </Badge>
                   </div>
                 </div>

@@ -527,6 +527,41 @@ Common authentication issues and their solutions:
 - **Performance**: Avoids redundant processing
 - **Testing**: Easier to test centralized logic
 
+### **Position Filtering Pattern** ⭐ **NEW**
+
+**Purpose**: Provide flexible position filtering options that match different user mental models for viewing portfolio data.
+
+**Problem**: Users need different views of their positions based on their analysis needs - some want to see all active positions during a period, others want to focus on new positions or completed trades.
+
+**Solution**: 
+1. **Multiple Filter Modes**: Implement three filtering semantics:
+   - **Any Overlap**: Show positions active during the selected period (default)
+   - **Opened During**: Show only positions opened within the period
+   - **Closed During**: Show only positions closed within the period
+2. **User-Selectable Interface**: Provide a filter selector component for easy switching
+3. **Consistent Implementation**: Use the same filtering logic across all position views
+
+**Implementation**:
+- **Filter Types**: Define `PositionFilterType` enum with three options
+- **Enhanced Function**: Update `filterEpisodesByDateRange()` to accept filter type parameter
+- **UI Component**: Create `PositionFilterSelector` with compact design
+- **Context Integration**: Update `PortfolioContext` methods to support filter types
+- **Default Behavior**: Default to "Overlap Period" for intuitive user experience
+- **Table Integration**: Position filter selector integrated into table header
+- **Extensible Design**: Structured to accommodate future filters like "exclude open positions"
+
+**Filter Logic**:
+- **Any Overlap**: `openedBeforeOrDuring && (notClosed || closedAfter)`
+- **Opened During**: `openTimestamp >= startDate && openTimestamp <= endDate`
+- **Closed During**: `closeTimestamp >= startDate && closeTimestamp <= endDate`
+
+**Benefits**:
+- **User Flexibility**: Different views for different analysis needs
+- **Intuitive Defaults**: "Any Overlap" matches user expectations
+- **Consistent UX**: Same filtering options across all position views
+- **Performance**: Efficient filtering with proper memoization
+- **Maintainable**: Centralized filtering logic in business layer
+
 ### **Database Implementation Update Pattern**
 1. **Update `src/lib/episode-portfolio-calculator.ts`** with new business logic requirements
 2. **Update `clean-database-schema.sql`** to match the episode-based system

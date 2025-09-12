@@ -233,15 +233,39 @@ describe('Episode Portfolio Calculator', () => {
       result = buildPortfolioView(transactions, tickerLookup, openingBalances);
     });
 
-    it('should filter episodes by date range', () => {
+    it('should filter episodes by date range with overlap mode', () => {
       const filtered = filterEpisodesByDateRange(
         result.episodes,
         '2025-09-01T10:30:00Z',
-        '2025-09-01T11:30:00Z'
+        '2025-09-01T11:30:00Z',
+        'overlap'
       );
       
       expect(filtered).toHaveLength(1); // Only the share episode should be in range
       expect(filtered[0].kindGroup).toBe('SHARES');
+    });
+
+    it('should filter episodes by opened during date range', () => {
+      const filtered = filterEpisodesByDateRange(
+        result.episodes,
+        '2025-09-01T10:30:00Z',
+        '2025-09-01T11:30:00Z',
+        'openedDuring'
+      );
+      
+      expect(filtered).toHaveLength(1); // Only the share episode opened in this range
+      expect(filtered[0].kindGroup).toBe('SHARES');
+    });
+
+    it('should filter episodes by closed during date range', () => {
+      const filtered = filterEpisodesByDateRange(
+        result.episodes,
+        '2025-09-01T10:30:00Z',
+        '2025-09-01T11:30:00Z',
+        'closedDuring'
+      );
+      
+      expect(filtered).toHaveLength(0); // No episodes closed in this range
     });
 
     it('should get account episodes', () => {

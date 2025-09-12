@@ -553,19 +553,37 @@ export function buildPortfolioView(
 // -----------------------------
 
 /**
- * Filter episodes by date range
- * For closed episodes: use close date
- * For open episodes: use open date
+ * Filter episodes by date range with different filtering modes
  */
 export function filterEpisodesByDateRange(
   episodes: PositionEpisode[],
   startDate: string,
-  endDate: string
+  endDate: string,
+  filterType: 'overlap' | 'openedDuring' | 'closedDuring' = 'overlap'
 ): PositionEpisode[] {
   return episodes.filter(episode => {
-    // For closed episodes, use close date; for open episodes, use open date
-    const relevantDate = episode.closeTimestamp || episode.openTimestamp;
-    return relevantDate >= startDate && relevantDate <= endDate;
+    switch (filterType) {
+      case 'overlap':
+        // Position overlaps with date range if:
+        // - It was opened before or during the range AND
+        // - It was not closed OR was closed after the range started
+        const openedBeforeOrDuring = episode.openTimestamp <= endDate;
+        const notClosedOrClosedAfter = !episode.closeTimestamp || episode.closeTimestamp >= startDate;
+        return openedBeforeOrDuring && notClosedOrClosedAfter;
+        
+      case 'openedDuring':
+        // Only include positions opened within the date range
+        return episode.openTimestamp >= startDate && episode.openTimestamp <= endDate;
+        
+      case 'closedDuring':
+        // Only include positions closed within the date range
+        return episode.closeTimestamp && 
+               episode.closeTimestamp >= startDate && 
+               episode.closeTimestamp <= endDate;
+        
+      default:
+        return false;
+    }
   });
 }
 

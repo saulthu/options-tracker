@@ -43,8 +43,8 @@ interface PortfolioContextType {
   getEpisodesByKind: (kindGroup: 'CASH' | 'SHARES' | 'OPTION', accountId?: string) => PositionEpisode[];
   getBalance: (accountId: string) => number;
   getTotalPnL: (accountId?: string) => number;
-  getFilteredEpisodes: (timeRange: TimeRange, accountId?: string) => PositionEpisode[];
-  getFilteredPositions: (timeRange: TimeRange, accountId?: string) => PositionEpisode[];
+  getFilteredEpisodes: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
+  getFilteredPositions: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredTransactions: (timeRange: TimeRange) => RawTransaction[];
   
   // Actions
@@ -264,20 +264,20 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return getTotalRealizedPnL(portfolio.episodes);
   }, [portfolio]);
 
-  const getFilteredEpisodes = useCallback((timeRange: TimeRange, accountId?: string): PositionEpisode[] => {
+  const getFilteredEpisodes = useCallback((timeRange: TimeRange, accountId?: string, filterType: 'overlap' | 'openedDuring' | 'closedDuring' = 'overlap'): PositionEpisode[] => {
     if (!portfolio) return [];
     const episodes = accountId ? getAccountEpisodes(portfolio.episodes, accountId) : portfolio.episodes;
     const startDate = timeRange.startDate.toISOString();
     const endDate = timeRange.endDate.toISOString();
-    return filterEpisodesByDateRange(episodes, startDate, endDate);
+    return filterEpisodesByDateRange(episodes, startDate, endDate, filterType);
   }, [portfolio]);
 
-  const getFilteredPositions = useCallback((timeRange: TimeRange, accountId?: string): PositionEpisode[] => {
+  const getFilteredPositions = useCallback((timeRange: TimeRange, accountId?: string, filterType: 'overlap' | 'openedDuring' | 'closedDuring' = 'overlap'): PositionEpisode[] => {
     if (!portfolio) return [];
     const positions = accountId ? getAccountEpisodes(portfolio.episodes, accountId) : portfolio.episodes;
     const startDate = timeRange.startDate.toISOString();
     const endDate = timeRange.endDate.toISOString();
-    return filterEpisodesByDateRange(positions, startDate, endDate);
+    return filterEpisodesByDateRange(positions, startDate, endDate, filterType);
   }, [portfolio]);
 
   const getFilteredTransactions = useCallback((timeRange: TimeRange): RawTransaction[] => {
