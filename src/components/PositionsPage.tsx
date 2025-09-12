@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/modal';
 import PositionFilterSelector from '@/components/PositionFilterSelector';
-import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Eye, Target, FileText, Copy } from 'lucide-react';
+import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Target, FileText, Copy } from 'lucide-react';
 import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
 import { PositionFilterType } from '@/types/navigation';
 
@@ -87,12 +87,19 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           bValue = new Date(b.openTimestamp).getTime();
           break;
         case 'episodeKey':
-          aValue = a.episodeKey;
-          bValue = b.episodeKey;
+          // Extract just the ticker for comparison to enable proper secondary sorting
+          aValue = a.episodeKey.split('|')[0] || a.episodeKey;
+          bValue = b.episodeKey.split('|')[0] || b.episodeKey;
           break;
         case 'kindGroup':
-          aValue = a.kindGroup;
-          bValue = b.kindGroup;
+          // For options, sort by specific type (CC, CSP, COL, PUT), otherwise by kindGroup
+          if (a.kindGroup === 'OPTION' && b.kindGroup === 'OPTION') {
+            aValue = a.optionDirection || 'UNKNOWN';
+            bValue = b.optionDirection || 'UNKNOWN';
+          } else {
+            aValue = a.kindGroup;
+            bValue = b.kindGroup;
+          }
           break;
         case 'qty':
           aValue = a.qty;
@@ -129,11 +136,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       // Apply sort direction
       const primaryResult = sortDirection === 'asc' ? primaryComparison : -primaryComparison;
 
-      // If primary values are equal, use timestamp as secondary sort
+      // If primary values are equal, use timestamp as secondary sort (newest first)
       if (primaryComparison === 0 && sortField !== 'openTimestamp') {
         const aTimestamp = new Date(a.openTimestamp).getTime();
         const bTimestamp = new Date(b.openTimestamp).getTime();
-        return aTimestamp - bTimestamp;
+        return bTimestamp - aTimestamp; // Newest first (descending)
       }
 
       return primaryResult;
@@ -204,8 +211,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       const expiry = position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : '';
       const optionType = right === 'CALL' ? 'c' : right === 'PUT' ? 'p' : right.toLowerCase();
       const ticker = position.episodeKey.split('|')[0] || position.episodeKey;
-      const details = `${ticker} ${strike}${optionType} ${expiry}`.trim();
-      return { ticker: details, details: '' };
+      const details = `${strike}${optionType} ${expiry}`.trim();
+      return { ticker: ticker, details: details };
     }
 
     return { ticker: position.episodeKey, details: '' };
@@ -347,15 +354,34 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
   // Render transaction details in modal
   const renderTransactionDetails = (txn: EpisodeTxn) => {
+    // Simple display for cash transactions
+    if (txn.instrumentKind === 'CASH') {
+      return (
+        <div key={txn.txnId} className="border border-[#2d2d2d] rounded p-2 bg-[#0f0f0f]">
+          <div className="flex justify-between items-center">
+            <span className={`text-lg font-medium ${txn.cashDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {txn.cashDelta >= 0 ? '+' : ''}{formatCurrency(txn.cashDelta || 0)}
+            </span>
+            <span className="text-xs text-[#b3b3b3]">
+              {new Date(txn.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          </div>
+          {txn.note && (
+            <div className="mt-2 text-center">
+              <span className="text-[#b3b3b3] text-xs">{txn.note}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Detailed display for shares and options
     const getTransactionDescription = () => {
       const price = formatCurrency(txn.price || 0);
       
       // Use the actionTerm from the episode data (calculated during processing)
       const actionTerm = txn.actionTerm || txn.side || 'UNKNOWN';
       
-      if (txn.instrumentKind === 'CASH') {
-        return `${actionTerm} ${txn.ticker} @ ${price}`;
-      }
       if (txn.instrumentKind === 'SHARES') {
         return `${actionTerm} ${txn.ticker} @ ${price}`;
       }
@@ -395,7 +421,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         </div>
         
         <div className="space-y-1">
-          
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="flex justify-between">
               <span className="text-[#b3b3b3]">Qty</span>
@@ -538,14 +563,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                 <thead>
                   <tr className="border-b border-[#2d2d2d]">
                     {renderSortableHeader('openTimestamp', 'Open Date')}
-                    {renderSortableHeader('episodeKey', 'Position')}
+                    {renderSortableHeader('episodeKey', 'Ticker')}
                     {renderSortableHeader('kindGroup', 'Type')}
                     {renderSortableHeader('qty', 'Quantity', 'right')}
                     {renderSortableHeader('avgPrice', 'Avg Price', 'right')}
                     {renderSortableHeader('realizedPnLTotal', 'Realized P&L', 'right')}
                     {renderSortableHeader('cashTotal', 'Cash Flow', 'right')}
                     <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Status</th>
-                    <th className="text-center py-2 px-2 text-[#b3b3b3] font-medium">Details</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -565,29 +589,29 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         })}
                       </td>
                       <td className="py-2 px-2">
-                        <div className="flex flex-col h-8 justify-center">
-                          <div className="text-white text-sm">
-                            {getPositionDisplay(position).ticker}
-                          </div>
-                          {getPositionDisplay(position).details && (
-                            <div className="text-[#b3b3b3] text-xs">
-                              {getPositionDisplay(position).details}
-                            </div>
-                          )}
+                        <div className="text-white text-sm">
+                          {getPositionDisplay(position).ticker}
                         </div>
                       </td>
                       <td className="py-2 px-2">
-                        <Badge 
-                          variant="outline" 
-                          className={BADGE_STYLES.default}
-                        >
-                          {position.kindGroup === 'OPTION' ? 
-                            (position.optionDirection === 'CALL' ? 'Call' :
-                             position.optionDirection === 'PUT' ? 'Put' :
-                             position.optionDirection || 'Option') : 
-                           position.kindGroup === 'CASH' ? 'Cash' :
-                           position.kindGroup === 'SHARES' ? 'Shares' : position.kindGroup}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="outline" 
+                            className={BADGE_STYLES.default}
+                          >
+                            {position.kindGroup === 'OPTION' ? 
+                              (position.optionDirection === 'CALL' ? 'Call' :
+                               position.optionDirection === 'PUT' ? 'Put' :
+                               position.optionDirection || 'Option') : 
+                             position.kindGroup === 'CASH' ? 'Cash' :
+                             position.kindGroup === 'SHARES' ? 'Shares' : position.kindGroup}
+                          </Badge>
+                          {position.kindGroup === 'OPTION' && getPositionDisplay(position).details && (
+                            <span className="text-white text-sm">
+                              {getPositionDisplay(position).details}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2 px-2 text-right text-white">
                         {position.qty}
@@ -623,9 +647,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                               : 'Open'
                           }
                         </Badge>
-                      </td>
-                      <td className="py-2 px-2 text-center">
-                        <Eye className="h-4 w-4 text-[#b3b3b3] hover:text-white" />
                       </td>
                     </tr>
                   ))}
@@ -678,10 +699,10 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       {selectedPosition.cashTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.cashTotal)}
                     </span>
                   </div>
-                  {selectedPosition.kindGroup === 'OPTION' && (
+                  {selectedPosition.kindGroup === 'OPTION' && selectedPosition.rolled && (
                     <div className="flex justify-between">
                       <span className="text-[#b3b3b3]">Rolled</span>
-                      <span className="text-white">{selectedPosition.rolled ? 'Yes' : 'No'}</span>
+                      <span className="text-white">Yes</span>
                     </div>
                   )}
                 </div>
@@ -690,26 +711,28 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
 
 
-            {/* Transaction History */}
-            <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <FileText className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">Transaction History ({selectedPosition.txns.length} transactions)</h3>
-              </div>
-              <div>
-                <div className="space-y-2">
-                  {selectedPosition.txns.length === 0 ? (
-                    <div className="text-center py-4 text-[#b3b3b3]">
-                      No transactions found
-                    </div>
-                  ) : (
-                    selectedPosition.txns
-                      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                      .map(renderTransactionDetails)
-                  )}
+            {/* Transaction History - Not shown for cash positions */}
+            {selectedPosition.kindGroup !== 'CASH' && (
+              <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Transaction History ({selectedPosition.txns.length} transactions)</h3>
+                </div>
+                <div>
+                  <div className="space-y-2">
+                    {selectedPosition.txns.length === 0 ? (
+                      <div className="text-center py-4 text-[#b3b3b3]">
+                        No transactions found
+                      </div>
+                    ) : (
+                      selectedPosition.txns
+                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        .map(renderTransactionDetails)
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </Modal>
