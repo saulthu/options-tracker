@@ -20,8 +20,8 @@ type SortDirection = 'asc' | 'desc';
 
 // Centralized badge styling
 const BADGE_STYLES = {
-  default: 'text-xs bg-gray-800 text-gray-200 border-gray-700',
-  open: 'text-xs bg-gray-300 text-gray-800 border-gray-400',
+  default: 'text-xs bg-gray-800 text-gray-200 border-gray-700 !font-mono',
+  open: 'text-xs bg-gray-300 text-gray-800 border-gray-400 !font-mono font-bold',
 } as const;
 
 export default function PositionsPage({ selectedRange }: PositionsPageProps) {
@@ -195,15 +195,17 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     }
 
     if (position.kindGroup === 'SHARES') {
-      return { ticker: position.episodeKey, details: `${position.qty} shares` };
+      return { ticker: position.episodeKey, details: '' };
     }
 
     if (position.kindGroup === 'OPTION') {
       const right = position.currentRight || 'UNKNOWN';
       const strike = position.currentStrike ? `$${position.currentStrike}` : '';
-      const expiry = position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-      const details = `${position.qty} contracts ${right} ${strike} ${expiry}`.trim();
-      return { ticker: position.episodeKey.split('|')[0] || position.episodeKey, details };
+      const expiry = position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : '';
+      const optionType = right === 'CALL' ? 'c' : right === 'PUT' ? 'p' : right.toLowerCase();
+      const ticker = position.episodeKey.split('|')[0] || position.episodeKey;
+      const details = `${ticker} ${strike}${optionType} ${expiry}`.trim();
+      return { ticker: details, details: '' };
     }
 
     return { ticker: position.episodeKey, details: '' };
@@ -532,7 +534,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace' }}>
                 <thead>
                   <tr className="border-b border-[#2d2d2d]">
                     {renderSortableHeader('openTimestamp', 'Open Date')}
@@ -550,12 +552,12 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   {sortedPositions.map((position, index) => (
                     <tr
                       key={position.episodeId}
-                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] cursor-pointer ${
+                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] cursor-pointer font-mono ${
                         index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]'
                       }`}
                       onClick={() => handlePositionClick(position)}
                     >
-                      <td className="py-2 px-2 text-white font-mono text-xs">
+                      <td className="py-2 px-2 text-white text-xs">
                         {new Date(position.openTimestamp).toLocaleDateString('en-US', {
                           month: '2-digit',
                           day: '2-digit',
@@ -564,7 +566,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       </td>
                       <td className="py-2 px-2">
                         <div className="flex flex-col h-8 justify-center">
-                          <div className="text-white font-semibold text-sm">
+                          <div className="text-white text-sm">
                             {getPositionDisplay(position).ticker}
                           </div>
                           {getPositionDisplay(position).details && (
