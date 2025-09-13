@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeButton, CancelButton } from '@/components/ui/theme-button';
-import { Upload, FileText, CheckCircle, AlertCircle, X, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, X, Eye, EyeOff } from 'lucide-react';
 import { 
   IBKRCSVParser, 
   extractTickerNamesFromIBKRData,
@@ -429,40 +429,22 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
         className="bg-[#1a1a1a] border-[#2d2d2d] w-full max-w-6xl max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <CardHeader className="space-y-4">
-          {/* Breadcrumb Navigation */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onCancel}
-              className="flex items-center gap-2 text-[#b3b3b3] hover:text-white transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Import Options
-            </button>
-            <div className="h-6 w-px bg-[#2d2d2d]" />
-            <div className="text-[#b3b3b3]">
-              Account: <span className="text-blue-400 font-medium">{accountName}</span>
-            </div>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-white flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Import IBKR CSV
+            </CardTitle>
+            <p className="text-sm text-[#b3b3b3] mt-1">
+              Importing into: <span className="text-blue-400 font-medium">{accountName}</span>
+            </p>
           </div>
-
-          {/* Title and Close Button */}
-          <div className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-white flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Import IBKR CSV
-              </CardTitle>
-              <p className="text-sm text-[#b3b3b3] mt-1">
-                Importing into: <span className="text-blue-400 font-medium">{accountName}</span>
-              </p>
-            </div>
-            <button
-              onClick={onCancel}
-              className="text-[#666] hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+          <button
+            onClick={onCancel}
+            className="text-[#666] hover:text-white transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </CardHeader>
 
         <CardContent className="space-y-6 overflow-y-auto max-h-[calc(90vh-120px)]">
