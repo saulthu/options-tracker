@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, FileText, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
@@ -18,6 +18,18 @@ export default function ImportTypeSelector({
   onSelectIBKR, 
   onSelectGeneric 
 }: ImportTypeSelectorProps) {
+  // Handle Escape key to go back to accounts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onBack();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onBack]);
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
