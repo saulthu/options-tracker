@@ -13,7 +13,14 @@ import {
   convertIBKRInterestToTransactions,
   convertIBKRDividendsToTransactions,
   convertIBKRWithholdingTaxToTransactions,
-  convertIBKRCorporateActionsToTransactions
+  convertIBKRCorporateActionsToTransactions,
+  IBKRTrade,
+  IBKRCashTransaction,
+  IBKRFee,
+  IBKRInterest,
+  IBKRDividend,
+  IBKRWithholdingTax,
+  IBKRCorporateAction
 } from '@/lib/ibkr-csv-parser';
 import { Transaction } from '@/types/database';
 
@@ -86,62 +93,13 @@ interface IBKRImporterProps {
 }
 
 interface ImportPreview {
-  trades: Array<{
-    dataDiscriminator: string;
-    assetCategory: string;
-    currency: string;
-    symbol: string;
-    dateTime: string;
-    quantity: number;
-    tPrice: number;
-    cPrice: number;
-    proceeds: number;
-    commFee: number;
-    basis: number;
-    realizedPL: number;
-    mtmPL: number;
-    code: string;
-  }>;
-  cashTransactions: Array<{
-    currency: string;
-    settleDate: string;
-    description: string;
-    amount: number;
-  }>;
-  fees: Array<{
-    subtitle: string;
-    currency: string;
-    date: string;
-    description: string;
-    amount: number;
-  }>;
-  interest: Array<{
-    currency: string;
-    date: string;
-    description: string;
-    amount: number;
-  }>;
-  dividends: Array<{
-    currency: string;
-    date: string;
-    description: string;
-    amount: number;
-    symbol?: string;
-  }>;
-  withholdingTax: Array<{
-    currency: string;
-    date: string;
-    description: string;
-    amount: number;
-    symbol?: string;
-  }>;
-  corporateActions: Array<{
-    currency: string;
-    date: string;
-    description: string;
-    amount: number;
-    symbol?: string;
-  }>;
+  trades: IBKRTrade[];
+  cashTransactions: IBKRCashTransaction[];
+  fees: IBKRFee[];
+  interest: IBKRInterest[];
+  dividends: IBKRDividend[];
+  withholdingTax: IBKRWithholdingTax[];
+  corporateActions: IBKRCorporateAction[];
   metadata: {
     accountId: string;
     statementPeriod: string;
@@ -424,12 +382,6 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency
-    }).format(amount);
-  };
 
   const handleBackdropClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     // Don't allow closing during import
@@ -648,9 +600,9 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                                     </span>
                                   </td>
                                   <td className="px-4 py-3 text-white">{trade.quantity}</td>
-                                  <td className="px-4 py-3 text-white">{formatCurrency(trade.tPrice, trade.currency)}</td>
-                                  <td className="px-4 py-3 text-white">{formatCurrency(trade.proceeds, trade.currency)}</td>
-                                  <td className="px-4 py-3 text-white">{formatCurrency(trade.commFee, trade.currency)}</td>
+                                  <td className="px-4 py-3 text-white">{trade.tPrice.format()}</td>
+                                  <td className="px-4 py-3 text-white">{trade.proceeds.format()}</td>
+                                  <td className="px-4 py-3 text-white">{trade.commFee.format()}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -685,8 +637,8 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                                 <tr key={index} className="border-t border-[#2d2d2d]">
                                   <td className="px-4 py-3 text-white">{formatDate(transaction.settleDate)}</td>
                                   <td className="px-4 py-3 text-white">{transaction.description}</td>
-                                  <td className="px-4 py-3 text-white">{formatCurrency(transaction.amount, transaction.currency)}</td>
-                                  <td className="px-4 py-3 text-white">{transaction.currency}</td>
+                                  <td className="px-4 py-3 text-white">{transaction.amount.format()}</td>
+                                  <td className="px-4 py-3 text-white">{transaction.amount.currency}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -726,7 +678,7 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                                     </span>
                                   </td>
                                   <td className="px-4 py-3 text-white">{fee.description}</td>
-                                  <td className="px-4 py-3 text-white">{formatCurrency(fee.amount, fee.currency)}</td>
+                                  <td className="px-4 py-3 text-white">{fee.amount.format()}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -761,8 +713,8 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                                 <tr key={index} className="border-t border-[#2d2d2d]">
                                   <td className="px-4 py-3 text-white">{formatDate(interestItem.date)}</td>
                                   <td className="px-4 py-3 text-white">{interestItem.description}</td>
-                                  <td className="px-4 py-3 text-white">{formatCurrency(interestItem.amount, interestItem.currency)}</td>
-                                  <td className="px-4 py-3 text-white">{interestItem.currency}</td>
+                                  <td className="px-4 py-3 text-white">{interestItem.amount.format()}</td>
+                                  <td className="px-4 py-3 text-white">{interestItem.amount.currency}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -799,8 +751,8 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                                   <td className="px-4 py-3 text-white">{formatDate(dividend.date)}</td>
                                   <td className="px-4 py-3 text-white">{dividend.symbol || 'N/A'}</td>
                                   <td className="px-4 py-3 text-white">{dividend.description}</td>
-                                  <td className="px-4 py-3 text-green-400">{formatCurrency(dividend.amount, dividend.currency)}</td>
-                                  <td className="px-4 py-3 text-white">{dividend.currency}</td>
+                                  <td className="px-4 py-3 text-green-400">{dividend.amount.format()}</td>
+                                  <td className="px-4 py-3 text-white">{dividend.amount.currency}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -837,8 +789,8 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                                   <td className="px-4 py-3 text-white">{formatDate(tax.date)}</td>
                                   <td className="px-4 py-3 text-white">{tax.symbol || 'N/A'}</td>
                                   <td className="px-4 py-3 text-white">{tax.description}</td>
-                                  <td className="px-4 py-3 text-red-400">{formatCurrency(tax.amount, tax.currency)}</td>
-                                  <td className="px-4 py-3 text-white">{tax.currency}</td>
+                                  <td className="px-4 py-3 text-red-400">{tax.amount.format()}</td>
+                                  <td className="px-4 py-3 text-white">{tax.amount.currency}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -875,10 +827,10 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                                   <td className="px-4 py-3 text-white">{formatDate(action.date)}</td>
                                   <td className="px-4 py-3 text-white">{action.symbol || 'N/A'}</td>
                                   <td className="px-4 py-3 text-white">{action.description}</td>
-                                  <td className={`px-4 py-3 ${action.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {formatCurrency(action.amount, action.currency)}
+                                  <td className={`px-4 py-3 ${action.amount.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
+                                    {action.amount.format()}
                                   </td>
-                                  <td className="px-4 py-3 text-white">{action.currency}</td>
+                                  <td className="px-4 py-3 text-white">{action.amount.currency}</td>
                                 </tr>
                               ))}
                             </tbody>

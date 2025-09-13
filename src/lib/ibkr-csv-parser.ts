@@ -3,70 +3,66 @@
  * 
  * Parses Interactive Brokers CSV activity statements and converts them
  * to our transaction format. Based on real IBKR CSV format analysis.
+ * 
+ * Now uses CurrencyAmount for type-safe currency handling.
  */
 
 import { Transaction } from '@/types/database';
+import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from './currency-amount';
 
 export interface IBKRTrade {
   dataDiscriminator: string;
   assetCategory: string;
-  currency: string;
   symbol: string;
   dateTime: string;
   quantity: number;
-  tPrice: number;
-  cPrice: number;
-  proceeds: number;
-  commFee: number;
-  basis: number;
-  realizedPL: number;
-  mtmPL: number;
+  tPrice: CurrencyAmount;
+  cPrice: CurrencyAmount;
+  proceeds: CurrencyAmount;
+  commFee: CurrencyAmount;
+  basis: CurrencyAmount;
+  realizedPL: CurrencyAmount;
+  mtmPL: CurrencyAmount;
   code: string;
 }
 
 export interface IBKRCashTransaction {
-  currency: string;
   settleDate: string;
   description: string;
-  amount: number;
+  amount: CurrencyAmount;
 }
 
 export interface IBKRFee {
   subtitle: string;
-  currency: string;
   date: string;
   description: string;
-  amount: number;
+  amount: CurrencyAmount;
 }
 
 export interface IBKRInterest {
-  currency: string;
   date: string;
   description: string;
-  amount: number;
+  amount: CurrencyAmount;
 }
 
 export interface IBKRDividend {
-  currency: string;
   date: string;
   description: string;
-  amount: number;
+  amount: CurrencyAmount;
   symbol?: string;
 }
 
 export interface IBKRWithholdingTax {
-  currency: string;
   date: string;
   description: string;
-  amount: number;
+  amount: CurrencyAmount;
   symbol?: string;
 }
 
 export interface IBKRCorporateAction {
-  currency: string;
   date: string;
   description: string;
-  amount: number;
+  amount: CurrencyAmount;
   symbol?: string;
 }
 
@@ -106,6 +102,19 @@ export interface IBKRParseResult {
 
 export class IBKRCSVParser {
   private content: string;
+
+  /**
+   * Create a CurrencyAmount from a string value and currency code
+   * Validates currency code and handles parsing errors
+   */
+  private createCurrencyAmount(value: string, currency: string): CurrencyAmount {
+    if (!isValidCurrencyCode(currency)) {
+      throw new Error(`Invalid currency code in IBKR data: ${currency}`);
+    }
+    
+    const numericValue = parseFloat(value) || 0;
+    return new CurrencyAmount(numericValue, currency as CurrencyCode);
+  }
   private lines: string[];
 
   constructor(csvContent: string) {
@@ -198,13 +207,6 @@ export class IBKRCSVParser {
     const symbol = getValue('Symbol');
     const dateTime = getValue('Date/Time');
     const quantity = parseFloat(getValue('Quantity')) || 0;
-    const tPrice = parseFloat(getValue('T. Price')) || 0;
-    const cPrice = parseFloat(getValue('C. Price')) || 0;
-    const proceeds = parseFloat(getValue('Proceeds')) || 0;
-    const commFee = parseFloat(getValue('Comm/Fee')) || 0;
-    const basis = parseFloat(getValue('Basis')) || 0;
-    const realizedPL = parseFloat(getValue('Realized P/L')) || 0;
-    const mtmPL = parseFloat(getValue('MTM P/L')) || 0;
     const code = getValue('Code');
 
     // Skip subtotals and totals
@@ -213,14 +215,22 @@ export class IBKRCSVParser {
     }
 
     // Skip if essential fields are missing
-    if (!symbol || !dateTime) {
+    if (!symbol || !dateTime || !currency) {
       return null;
     }
+
+    // Create CurrencyAmount instances for all monetary values
+    const tPrice = this.createCurrencyAmount(getValue('T. Price'), currency);
+    const cPrice = this.createCurrencyAmount(getValue('C. Price'), currency);
+    const proceeds = this.createCurrencyAmount(getValue('Proceeds'), currency);
+    const commFee = this.createCurrencyAmount(getValue('Comm/Fee'), currency);
+    const basis = this.createCurrencyAmount(getValue('Basis'), currency);
+    const realizedPL = this.createCurrencyAmount(getValue('Realized P/L'), currency);
+    const mtmPL = this.createCurrencyAmount(getValue('MTM P/L'), currency);
 
     return {
       dataDiscriminator,
       assetCategory,
-      currency,
       symbol,
       dateTime,
       quantity,
@@ -283,19 +293,20 @@ export class IBKRCSVParser {
     const currency = getValue('Currency');
     const settleDate = getValue('Settle Date');
     const description = getValue('Description');
-    const amount = parseFloat(getValue('Amount')) || 0;
-
+    
     // Skip totals
     if (currency === 'Total' || currency === 'Total in USD') {
       return null;
     }
 
+    // Skip if essential fields are missing
     if (!currency || !settleDate || !description) {
       return null;
     }
 
+    const amount = this.createCurrencyAmount(getValue('Amount'), currency);
+
     return {
-      currency,
       settleDate,
       description,
       amount
@@ -351,7 +362,6 @@ export class IBKRCSVParser {
     const currency = getValue('Currency');
     const date = getValue('Date');
     const description = getValue('Description');
-    const amount = parseFloat(getValue('Amount')) || 0;
 
     // Skip totals
     if (subtitle === 'Total') {
@@ -362,9 +372,10 @@ export class IBKRCSVParser {
       return null;
     }
 
+    const amount = this.createCurrencyAmount(getValue('Amount'), currency);
+
     return {
       subtitle,
-      currency,
       date,
       description,
       amount
@@ -419,7 +430,6 @@ export class IBKRCSVParser {
     const currency = getValue('Currency');
     const date = getValue('Date');
     const description = getValue('Description');
-    const amount = parseFloat(getValue('Amount')) || 0;
 
     // Skip totals
     if (currency === 'Total' || currency === 'Total in USD' || currency === 'Total Interest in USD') {
@@ -430,8 +440,9 @@ export class IBKRCSVParser {
       return null;
     }
 
+    const amount = this.createCurrencyAmount(getValue('Amount'), currency);
+
     return {
-      currency,
       date,
       description,
       amount
@@ -484,7 +495,6 @@ export class IBKRCSVParser {
     const currency = getValue('Currency');
     const date = getValue('Date');
     const description = getValue('Description');
-    const amount = parseFloat(getValue('Amount')) || 0;
     const symbol = getValue('Symbol') || undefined;
 
     // Skip totals
@@ -496,8 +506,9 @@ export class IBKRCSVParser {
       return null;
     }
 
+    const amount = this.createCurrencyAmount(getValue('Amount'), currency);
+
     return {
-      currency,
       date,
       description,
       amount,
@@ -551,7 +562,6 @@ export class IBKRCSVParser {
     const currency = getValue('Currency');
     const date = getValue('Date');
     const description = getValue('Description');
-    const amount = parseFloat(getValue('Amount')) || 0;
     const symbol = getValue('Symbol') || undefined;
 
     // Skip totals
@@ -563,8 +573,9 @@ export class IBKRCSVParser {
       return null;
     }
 
+    const amount = this.createCurrencyAmount(getValue('Amount'), currency);
+
     return {
-      currency,
       date,
       description,
       amount,
@@ -618,7 +629,6 @@ export class IBKRCSVParser {
     const currency = getValue('Currency');
     const date = getValue('Date');
     const description = getValue('Description');
-    const amount = parseFloat(getValue('Amount')) || 0;
     const symbol = getValue('Symbol') || undefined;
 
     // Skip totals
@@ -630,8 +640,9 @@ export class IBKRCSVParser {
       return null;
     }
 
+    const amount = this.createCurrencyAmount(getValue('Amount'), currency);
+
     return {
-      currency,
       date,
       description,
       amount,
@@ -1005,9 +1016,9 @@ export function convertIBKRTradesToTransactions(
         strike,
         side,
         qty: Math.abs(trade.quantity),
-        price: trade.tPrice,
-        fees: Math.abs(trade.commFee),
-        currency: trade.currency,
+        price: trade.tPrice.amount,
+        fees: Math.abs(trade.commFee.amount),
+        currency: trade.tPrice.currency,
         memo: `${trade.assetCategory} - ${trade.symbol} (${trade.code || 'N/A'})`
       };
     } catch (error) {
@@ -1047,11 +1058,11 @@ export function convertIBKRCashToTransactions(
         timestamp,
         instrument_kind: 'CASH',
         side,
-        qty: Math.abs(transaction.amount),
+        qty: Math.abs(transaction.amount.amount),
         price: 1, // Cash transactions have price of 1
         fees: 0,
-        currency: transaction.currency,
-        memo: `${transaction.description} (${transaction.currency})`
+        currency: transaction.amount.currency,
+        memo: `${transaction.description} (${transaction.amount.currency})`
       };
     } catch (error) {
       console.error(`Error converting cash transaction ${index + 1}:`, error, transaction);
@@ -1083,11 +1094,11 @@ export function convertIBKRFeesToTransactions(
         timestamp,
         instrument_kind: 'CASH',
         side: 'SELL', // Fees are always outflows
-        qty: Math.abs(fee.amount),
+        qty: Math.abs(fee.amount.amount),
         price: 1,
         fees: 0,
-        currency: fee.currency,
-        memo: `${fee.subtitle}: ${fee.description} (${fee.currency})`
+        currency: fee.amount.currency,
+        memo: `${fee.subtitle}: ${fee.description} (${fee.amount.currency})`
       };
     } catch (error) {
       console.error(`Error converting fee ${index + 1}:`, error, fee);
@@ -1119,11 +1130,11 @@ export function convertIBKRInterestToTransactions(
         timestamp,
         instrument_kind: 'CASH',
         side: 'BUY', // Interest is always an inflow
-        qty: Math.abs(interestItem.amount),
+        qty: Math.abs(interestItem.amount.amount),
         price: 1,
         fees: 0,
-        currency: interestItem.currency,
-        memo: `${interestItem.description} (${interestItem.currency})`
+        currency: interestItem.amount.currency,
+        memo: `${interestItem.description} (${interestItem.amount.currency})`
       };
     } catch (error) {
       console.error(`Error converting interest ${index + 1}:`, error, interestItem);
@@ -1160,11 +1171,11 @@ export function convertIBKRDividendsToTransactions(
         instrument_kind: 'CASH',
         ticker_id: tickerId,
         side: 'BUY', // Dividends are always inflows
-        qty: Math.abs(dividend.amount),
+        qty: Math.abs(dividend.amount.amount),
         price: 1,
         fees: 0,
-        currency: dividend.currency,
-        memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.currency})`
+        currency: dividend.amount.currency,
+        memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.amount.currency})`
       };
     } catch (error) {
       console.error(`Error converting dividend ${index + 1}:`, error, dividend);
@@ -1201,11 +1212,11 @@ export function convertIBKRWithholdingTaxToTransactions(
         instrument_kind: 'CASH',
         ticker_id: tickerId,
         side: 'SELL', // Withholding tax is always an outflow
-        qty: Math.abs(tax.amount),
+        qty: Math.abs(tax.amount.amount),
         price: 1,
         fees: 0,
-        currency: tax.currency,
-        memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.currency})`
+        currency: tax.amount.currency,
+        memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.amount.currency})`
       };
     } catch (error) {
       console.error(`Error converting withholding tax ${index + 1}:`, error, tax);
@@ -1236,7 +1247,7 @@ export function convertIBKRCorporateActionsToTransactions(
       const tickerId = action.symbol ? tickerIdMap[action.symbol] : undefined;
 
       // Determine side based on amount (positive = inflow, negative = outflow)
-      const side = action.amount >= 0 ? 'BUY' : 'SELL';
+      const side = action.amount.amount >= 0 ? 'BUY' : 'SELL';
 
       return {
         user_id: userId,
@@ -1245,11 +1256,11 @@ export function convertIBKRCorporateActionsToTransactions(
         instrument_kind: 'CASH',
         ticker_id: tickerId,
         side,
-        qty: Math.abs(action.amount),
+        qty: Math.abs(action.amount.amount),
         price: 1,
         fees: 0,
-        currency: action.currency,
-        memo: `Corporate Action: ${action.description}${action.symbol ? ` (${action.symbol})` : ''} (${action.currency})`
+        currency: action.amount.currency,
+        memo: `Corporate Action: ${action.description}${action.symbol ? ` (${action.symbol})` : ''} (${action.amount.currency})`
       };
     } catch (error) {
       console.error(`Error converting corporate action ${index + 1}:`, error, action);

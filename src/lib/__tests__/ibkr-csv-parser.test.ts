@@ -97,15 +97,19 @@ describe('IBKRCSVParser', () => {
       expect(stockTrade.symbol).toBe('AAPL');
       expect(stockTrade.assetCategory).toBe('Stocks');
       expect(stockTrade.quantity).toBe(100);
-      expect(stockTrade.tPrice).toBe(150.00);
-      expect(stockTrade.proceeds).toBe(-15000);
-      expect(stockTrade.commFee).toBe(-5);
+      expect(stockTrade.tPrice.amount).toBe(150.00);
+      expect(stockTrade.tPrice.currency).toBe('USD');
+      expect(stockTrade.proceeds.amount).toBe(-15000);
+      expect(stockTrade.proceeds.currency).toBe('USD');
+      expect(stockTrade.commFee.amount).toBe(-5);
+      expect(stockTrade.commFee.currency).toBe('USD');
 
       const optionTrade = result.trades[2];
       expect(optionTrade.symbol).toBe('AAPL 15MAR24 150 C');
       expect(optionTrade.assetCategory).toBe('Equity and Index Options');
       expect(optionTrade.quantity).toBe(1);
-      expect(optionTrade.tPrice).toBe(5.00);
+      expect(optionTrade.tPrice.amount).toBe(5.00);
+      expect(optionTrade.tPrice.currency).toBe('USD');
     });
 
     it('should parse cash transactions correctly', () => {
@@ -114,16 +118,16 @@ describe('IBKRCSVParser', () => {
       expect(result.cashTransactions).toHaveLength(2);
       
       const deposit = result.cashTransactions[0];
-      expect(deposit.currency).toBe('USD');
+      expect(deposit.amount.currency).toBe('USD');
       expect(deposit.settleDate).toBe('2024-01-15');
       expect(deposit.description).toBe('Electronic Fund Transfer');
-      expect(deposit.amount).toBe(50000);
+      expect(deposit.amount.amount).toBe(50000);
 
       const withdrawal = result.cashTransactions[1];
-      expect(withdrawal.currency).toBe('USD');
+      expect(withdrawal.amount.currency).toBe('USD');
       expect(withdrawal.settleDate).toBe('2024-12-15');
       expect(withdrawal.description).toBe('Wire Transfer Out');
-      expect(withdrawal.amount).toBe(-10000);
+      expect(withdrawal.amount.amount).toBe(-10000);
     });
 
     it('should parse fees correctly', () => {
@@ -133,10 +137,10 @@ describe('IBKRCSVParser', () => {
       
       const fee = result.fees[0];
       expect(fee.subtitle).toBe('Other Fees');
-      expect(fee.currency).toBe('USD');
+      expect(fee.amount.currency).toBe('USD');
       expect(fee.date).toBe('2024-03-31');
       expect(fee.description).toBe('Monthly Account Fee');
-      expect(fee.amount).toBe(-25);
+      expect(fee.amount.amount).toBe(-25);
     });
 
     it('should parse interest correctly', () => {
@@ -145,10 +149,10 @@ describe('IBKRCSVParser', () => {
       expect(result.interest).toHaveLength(1);
       
       const interest = result.interest[0];
-      expect(interest.currency).toBe('USD');
+      expect(interest.amount.currency).toBe('USD');
       expect(interest.date).toBe('2024-03-31');
       expect(interest.description).toBe('USD Credit Interest for Mar-2024');
-      expect(interest.amount).toBe(50);
+      expect(interest.amount.amount).toBe(50);
     });
 
     it('should parse dividends correctly', () => {
@@ -157,17 +161,17 @@ describe('IBKRCSVParser', () => {
       expect(result.dividends).toHaveLength(2);
       
       const dividend1 = result.dividends[0];
-      expect(dividend1.currency).toBe('USD');
+      expect(dividend1.amount.currency).toBe('USD');
       expect(dividend1.date).toBe('2024-03-15');
       expect(dividend1.description).toBe('AAPL Dividend');
-      expect(dividend1.amount).toBe(150);
+      expect(dividend1.amount.amount).toBe(150);
       expect(dividend1.symbol).toBe('AAPL');
 
       const dividend2 = result.dividends[1];
-      expect(dividend2.currency).toBe('USD');
+      expect(dividend2.amount.currency).toBe('USD');
       expect(dividend2.date).toBe('2024-06-15');
       expect(dividend2.description).toBe('MSFT Dividend');
-      expect(dividend2.amount).toBe(200);
+      expect(dividend2.amount.amount).toBe(200);
       expect(dividend2.symbol).toBe('MSFT');
     });
 
@@ -177,10 +181,10 @@ describe('IBKRCSVParser', () => {
       expect(result.withholdingTax).toHaveLength(2);
       
       const tax1 = result.withholdingTax[0];
-      expect(tax1.currency).toBe('USD');
+      expect(tax1.amount.currency).toBe('USD');
       expect(tax1.date).toBe('2024-03-15');
       expect(tax1.description).toBe('AAPL Dividend Tax');
-      expect(tax1.amount).toBe(-22.50);
+      expect(tax1.amount.amount).toBe(-22.50);
       expect(tax1.symbol).toBe('AAPL');
     });
 
@@ -190,10 +194,10 @@ describe('IBKRCSVParser', () => {
       expect(result.corporateActions).toHaveLength(2);
       
       const action1 = result.corporateActions[0];
-      expect(action1.currency).toBe('USD');
+      expect(action1.amount.currency).toBe('USD');
       expect(action1.date).toBe('2024-05-15');
       expect(action1.description).toBe('AAPL Stock Split 4:1');
-      expect(action1.amount).toBe(0);
+      expect(action1.amount.amount).toBe(0);
       expect(action1.symbol).toBe('AAPL');
     });
 
@@ -275,13 +279,15 @@ describe('IBKRCSVParser', () => {
       expect(eurUsdTrade).toBeDefined();
       expect(eurUsdTrade?.assetCategory).toBe('Forex');
       expect(eurUsdTrade?.quantity).toBe(1000);
-      expect(eurUsdTrade?.tPrice).toBe(1.0850);
+      expect(eurUsdTrade?.tPrice.amount).toBe(1.09); // Rounded to 2 decimal places
+      expect(eurUsdTrade?.tPrice.currency).toBe('USD');
 
       const gbpUsdTrade = forexTrades.find(t => t.symbol === 'GBP.USD');
       expect(gbpUsdTrade).toBeDefined();
       expect(gbpUsdTrade?.assetCategory).toBe('Forex');
       expect(gbpUsdTrade?.quantity).toBe(500);
-      expect(gbpUsdTrade?.tPrice).toBe(1.2650);
+      expect(gbpUsdTrade?.tPrice.amount).toBe(1.26); // Rounded to 2 decimal places
+      expect(gbpUsdTrade?.tPrice.currency).toBe('USD');
     });
   });
 
@@ -305,7 +311,14 @@ describe('IBKRCSVParser', () => {
 });
 
 describe('convertIBKRTradesToTransactions', () => {
-  const mockTrades = [
+  let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
+  let mockTrades: any[];
+  
+  beforeAll(async () => {
+    const currencyModule = await import('../currency-amount');
+    CurrencyAmount = currencyModule.CurrencyAmount;
+    
+    mockTrades = [
     {
       dataDiscriminator: 'Order',
       assetCategory: 'Stocks',
@@ -313,13 +326,13 @@ describe('convertIBKRTradesToTransactions', () => {
       symbol: 'AAPL',
       dateTime: '2024-03-15, 10:30:00',
       quantity: 100,
-      tPrice: 150.00,
-      cPrice: 150.00,
-      proceeds: -15000,
-      commFee: -5,
-      basis: 15005,
-      realizedPL: 0,
-      mtmPL: 0,
+      tPrice: new CurrencyAmount(150.00, 'USD'),
+      cPrice: new CurrencyAmount(150.00, 'USD'),
+      proceeds: new CurrencyAmount(-15000, 'USD'),
+      commFee: new CurrencyAmount(-5, 'USD'),
+      basis: new CurrencyAmount(15005, 'USD'),
+      realizedPL: new CurrencyAmount(0, 'USD'),
+      mtmPL: new CurrencyAmount(0, 'USD'),
       code: 'O'
     },
     {
@@ -329,16 +342,17 @@ describe('convertIBKRTradesToTransactions', () => {
       symbol: 'AAPL 15MAR24 150 C',
       dateTime: '2024-03-15, 10:35:00',
       quantity: 1,
-      tPrice: 5.00,
-      cPrice: 5.00,
-      proceeds: -500,
-      commFee: -2,
-      basis: 502,
-      realizedPL: 0,
-      mtmPL: 0,
+      tPrice: new CurrencyAmount(5.00, 'USD'),
+      cPrice: new CurrencyAmount(5.00, 'USD'),
+      proceeds: new CurrencyAmount(-500, 'USD'),
+      commFee: new CurrencyAmount(-2, 'USD'),
+      basis: new CurrencyAmount(502, 'USD'),
+      realizedPL: new CurrencyAmount(0, 'USD'),
+      mtmPL: new CurrencyAmount(0, 'USD'),
       code: 'O'
     }
-  ];
+    ];
+  });
 
   it('should convert stock trades correctly', () => {
     const tickerIdMap = { 'AAPL': 'ticker-uuid-123' };
@@ -403,13 +417,13 @@ describe('convertIBKRTradesToTransactions', () => {
         symbol: 'EUR.USD',
         dateTime: '2024-03-15, 10:30:00',
         quantity: 1000,
-        tPrice: 1.0850,
-        cPrice: 1.0850,
-        proceeds: -1085,
-        commFee: -2,
-        basis: 1087,
-        realizedPL: 0,
-        mtmPL: 0,
+        tPrice: new CurrencyAmount(1.0850, 'USD'),
+        cPrice: new CurrencyAmount(1.0850, 'USD'),
+        proceeds: new CurrencyAmount(-1085, 'USD'),
+        commFee: new CurrencyAmount(-2, 'USD'),
+        basis: new CurrencyAmount(1087, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(0, 'USD'),
         code: 'O'
       }
     ];
@@ -426,20 +440,28 @@ describe('convertIBKRTradesToTransactions', () => {
 });
 
 describe('convertIBKRCashToTransactions', () => {
-  const mockCashTransactions = [
+  let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
+  let mockCashTransactions: any[];
+  
+  beforeAll(async () => {
+    const currencyModule = await import('../currency-amount');
+    CurrencyAmount = currencyModule.CurrencyAmount;
+    
+    mockCashTransactions = [
     {
       currency: 'USD',
       settleDate: '2024-01-15',
       description: 'Electronic Fund Transfer',
-      amount: 50000
+      amount: new CurrencyAmount(50000, 'USD')
     },
     {
       currency: 'USD',
       settleDate: '2024-12-15',
       description: 'Wire Transfer Out',
-      amount: -10000
+      amount: new CurrencyAmount(-10000, 'USD')
     }
-  ];
+    ];
+  });
 
   it('should convert cash transactions correctly', () => {
     const transactions = convertIBKRCashToTransactions(mockCashTransactions, 'account-123', 'user-456');
@@ -468,22 +490,30 @@ describe('convertIBKRCashToTransactions', () => {
 });
 
 describe('convertIBKRDividendsToTransactions', () => {
-  const mockDividends = [
+  let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
+  let mockDividends: any[];
+  
+  beforeAll(async () => {
+    const currencyModule = await import('../currency-amount');
+    CurrencyAmount = currencyModule.CurrencyAmount;
+    
+    mockDividends = [
     {
       currency: 'USD',
       date: '2024-03-15',
       description: 'AAPL Dividend',
-      amount: 150,
+      amount: new CurrencyAmount(150, 'USD'),
       symbol: 'AAPL'
     },
     {
       currency: 'USD',
       date: '2024-06-15',
       description: 'MSFT Dividend',
-      amount: 200,
+      amount: new CurrencyAmount(200, 'USD'),
       symbol: 'MSFT'
     }
-  ];
+    ];
+  });
 
   it('should convert dividends correctly', () => {
     const transactions = convertIBKRDividendsToTransactions(mockDividends, 'account-123', 'user-456', {});
@@ -505,11 +535,11 @@ describe('convertIBKRDividendsToTransactions', () => {
   });
 
   it('should handle dividends without symbol', () => {
-    const dividendsWithoutSymbol = [{
+    const dividendsWithoutSymbol = [    {
       currency: 'USD',
       date: '2024-03-15',
       description: 'General Dividend',
-      amount: 100
+      amount: new CurrencyAmount(100, 'USD')
     }];
 
     const transactions = convertIBKRDividendsToTransactions(dividendsWithoutSymbol, 'account-123', 'user-456', {});
@@ -519,15 +549,23 @@ describe('convertIBKRDividendsToTransactions', () => {
 });
 
 describe('convertIBKRWithholdingTaxToTransactions', () => {
-  const mockWithholdingTax = [
+  let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
+  let mockWithholdingTax: any[];
+  
+  beforeAll(async () => {
+    const currencyModule = await import('../currency-amount');
+    CurrencyAmount = currencyModule.CurrencyAmount;
+    
+    mockWithholdingTax = [
     {
       currency: 'USD',
       date: '2024-03-15',
       description: 'AAPL Dividend Tax',
-      amount: -22.50,
+      amount: new CurrencyAmount(-22.50, 'USD'),
       symbol: 'AAPL'
     }
-  ];
+    ];
+  });
 
   it('should convert withholding tax correctly', () => {
     const transactions = convertIBKRWithholdingTaxToTransactions(mockWithholdingTax, 'account-123', 'user-456', {});
@@ -545,29 +583,37 @@ describe('convertIBKRWithholdingTaxToTransactions', () => {
 });
 
 describe('convertIBKRCorporateActionsToTransactions', () => {
-  const mockCorporateActions = [
+  let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
+  let mockCorporateActions: any[];
+  
+  beforeAll(async () => {
+    const currencyModule = await import('../currency-amount');
+    CurrencyAmount = currencyModule.CurrencyAmount;
+    
+    mockCorporateActions = [
     {
       currency: 'USD',
       date: '2024-05-15',
       description: 'AAPL Stock Split 4:1',
-      amount: 0,
+      amount: new CurrencyAmount(0, 'USD'),
       symbol: 'AAPL'
     },
     {
       currency: 'USD',
       date: '2024-08-15',
       description: 'MSFT Special Dividend',
-      amount: 500,
+      amount: new CurrencyAmount(500, 'USD'),
       symbol: 'MSFT'
     },
     {
       currency: 'USD',
       date: '2024-11-15',
       description: 'GOOGL Stock Buyback',
-      amount: -1000,
+      amount: new CurrencyAmount(-1000, 'USD'),
       symbol: 'GOOGL'
     }
-  ];
+    ];
+  });
 
   it('should convert corporate actions correctly', () => {
     const transactions = convertIBKRCorporateActionsToTransactions(mockCorporateActions, 'account-123', 'user-456', {});

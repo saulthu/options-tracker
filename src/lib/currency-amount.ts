@@ -12,7 +12,7 @@
  * - Conversion: Support for currency conversion (when rates are available)
  */
 
-export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 'CHF' | 'CNY';
+export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 'CHF' | 'CNY' | 'HKD';
 
 export interface CurrencyInfo {
   code: CurrencyCode;
@@ -31,6 +31,7 @@ const CURRENCY_INFO: Record<CurrencyCode, CurrencyInfo> = {
   AUD: { code: 'AUD', symbol: 'A$', decimals: 2, name: 'Australian Dollar' },
   CHF: { code: 'CHF', symbol: 'CHF', decimals: 2, name: 'Swiss Franc' },
   CNY: { code: 'CNY', symbol: '¥', decimals: 2, name: 'Chinese Yuan' },
+  HKD: { code: 'HKD', symbol: 'HK$', decimals: 2, name: 'Hong Kong Dollar' },
 };
 
 export class CurrencyAmount {
