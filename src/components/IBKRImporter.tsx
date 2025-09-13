@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeButton, CancelButton } from '@/components/ui/theme-button';
-import { Upload, FileText, CheckCircle, AlertCircle, X, Eye, EyeOff } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle, X, Eye, EyeOff, Download } from 'lucide-react';
 import { 
   IBKRCSVParser, 
   extractTickerNamesFromIBKRData,
@@ -416,8 +416,10 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
       >
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-white flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+            <CardTitle className="text-white flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <Download className="h-4 w-4 text-blue-400" />
+              </div>
               Import IBKR CSV
             </CardTitle>
             <p className="text-sm text-[#b3b3b3] mt-1">
@@ -457,7 +459,7 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                 htmlFor="ibkr-file-input"
                 className="cursor-pointer flex flex-col items-center gap-4"
               >
-                <Upload className={`h-12 w-12 transition-colors ${
+                <Download className={`h-12 w-12 transition-colors ${
                   isDragOver ? 'text-blue-400' : 'text-[#666]'
                 }`} />
                 <div>
