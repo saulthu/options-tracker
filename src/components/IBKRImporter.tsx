@@ -158,6 +158,8 @@ interface ImportPreview {
 export default function IBKRImporter({ onImport, onCancel, accountId, accountName, userId, ensureTickersExist }: IBKRImporterProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, message: '' });
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -321,10 +323,11 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
     if (!preview) return;
 
     try {
-      setIsProcessing(true);
+      setIsImporting(true);
       setError(null);
 
-      // Convert preview data to transactions using the stored ticker ID map
+      // Step 1: Convert transactions
+      setImportProgress({ current: 1, total: 4, message: 'Converting transactions...' });
       const tradeTransactions = convertIBKRTradesToTransactions(
         preview.trades,
         accountId,
@@ -382,19 +385,29 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
         ...corporateActionTransactions
       ];
 
-      // Validate transactions before importing
+      // Step 2: Validate transactions
+      setImportProgress({ current: 2, total: 4, message: 'Validating transactions...' });
       const validationErrors = validateTransactions(allTransactions);
       if (validationErrors.length > 0) {
         setError(`Validation errors found:\n${validationErrors.join('\n')}`);
         return;
       }
 
+      // Step 3: Import transactions
+      setImportProgress({ current: 3, total: 4, message: 'Importing transactions to database...' });
       await onImport(allTransactions);
+
+      // Step 4: Complete
+      setImportProgress({ current: 4, total: 4, message: 'Import completed successfully!' });
+      
+      // Small delay to show completion message
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
     } catch (err) {
       console.error('Error during import:', err);
       setError(err instanceof Error ? err.message : 'Failed to import transactions');
     } finally {
-      setIsProcessing(false);
+      setIsImporting(false);
     }
   }, [preview, accountId, userId, onImport]);
 
@@ -414,23 +427,26 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
   };
 
   const handleBackdropClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    // Don't allow closing during import
+    if (isImporting) return;
+    
     // Only close if clicking on the backdrop itself, not on the card
     if (event.target === event.currentTarget) {
       onCancel();
     }
-  }, [onCancel]);
+  }, [onCancel, isImporting]);
 
   // Handle Escape key to close modal
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !isImporting) {
         onCancel();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
+  }, [onCancel, isImporting]);
 
   return (
     <div 
@@ -893,6 +909,43 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
           )}
         </CardContent>
       </Card>
+
+      {/* Progress Modal */}
+      {isImporting && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60]">
+          <Card className="bg-[#1a1a1a] border-[#2d2d2d] w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Importing Transactions
+              </CardTitle>
+              <p className="text-sm text-[#b3b3b3]">
+                Importing into: <span className="text-blue-400 font-medium">{accountName}</span>
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#b3b3b3]">Progress</span>
+                  <span className="text-white">{importProgress.current} of {importProgress.total}</span>
+                </div>
+                <div className="w-full bg-[#2d2d2d] rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-white font-medium">{importProgress.message}</p>
+                <p className="text-sm text-[#b3b3b3] mt-2">
+                  Please wait while we process your data...
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

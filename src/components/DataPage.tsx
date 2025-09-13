@@ -126,6 +126,7 @@ export default function DataPage({}: DataPageProps) {
       console.log('Portfolio refreshed successfully');
 
       setShowIBKRImporter(false);
+      setCurrentView('accounts');
       
       // Show import results
       if (errorCount === 0) {
