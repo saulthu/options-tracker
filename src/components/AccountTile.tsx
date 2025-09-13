@@ -84,7 +84,7 @@ export default function AccountTile({
               onClick={() => onImport(account.id)}
               className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-colors group"
             >
-              <Upload className="h-4 w-4 text-blue-400 group-hover:text-blue-300" />
+              <Download className="h-4 w-4 text-blue-400 group-hover:text-blue-300" />
               <span className="text-sm font-medium text-blue-400 group-hover:text-blue-300">
                 Import
               </span>
@@ -94,7 +94,7 @@ export default function AccountTile({
               onClick={() => onExport()}
               className="flex items-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg transition-colors group"
             >
-              <Download className="h-4 w-4 text-green-400 group-hover:text-green-300" />
+              <Upload className="h-4 w-4 text-green-400 group-hover:text-green-300" />
               <span className="text-sm font-medium text-green-400 group-hover:text-green-300">
                 Export
               </span>
