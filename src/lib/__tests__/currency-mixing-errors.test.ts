@@ -76,7 +76,7 @@ describe('Currency Mixing Runtime Errors', () => {
           updated_at: '2025-01-01T00:00:00Z',
           instrument_kind: 'CASH' as const,
           qty: 100,
-          fees: 0,
+          fees: new CurrencyAmount(0, 'USD'),
           currency: 'USD',
           memo: 'USD deposit'
         },
@@ -89,7 +89,7 @@ describe('Currency Mixing Runtime Errors', () => {
           updated_at: '2025-01-01T01:00:00Z',
           instrument_kind: 'CASH' as const,
           qty: 50,
-          fees: 0,
+          fees: new CurrencyAmount(0, 'EUR'),
           currency: 'EUR',
           memo: 'EUR deposit'
         }

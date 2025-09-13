@@ -11,6 +11,7 @@ import {
   formatEpisodeForDisplay
 } from '../episode-portfolio-calculator';
 import { RawTransaction, TickerLookup, OpeningBalances, PortfolioResult } from '../../types/episodes';
+import { CurrencyAmount } from '../currency-amount';
 
 // Helper function to create test transactions
 function createTestTransaction(overrides: Partial<RawTransaction> = {}): RawTransaction {
@@ -27,8 +28,9 @@ function createTestTransaction(overrides: Partial<RawTransaction> = {}): RawTran
     strike: undefined,
     side: undefined,
     qty: 1000,
-    price: undefined,
-    fees: 0,
+    price: new CurrencyAmount(1.0, 'USD'),
+    fees: new CurrencyAmount(0, 'USD'),
+    currency: 'USD',
     memo: 'Test transaction',
     tickers: undefined,
     accounts: undefined,
@@ -65,8 +67,8 @@ describe('Episode Portfolio Calculator', () => {
 
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(true);
-      expect(result.ledger[0].cashDelta).toBe(1000);
-      expect(result.balances.get('account-1')).toBe(1000);
+      expect(result.ledger[0].cashDelta.amount).toBe(1000);
+      expect(result.balances.get('account-1')?.amount).toBe(1000);
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('CASH');

@@ -54,8 +54,12 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
   const summaryStats = useMemo(() => {
     const totalTransactions = filteredTransactions.length;
     const totalValue = filteredTransactions.reduce((sum, t) => {
-      const value = t.price && t.qty ? (t.price * t.qty * (t.instrument_kind === 'CASH' ? 1 : (t.instrument_kind === 'SHARES' ? 1 : 100))) : 0;
-      return sum + value;
+      if (t.price && t.qty) {
+        const multiplier = t.instrument_kind === 'CASH' ? 1 : (t.instrument_kind === 'SHARES' ? 1 : 100);
+        const value = t.price.multiply(t.qty * multiplier).amount;
+        return sum + value;
+      }
+      return sum;
     }, 0);
     const accountsCount = Object.keys(transactionsByAccount).length;
     
@@ -66,13 +70,13 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     };
   }, [filteredTransactions, transactionsByAccount]);
 
-  // Format currency using CurrencyAmount
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
+  // Helper function to create CurrencyAmount
+  const createCurrencyAmount = (amount: number, currency: string = 'USD') => {
     if (!isValidCurrencyCode(currency)) {
       console.warn(`Invalid currency code: ${currency}, falling back to USD`);
       currency = 'USD';
     }
-    return new CurrencyAmount(amount, currency as CurrencyCode).format();
+    return new CurrencyAmount(amount, currency as CurrencyCode);
   };
 
   // Format date/time
@@ -102,7 +106,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     
     if (transaction.instrument_kind === 'CALL' || transaction.instrument_kind === 'PUT') {
       const optionType = transaction.instrument_kind;
-      const strike = transaction.strike ? `$${transaction.strike}` : '';
+      const strike = transaction.strike ? `$${transaction.strike.amount}` : '';
       const expiry = transaction.expiry ? new Date(transaction.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       return `${action} ${ticker} ${optionType} ${strike} ${expiry}`.trim();
     }
@@ -160,7 +164,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
         <div className="text-right">
           <div className="text-sm text-[#b3b3b3]">Total Value</div>
           <div className={`text-lg font-semibold ${summaryStats.totalValue >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {formatCurrency(summaryStats.totalValue, 'USD')}
+            {createCurrencyAmount(summaryStats.totalValue, 'USD').format()}
           </div>
         </div>
       </div>
@@ -220,13 +224,13 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                         {transaction.qty || '-'}
                       </td>
                       <td className="py-3 px-4 text-sm text-[#b3b3b3] text-right">
-                        {transaction.price ? formatCurrency(transaction.price, transaction.currency) : '-'}
+                        {transaction.price ? transaction.price.format() : '-'}
                       </td>
                       <td className="py-3 px-4 text-sm text-right">
                         <span className={`font-medium ${
-                          (transaction.price && transaction.qty ? transaction.price * transaction.qty : 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                          (transaction.price && transaction.qty ? transaction.price.multiply(transaction.qty).amount : 0) >= 0 ? 'text-green-400' : 'text-red-400'
                         }`}>
-                          {formatCurrency(transaction.price && transaction.qty ? transaction.price * transaction.qty : 0)}
+                          {transaction.price && transaction.qty ? transaction.price.multiply(transaction.qty).format() : '-'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm text-[#b3b3b3]">

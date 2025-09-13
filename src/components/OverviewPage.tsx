@@ -51,8 +51,8 @@ export default function OverviewPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                <span className={cashBalance >= 0 ? "text-green-400" : "text-red-400"}>
-                  {cashBalance >= 0 ? "+" : ""}${cashBalance.toFixed(2)}
+                <span className={cashBalance.amount >= 0 ? "text-green-400" : "text-red-400"}>
+                  {cashBalance.amount >= 0 ? "+" : ""}{cashBalance.format()}
                 </span>
               </div>
               <p className="text-xs text-[#b3b3b3]">
@@ -94,8 +94,8 @@ export default function OverviewPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                <span className={realizedPnL >= 0 ? "text-green-400" : "text-red-400"}>
-                  {realizedPnL >= 0 ? "+" : ""}${realizedPnL.toFixed(2)}
+                <span className={realizedPnL.amount >= 0 ? "text-green-400" : "text-red-400"}>
+                  {realizedPnL.amount >= 0 ? "+" : ""}{realizedPnL.format()}
                 </span>
               </div>
               <p className="text-xs text-[#b3b3b3]">
@@ -151,8 +151,8 @@ export default function OverviewPage() {
                   <div className="text-right">
                     <p className="text-sm font-medium text-white">
                       {transaction.instrument_kind === 'CASH' 
-                        ? `$${transaction.qty.toFixed(2)}`
-                        : `$${((transaction.price || 0) * transaction.qty).toFixed(2)}`
+                        ? transaction.price?.multiply(transaction.qty).format() || `$${transaction.qty.toFixed(2)}`
+                        : transaction.price ? transaction.price.multiply(transaction.qty).format() : '$0.00'
                       }
                     </p>
                     <Badge variant="outline" className="text-xs">

@@ -144,6 +144,72 @@ export class CurrencyAmount {
     return this._amount < 0;
   }
 
+  // Convenience methods for common operations
+  times(quantity: number): CurrencyAmount {
+    return this.multiply(quantity);
+  }
+
+  plus(other: CurrencyAmount): CurrencyAmount {
+    return this.add(other);
+  }
+
+  minus(other: CurrencyAmount): CurrencyAmount {
+    return this.subtract(other);
+  }
+
+  // Comparison with numbers (for sorting, etc.)
+  greaterThanAmount(amount: number): boolean {
+    return this._amount > amount;
+  }
+
+  lessThanAmount(amount: number): boolean {
+    return this._amount < amount;
+  }
+
+  greaterThanOrEqualAmount(amount: number): boolean {
+    return this._amount >= amount;
+  }
+
+  lessThanOrEqualAmount(amount: number): boolean {
+    return this._amount <= amount;
+  }
+
+  equalsAmount(amount: number): boolean {
+    return this._amount === amount;
+  }
+
+  // Formatting shortcuts
+  formatShort(): string {
+    return this.format({ showSymbol: true, showCode: false });
+  }
+
+  formatWithCode(): string {
+    return this.format({ showSymbol: true, showCode: true });
+  }
+
+  formatNoSymbol(): string {
+    return this.format({ showSymbol: false, showCode: false });
+  }
+
+  // Math operations that return numbers (for compatibility)
+  toNumber(): number {
+    return this._amount;
+  }
+
+  // Safe arithmetic that handles undefined/null
+  static safeAdd(a: CurrencyAmount | undefined, b: CurrencyAmount | undefined): CurrencyAmount | undefined {
+    if (!a && !b) return undefined;
+    if (!a) return b;
+    if (!b) return a;
+    return a.add(b);
+  }
+
+  static safeSubtract(a: CurrencyAmount | undefined, b: CurrencyAmount | undefined): CurrencyAmount | undefined {
+    if (!a) return b?.negate();
+    if (!b) return a;
+    return a.subtract(b);
+  }
+
   // Currency conversion (requires exchange rates)
   convertTo(targetCurrency: CurrencyCode, exchangeRate: number): CurrencyAmount {
     if (this._currency === targetCurrency) {
@@ -207,6 +273,88 @@ export class CurrencyAmount {
   }
 
   static parse(value: string, currency: CurrencyCode): CurrencyAmount {
+    const amount = parseFloat(value);
+    if (isNaN(amount)) {
+      throw new Error(`Cannot parse amount from: ${value}`);
+    }
+    return new CurrencyAmount(amount, currency);
+  }
+
+  static multiply(scalar: number, currencyAmount: CurrencyAmount): CurrencyAmount {
+    return currencyAmount.multiply(scalar);
+  }
+
+  // Additional static utility methods
+  static sum(amounts: CurrencyAmount[]): CurrencyAmount | undefined {
+    if (amounts.length === 0) return undefined;
+    if (amounts.length === 1) return amounts[0];
+    
+    const firstCurrency = amounts[0].currency;
+    let total = CurrencyAmount.zero(firstCurrency);
+    
+    for (const amount of amounts) {
+      if (amount.currency !== firstCurrency) {
+        throw new Error(`Cannot sum amounts with different currencies: ${firstCurrency} and ${amount.currency}`);
+      }
+      total = total.add(amount);
+    }
+    
+    return total;
+  }
+
+  static average(amounts: CurrencyAmount[]): CurrencyAmount | undefined {
+    if (amounts.length === 0) return undefined;
+    if (amounts.length === 1) return amounts[0];
+    
+    const sum = CurrencyAmount.sum(amounts);
+    return sum?.divide(amounts.length);
+  }
+
+  static max(amounts: CurrencyAmount[]): CurrencyAmount | undefined {
+    if (amounts.length === 0) return undefined;
+    if (amounts.length === 1) return amounts[0];
+    
+    const firstCurrency = amounts[0].currency;
+    let maxAmount = amounts[0];
+    
+    for (const amount of amounts) {
+      if (amount.currency !== firstCurrency) {
+        throw new Error(`Cannot compare amounts with different currencies: ${firstCurrency} and ${amount.currency}`);
+      }
+      if (amount.greaterThan(maxAmount)) {
+        maxAmount = amount;
+      }
+    }
+    
+    return maxAmount;
+  }
+
+  static min(amounts: CurrencyAmount[]): CurrencyAmount | undefined {
+    if (amounts.length === 0) return undefined;
+    if (amounts.length === 1) return amounts[0];
+    
+    const firstCurrency = amounts[0].currency;
+    let minAmount = amounts[0];
+    
+    for (const amount of amounts) {
+      if (amount.currency !== firstCurrency) {
+        throw new Error(`Cannot compare amounts with different currencies: ${firstCurrency} and ${amount.currency}`);
+      }
+      if (amount.lessThan(minAmount)) {
+        minAmount = amount;
+      }
+    }
+    
+    return minAmount;
+  }
+
+  // Create from number with automatic currency detection (for common cases)
+  static fromNumber(amount: number, currency: CurrencyCode = 'USD'): CurrencyAmount {
+    return new CurrencyAmount(amount, currency);
+  }
+
+  // Create from string with currency detection
+  static fromString(value: string, currency: CurrencyCode = 'USD'): CurrencyAmount {
     const amount = parseFloat(value);
     if (isNaN(amount)) {
       throw new Error(`Cannot parse amount from: ${value}`);

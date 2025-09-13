@@ -18,16 +18,16 @@ export interface LedgerRow {
   instrumentKind: InstrumentKind;
   ticker?: string; // resolved from ticker_id
   expiry?: string; // YYYY-MM-DD for options
-  strike?: number; // per share for options
+  strike?: CurrencyAmount; // per share for options
   side?: 'BUY' | 'SELL'; // ignored for CASH
   qty: number;
-  price?: number; // per share/contract (not used for CASH)
-  fees: number;
+  price?: CurrencyAmount; // per share/contract (not used for CASH)
+  fees: CurrencyAmount;
   memo?: string;
 
   // Calculated fields
-  cashDelta: number; // +/- cash effect of this txn
-  balanceAfter: number; // account running balance after txn
+  cashDelta: CurrencyAmount; // +/- cash effect of this txn
+  balanceAfter: CurrencyAmount; // account running balance after txn
   accepted: boolean; // false if rejected by rules
   error?: string; // rejection reason
 }
@@ -42,13 +42,13 @@ export interface EpisodeTxn {
   instrumentKind: InstrumentKind;
   ticker?: string;
   expiry?: string;
-  strike?: number;
+  strike?: CurrencyAmount;
   side?: 'BUY' | 'SELL';
   qty: number;
-  price?: number;
-  fees: number;
-  cashDelta: number;
-  realizedPnLDelta: number; // P&L realized in this specific transaction
+  price?: CurrencyAmount;
+  fees: CurrencyAmount;
+  cashDelta: CurrencyAmount;
+  realizedPnLDelta: CurrencyAmount; // P&L realized in this specific transaction
   note?: string; // "ROLL-CLOSE", "ROLL-OPEN", etc.
   
   // Options trading terminology
@@ -70,7 +70,7 @@ export interface PositionEpisode {
   currentInstrumentKey?: string; // e.g. "TSLA|2025-12-19|200|PUT"
   currentRight?: 'CALL' | 'PUT';
   currentExpiry?: string;
-  currentStrike?: number;
+  currentStrike?: CurrencyAmount;
   
   // Options directionality
   optionDirection?: 'CSP' | 'CC' | 'CALL' | 'PUT'; // Logical position meaning for options
@@ -82,10 +82,10 @@ export interface PositionEpisode {
 
   // Evolving economics
   qty: number; // SHARES ≥ 0; OPTIONS may be ±; 0 at closed
-  avgPrice: number; // per-unit entry average (fee-inclusive on opens/adds)
-  totalFees: number;
-  cashTotal: number; // sum of cashDelta across episode (or cash value for cash episode)
-  realizedPnLTotal: number;
+  avgPrice: CurrencyAmount; // per-unit entry average (fee-inclusive on opens/adds)
+  totalFees: CurrencyAmount;
+  cashTotal: CurrencyAmount; // sum of cashDelta across episode (or cash value for cash episode)
+  realizedPnLTotal: CurrencyAmount;
 
   // All transactions in this episode
   txns: EpisodeTxn[];
@@ -97,12 +97,13 @@ export interface PositionEpisode {
  */
 export interface PortfolioResult {
   ledger: LedgerRow[];
-  balances: Map<string, number>; // accountId -> cash balance
+  balances: Map<string, CurrencyAmount>; // accountId -> cash balance
   episodes: PositionEpisode[];
 }
 
 /**
  * Raw transaction from database (before processing)
+ * All currency fields are immediately converted to CurrencyAmount for type safety
  */
 export interface RawTransaction {
   id: string;
@@ -114,11 +115,11 @@ export interface RawTransaction {
   instrument_kind: InstrumentKind;
   ticker_id?: string;
   expiry?: string;
-  strike?: number;
+  strike?: CurrencyAmount;
   side?: 'BUY' | 'SELL';
   qty: number;
-  price?: number;
-  fees: number;
+  price?: CurrencyAmount; // Converted to CurrencyAmount with correct currency
+  fees: CurrencyAmount; // Converted to CurrencyAmount with correct currency
   currency: string; // 3-letter currency code (ISO 4217) - kept for database compatibility
   memo?: string;
   // Joined data from PortfolioContext
@@ -149,7 +150,7 @@ export interface ProcessedTransaction {
   instrument_kind: InstrumentKind;
   ticker_id?: string;
   expiry?: string;
-  strike?: number;
+  strike?: CurrencyAmount;
   side?: 'BUY' | 'SELL';
   qty: number;
   price?: CurrencyAmount;
@@ -179,4 +180,4 @@ export type TickerLookup = Map<string, string>;
 /**
  * Opening balances map for accounts
  */
-export type OpeningBalances = Map<string, number>;
+export type OpeningBalances = Map<string, CurrencyAmount>;

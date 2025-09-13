@@ -64,8 +64,8 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
       
       episodes.forEach(episode => {
         totalQuantity += episode.qty;
-        totalCost += episode.qty * episode.avgPrice;
-        totalRealizedPnL += episode.realizedPnLTotal;
+        totalCost += episode.avgPrice.multiply(episode.qty).amount;
+        totalRealizedPnL += episode.realizedPnLTotal.amount;
       });
       
       // Calculate covered calls for this ticker
@@ -95,14 +95,14 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
     return positions;
   }, [filteredEpisodes, getEpisodesByKind]);
 
-  // Memoize expensive calculations
-  const formatCurrency = useMemo(() => (amount: number, currency: string = 'USD') => {
+  // Helper function to create CurrencyAmount for shares (defaults to USD for now)
+  const createCurrencyAmount = (amount: number, currency: string = 'USD') => {
     if (!isValidCurrencyCode(currency)) {
       console.warn(`Invalid currency code: ${currency}, falling back to USD`);
       currency = 'USD';
     }
-    return new CurrencyAmount(amount, currency as CurrencyCode).format();
-  }, []);
+    return new CurrencyAmount(amount, currency as CurrencyCode);
+  };
 
   const formatNumber = useMemo(() => (num: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -197,7 +197,7 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className={`text-2xl font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {formatCurrency(totalUnrealizedPnL)}
+                  {createCurrencyAmount(totalUnrealizedPnL).format()}
                 </p>
                 <p className="text-gray-400 text-sm">Unrealized P&L</p>
               </div>
@@ -208,7 +208,7 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className={`text-2xl font-bold ${totalRealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {formatCurrency(totalRealizedPnL)}
+                  {createCurrencyAmount(totalRealizedPnL).format()}
                 </p>
                 <p className="text-gray-400 text-sm">Realized P&L</p>
               </div>
@@ -261,19 +261,19 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
                           {formatNumber(position.quantity)}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
-                          {formatCurrency(position.costBasis)}
+                          {createCurrencyAmount(position.costBasis).format()}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
-                          {formatCurrency(position.totalCost)}
+                          {createCurrencyAmount(position.totalCost).format()}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
-                          {formatCurrency(position.currentValue)}
+                          {createCurrencyAmount(position.currentValue).format()}
                         </td>
                         <td className={`py-3 px-4 text-right ${position.unrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {formatCurrency(position.unrealizedPnL)}
+                          {createCurrencyAmount(position.unrealizedPnL).format()}
                         </td>
                         <td className={`py-3 px-4 text-right ${position.realizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {formatCurrency(position.realizedPnL)}
+                          {createCurrencyAmount(position.realizedPnL).format()}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
                           {position.coveredCalls > 0 ? (

@@ -11,7 +11,9 @@ import {
   getTotalRealizedPnL,
   getAccountRealizedPnL,
   getAccountBalance
-} from '@/lib/episode-portfolio-calculator';
+} from '@/lib/episode-portfolio-calculator-v2';
+import { InstrumentKind } from '@/types/episodes';
+import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
 import { 
   PortfolioResult,
   PositionEpisode,
@@ -25,6 +27,83 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+/**
+ * Convert raw database transaction to RawTransaction with CurrencyAmount
+ */
+function convertToRawTransaction(dbTxn: {
+  id: string;
+  user_id: string;
+  account_id: string;
+  timestamp: string;
+  created_at: string;
+  updated_at: string;
+  instrument_kind: string;
+  ticker_id?: string;
+  expiry?: string;
+  strike?: number;
+  side?: string;
+  qty: number;
+  price?: number;
+  fees: number;
+  currency: string;
+  memo?: string;
+  tickers?: {
+    id: string;
+    user_id: string;
+    name: string;
+    icon?: string;
+  };
+  accounts?: {
+    id: string;
+    name: string;
+    type: string;
+    institution: string;
+  };
+}): RawTransaction {
+  // Validate currency code
+  if (!isValidCurrencyCode(dbTxn.currency)) {
+    throw new Error(`Invalid currency code in transaction ${dbTxn.id}: ${dbTxn.currency}`);
+  }
+
+  const currency = dbTxn.currency as CurrencyCode;
+
+  // Convert price to CurrencyAmount if present
+  let price: CurrencyAmount | undefined;
+  if (dbTxn.price !== null && dbTxn.price !== undefined) {
+    price = new CurrencyAmount(dbTxn.price, currency);
+  }
+
+  // Convert fees to CurrencyAmount
+  const fees = new CurrencyAmount(dbTxn.fees || 0, currency);
+
+  // Convert strike to CurrencyAmount if present
+  let strike: CurrencyAmount | undefined;
+  if (dbTxn.strike !== null && dbTxn.strike !== undefined) {
+    strike = new CurrencyAmount(dbTxn.strike, currency);
+  }
+
+  return {
+    id: dbTxn.id,
+    user_id: dbTxn.user_id,
+    account_id: dbTxn.account_id,
+    timestamp: dbTxn.timestamp,
+    created_at: dbTxn.created_at,
+    updated_at: dbTxn.updated_at,
+    instrument_kind: dbTxn.instrument_kind as InstrumentKind,
+    ticker_id: dbTxn.ticker_id,
+    expiry: dbTxn.expiry,
+    strike: strike,
+    side: dbTxn.side as 'BUY' | 'SELL' | undefined,
+    qty: dbTxn.qty,
+    price,
+    fees,
+    currency: dbTxn.currency,
+    memo: dbTxn.memo,
+    tickers: dbTxn.tickers,
+    accounts: dbTxn.accounts
+  };
+}
 
 interface PortfolioContextType {
   // Raw data
@@ -41,8 +120,8 @@ interface PortfolioContextType {
   getOpenEpisodes: (accountId?: string) => PositionEpisode[];
   getClosedEpisodes: (accountId?: string) => PositionEpisode[];
   getEpisodesByKind: (kindGroup: 'CASH' | 'SHARES' | 'OPTION', accountId?: string) => PositionEpisode[];
-  getBalance: (accountId: string) => number;
-  getTotalPnL: (accountId?: string) => number;
+  getBalance: (accountId: string) => CurrencyAmount;
+  getTotalPnL: (accountId?: string) => CurrencyAmount;
   getFilteredEpisodes: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredPositions: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredTransactions: (timeRange: TimeRange) => RawTransaction[];
@@ -172,7 +251,9 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         return;
       }
 
-      setTransactions(data || []);
+      // Convert raw database transactions to RawTransaction with CurrencyAmount
+      const convertedTransactions = (data || []).map(convertToRawTransaction);
+      setTransactions(convertedTransactions);
 
       // Also fetch accounts for the debug page
       const { data: accountsData, error: accountsError } = await supabase
@@ -206,7 +287,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     console.log('Portfolio recalculation triggered, transaction count:', transactions.length);
     if (transactions.length > 0) {
       const tickerLookup = createTickerLookup(transactions);
-      const openingBalances = new Map<string, number>(); // No opening balances for now
+      const openingBalances = new Map<string, CurrencyAmount>(); // No opening balances for now
       const newPortfolio = buildPortfolioView(transactions, tickerLookup, openingBalances);
       console.log('Portfolio rebuilt with', newPortfolio.episodes.length, 'episodes');
       setPortfolio(newPortfolio);
@@ -260,17 +341,23 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return episodes.filter(episode => episode.kindGroup === kindGroup);
   }, [portfolio]);
 
-  const getBalance = useCallback((accountId: string): number => {
-    if (!portfolio) return 0;
+  const getBalance = useCallback((accountId: string): CurrencyAmount => {
+    if (!portfolio) return CurrencyAmount.zero('USD');
     return getAccountBalance(portfolio.balances, accountId);
   }, [portfolio]);
 
-  const getTotalPnL = useCallback((accountId?: string): number => {
-    if (!portfolio) return 0;
+  const getTotalPnL = useCallback((accountId?: string): CurrencyAmount => {
+    if (!portfolio) return CurrencyAmount.zero('USD');
     if (accountId) {
-      return getAccountRealizedPnL(portfolio.episodes, accountId);
+      const accountPnL = getAccountRealizedPnL(portfolio.episodes, accountId);
+      // Return the first currency's P&L (assuming single currency for now)
+      const firstCurrency = Array.from(accountPnL.keys())[0] || 'USD';
+      return accountPnL.get(firstCurrency) || CurrencyAmount.zero(firstCurrency);
     }
-    return getTotalRealizedPnL(portfolio.episodes);
+    const totalPnL = getTotalRealizedPnL(portfolio.episodes);
+    // Return the first currency's P&L (assuming single currency for now)
+    const firstCurrency = Array.from(totalPnL.keys())[0] || 'USD';
+    return totalPnL.get(firstCurrency) || CurrencyAmount.zero(firstCurrency);
   }, [portfolio]);
 
   const getFilteredEpisodes = useCallback((timeRange: TimeRange, accountId?: string, filterType: 'overlap' | 'openedDuring' | 'closedDuring' = 'overlap'): PositionEpisode[] => {

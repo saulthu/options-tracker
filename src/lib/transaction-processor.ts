@@ -10,6 +10,7 @@ import { RawTransaction, ProcessedTransaction } from '../types/episodes';
 
 /**
  * Convert a raw transaction from the database to a processed transaction with CurrencyAmount
+ * Since RawTransaction now has CurrencyAmount fields, this mainly handles cash transaction logic
  */
 export function processTransaction(rawTxn: RawTransaction): ProcessedTransaction {
   // Validate currency code
@@ -19,11 +20,16 @@ export function processTransaction(rawTxn: RawTransaction): ProcessedTransaction
 
   const currency = rawTxn.currency as CurrencyCode;
 
-  // Convert price to CurrencyAmount if present
-  const price = rawTxn.price ? new CurrencyAmount(rawTxn.price, currency) : undefined;
+  // For cash transactions, ensure price is 1.0 with correct currency
+  let price: CurrencyAmount | undefined;
+  if (rawTxn.instrument_kind === 'CASH') {
+    price = new CurrencyAmount(1.0, currency);
+  } else {
+    price = rawTxn.price; // Already a CurrencyAmount
+  }
 
-  // Convert fees to CurrencyAmount
-  const fees = new CurrencyAmount(rawTxn.fees, currency);
+  // Fees are already CurrencyAmount
+  const fees = rawTxn.fees;
 
   // Calculate total value based on instrument kind
   const totalValue = calculateTotalValue(rawTxn, currency, fees, price);
@@ -47,8 +53,12 @@ function calculateTotalValue(
 ): CurrencyAmount {
   switch (rawTxn.instrument_kind) {
     case 'CASH':
-      // For cash transactions, qty is the cash amount
-      return new CurrencyAmount(rawTxn.qty, currency);
+      // For cash transactions: qty * price (where price = 1.0 with correct currency)
+      // This ensures the total value includes the currency information
+      if (!price) {
+        throw new Error('Price should be set to 1.0 for cash transactions');
+      }
+      return price.multiply(rawTxn.qty);
 
     case 'SHARES':
     case 'CALL':
@@ -135,8 +145,8 @@ export function validateSameCurrency(processedTxns: ProcessedTransaction[]): voi
 export function unprocessTransaction(processedTxn: ProcessedTransaction): RawTransaction {
   return {
     ...processedTxn,
-    price: processedTxn.price?.amount,
-    fees: processedTxn.fees.amount,
+    price: processedTxn.price,
+    fees: processedTxn.fees,
     currency: processedTxn.fees.currency
   };
 }

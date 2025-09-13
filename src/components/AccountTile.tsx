@@ -4,12 +4,12 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Upload, Download, TrendingUp, Building2, Trash2, Hash } from 'lucide-react';
 import { Account } from '@/types/database';
-import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
+import { CurrencyAmount } from '@/lib/currency-amount';
 
 interface AccountTileProps {
   account: Account;
   transactionCount: number;
-  accountValue: number;
+  accountValue: CurrencyAmount;
   onImport: (accountId: string) => void;
   onExport: () => void;
   onDeleteAll: (accountId: string) => void;
@@ -23,25 +23,17 @@ export default function AccountTile({
   onExport,
   onDeleteAll
 }: AccountTileProps) {
-  const formatCurrency = (value: number, currency: string = 'USD') => {
-    if (!isValidCurrencyCode(currency)) {
-      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
-      currency = 'USD';
+  const formatValue = (value: CurrencyAmount) => {
+    if (value.amount === 0) return value.format();
+    if (Math.abs(value.amount) >= 1000000) {
+      const symbol = value.currencyInfo.symbol;
+      return `${symbol}${(value.amount / 1000000).toFixed(1)}M`;
     }
-    return new CurrencyAmount(value, currency as CurrencyCode).format();
-  };
-
-  const formatValue = (value: number, currency: string = 'USD') => {
-    if (value === 0) return formatCurrency(0, currency);
-    if (Math.abs(value) >= 1000000) {
-      const symbol = new CurrencyAmount(0, currency as CurrencyCode).currencyInfo.symbol;
-      return `${symbol}${(value / 1000000).toFixed(1)}M`;
+    if (Math.abs(value.amount) >= 1000) {
+      const symbol = value.currencyInfo.symbol;
+      return `${symbol}${(value.amount / 1000).toFixed(1)}K`;
     }
-    if (Math.abs(value) >= 1000) {
-      const symbol = new CurrencyAmount(0, currency as CurrencyCode).currencyInfo.symbol;
-      return `${symbol}${(value / 1000).toFixed(1)}K`;
-    }
-    return formatCurrency(value, currency);
+    return value.format();
   };
 
   return (
@@ -65,7 +57,7 @@ export default function AccountTile({
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-400" />
               <span className="text-sm text-[#b3b3b3]">Value:</span>
-              <span className={`text-lg font-semibold ${accountValue >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <span className={`text-lg font-semibold ${accountValue.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {formatValue(accountValue)}
               </span>
             </div>

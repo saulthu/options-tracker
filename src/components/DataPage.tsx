@@ -11,9 +11,56 @@ import ImportTypeSelector from '@/components/ImportTypeSelector';
 import AlertModal from '@/components/ui/alert-modal';
 import ConfirmModal from '@/components/ui/confirm-modal';
 import { Transaction } from '@/types/database';
+import { RawTransaction } from '@/types/episodes';
+import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
 
 interface DataPageProps {
   selectedRange: unknown; // TimeRange type, but keeping it simple for now
+}
+
+/**
+ * Convert database transaction to RawTransaction with CurrencyAmount
+ */
+function convertDatabaseTransactionToRaw(dbTxn: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'> {
+  // Validate currency code
+  if (!isValidCurrencyCode(dbTxn.currency)) {
+    throw new Error(`Invalid currency code in transaction: ${dbTxn.currency}`);
+  }
+
+  const currency = dbTxn.currency as CurrencyCode;
+
+  // Convert price to CurrencyAmount if present
+  let price: CurrencyAmount | undefined;
+  if (dbTxn.price !== null && dbTxn.price !== undefined) {
+    price = new CurrencyAmount(dbTxn.price, currency);
+  }
+
+  // Convert fees to CurrencyAmount
+  const fees = new CurrencyAmount(dbTxn.fees || 0, currency);
+
+  // Convert strike to CurrencyAmount if present
+  let strike: CurrencyAmount | undefined;
+  if (dbTxn.strike !== null && dbTxn.strike !== undefined) {
+    strike = new CurrencyAmount(dbTxn.strike, currency);
+  }
+
+  return {
+    user_id: dbTxn.user_id,
+    account_id: dbTxn.account_id,
+    timestamp: dbTxn.timestamp,
+    instrument_kind: dbTxn.instrument_kind,
+    ticker_id: dbTxn.ticker_id,
+    expiry: dbTxn.expiry,
+    strike: strike,
+    side: dbTxn.side,
+    qty: dbTxn.qty,
+    price,
+    fees,
+    currency: dbTxn.currency,
+    memo: dbTxn.memo,
+    tickers: dbTxn.tickers,
+    accounts: dbTxn.accounts
+  };
 }
 
 export default function DataPage({}: DataPageProps) {
@@ -75,7 +122,7 @@ export default function DataPage({}: DataPageProps) {
   const accountData = useMemo(() => {
     return accounts.map(account => {
       const accountTransactions = transactions.filter(t => t.account_id === account.id);
-      const accountValue = getBalance(account.id) + getTotalPnL(account.id);
+      const accountValue = getBalance(account.id).add(getTotalPnL(account.id));
       
       return {
         account,
@@ -103,8 +150,11 @@ export default function DataPage({}: DataPageProps) {
       console.log('Starting IBKR batch import with', transactions.length, 'transactions');
       console.log('First transaction sample:', transactions[0]);
       
+      // Convert database transactions to RawTransaction format with CurrencyAmount
+      const rawTransactions = transactions.map(convertDatabaseTransactionToRaw);
+      
       // Batch insert all transactions at once
-      const result = await addTransactions(transactions);
+      const result = await addTransactions(rawTransactions);
       
       console.log('Batch import completed:', result);
 

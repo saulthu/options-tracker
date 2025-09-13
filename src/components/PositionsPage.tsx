@@ -10,7 +10,7 @@ import PositionFilterSelector from '@/components/PositionFilterSelector';
 import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Target, FileText, Copy } from 'lucide-react';
 import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
 import { PositionFilterType } from '@/types/navigation';
-import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
+import { CurrencyAmount } from '@/lib/currency-amount';
 
 interface PositionsPageProps {
   selectedRange: TimeRange;
@@ -110,16 +110,16 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           bValue = b.qty;
           break;
         case 'avgPrice':
-          aValue = a.avgPrice;
-          bValue = b.avgPrice;
+          aValue = a.avgPrice.amount;
+          bValue = b.avgPrice.amount;
           break;
         case 'realizedPnLTotal':
-          aValue = a.realizedPnLTotal;
-          bValue = b.realizedPnLTotal;
+          aValue = a.realizedPnLTotal.amount;
+          bValue = b.realizedPnLTotal.amount;
           break;
         case 'cashTotal':
-          aValue = a.cashTotal;
-          bValue = b.cashTotal;
+          aValue = a.cashTotal.amount;
+          bValue = b.cashTotal.amount;
           break;
         default:
           aValue = 0;
@@ -158,20 +158,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     const totalPositions = filteredPositions.length;
     const openPositions = filteredPositions.filter(pos => pos.qty !== 0).length;
     const closedPositions = filteredPositions.filter(pos => pos.qty === 0).length;
-    const totalRealizedPnL = filteredPositions.reduce((sum, pos) => sum + pos.realizedPnLTotal, 0);
-    const totalCashFlow = filteredPositions.reduce((sum, pos) => sum + pos.cashTotal, 0);
+    const totalRealizedPnL = filteredPositions.reduce((sum, pos) => sum + pos.realizedPnLTotal.amount, 0);
+    const totalCashFlow = filteredPositions.reduce((sum, pos) => sum + pos.cashTotal.amount, 0);
 
     return { totalPositions, openPositions, closedPositions, totalRealizedPnL, totalCashFlow };
   }, [filteredPositions]);
 
-  // Helper function to format currency using CurrencyAmount
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    if (!isValidCurrencyCode(currency)) {
-      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
-      currency = 'USD';
-    }
-    return new CurrencyAmount(amount, currency as CurrencyCode).format();
-  };
+
 
   // formatCurrencyWithSign is available if needed for future use
   // const formatCurrencyWithSign = (amount: number, currency: string = 'USD') => {
@@ -222,7 +215,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     return BADGE_STYLES.default;
   };
 
-  const getPositionDisplay = (position: { kindGroup: string; episodeKey: string; qty: number; currentRight?: string; currentStrike?: number; currentExpiry?: string }) => {
+  const getPositionDisplay = (position: { kindGroup: string; episodeKey: string; qty: number; currentRight?: string; currentStrike?: CurrencyAmount; currentExpiry?: string }) => {
     if (position.kindGroup === 'CASH') {
       return { ticker: 'Cash', details: '' };
     }
@@ -233,7 +226,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
     if (position.kindGroup === 'OPTION') {
       const right = position.currentRight || 'UNKNOWN';
-      const strike = position.currentStrike ? `$${position.currentStrike}` : '';
+      const strike = position.currentStrike ? `$${position.currentStrike.amount}` : '';
       const expiry = position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : '';
       const optionType = right === 'CALL' ? 'c' : right === 'PUT' ? 'p' : right.toLowerCase();
       const ticker = position.episodeKey.split('|')[0] || position.episodeKey;
@@ -255,8 +248,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       </div>
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Amount</span>
-        <span className={`text-white font-semibold ${position.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {position.cashTotal >= 0 ? '+' : ''}{formatCurrency(position.cashTotal)}
+        <span className={`text-white font-semibold ${position.cashTotal.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          {position.cashTotal.amount >= 0 ? '+' : ''}{position.cashTotal.format()}
         </span>
       </div>
       <div className="flex justify-between">
@@ -265,7 +258,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           variant="outline" 
           className={BADGE_STYLES.default}
         >
-          {position.cashTotal >= 0 ? 'Deposit' : 'Withdraw'}
+          {position.cashTotal.amount >= 0 ? 'Deposit' : 'Withdraw'}
         </Badge>
       </div>
       {position.txns.length > 0 && position.txns[0].note && (
@@ -292,19 +285,19 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Avg Price</span>
         <span className="text-white">
-          {formatCurrency(position.avgPrice || 0)}
+          {position.avgPrice.format()}
         </span>
       </div>
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Cost Basis</span>
         <span className="text-white font-semibold">
-          {formatCurrency((position.avgPrice || 0) * position.qty)}
+          {position.avgPrice.multiply(position.qty).format()}
         </span>
       </div>
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Mkt. Value</span>
         <span className="text-white font-semibold">
-          {formatCurrency(0)} {/* Placeholder for future live data */}
+          {position.avgPrice.multiply(0).format()} {/* Placeholder for future live data */}
         </span>
       </div>
       <div className="flex justify-between">
@@ -329,7 +322,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       return firstTxn.side || 'UNKNOWN';
     };
 
-    const strike = position.currentStrike || 'N/A';
+    const strike = position.currentStrike?.amount || 'N/A';
     const contracts = Math.abs(position.qty); // Make unsigned
     const direction = getPositionDirection();
     const ticker = position.txns.length > 0 ? position.txns[0].ticker : 'UNKNOWN';
@@ -356,19 +349,19 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         <div className="flex justify-between">
           <span className="text-[#b3b3b3]">Avg Price</span>
           <span className="text-white">
-            {formatCurrency(position.avgPrice || 0)}
+            {position.avgPrice.format()}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-[#b3b3b3]">Cost Basis</span>
           <span className="text-white font-semibold">
-            {formatCurrency((position.avgPrice || 0) * position.qty * 100)}
+            {position.avgPrice.multiply(position.qty * 100).format()}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-[#b3b3b3]">Mkt. Value</span>
           <span className="text-white font-semibold">
-            {formatCurrency(0)} {/* Placeholder for future live data */}
+            {position.avgPrice.multiply(0).format()} {/* Placeholder for future live data */}
           </span>
         </div>
         <div className="flex justify-between">
@@ -391,8 +384,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       return (
         <div key={txn.txnId} className="border border-[#2d2d2d] rounded p-2 bg-[#0f0f0f]">
           <div className="flex justify-between items-center">
-            <span className={`text-lg font-medium ${txn.cashDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {txn.cashDelta >= 0 ? '+' : ''}{formatCurrency(txn.cashDelta || 0)}
+            <span className={`text-lg font-medium ${txn.cashDelta.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {txn.cashDelta.amount >= 0 ? '+' : ''}{txn.cashDelta.format()}
             </span>
             <span className="text-xs text-[#b3b3b3]">
               {new Date(txn.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -409,7 +402,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
     // Detailed display for shares and options
     const getTransactionDescription = () => {
-      const price = formatCurrency(txn.price || 0);
+      const price = txn.price?.format() || '$0.00';
       
       // Use the actionTerm from the episode data (calculated during processing)
       const actionTerm = txn.actionTerm || txn.side || 'UNKNOWN';
@@ -420,7 +413,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       if (txn.instrumentKind === 'CALL' || txn.instrumentKind === 'PUT') {
         const rightSuffix = txn.instrumentKind === 'PUT' ? 'p' : 'c';
         const expiry = txn.expiry ? new Date(txn.expiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : '';
-        return `${actionTerm} ${txn.ticker} $${txn.strike}${rightSuffix} ${expiry} @ ${price}`.trim();
+        return `${actionTerm} ${txn.ticker} $${txn.strike?.amount || ''}${rightSuffix} ${expiry} @ ${price}`.trim();
       }
       return `${actionTerm} ${txn.ticker} @ ${price}`;
     };
@@ -461,23 +454,23 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             <div className="flex justify-between">
               <span className="text-[#b3b3b3]">Price</span>
               <span className="text-white">
-                {formatCurrency(txn.price || 0)}
+                {txn.price?.format() || '$0.00'}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#b3b3b3]">Fees</span>
-              <span className="text-white">{formatCurrency(txn.fees)}</span>
+              <span className="text-white">{txn.fees.format()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#b3b3b3]">Cash</span>
-              <span className={`${txn.cashDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {txn.cashDelta >= 0 ? '+' : ''}{formatCurrency(txn.cashDelta)}
+              <span className={`${txn.cashDelta.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {txn.cashDelta.amount >= 0 ? '+' : ''}{txn.cashDelta.format()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#b3b3b3]">P&L</span>
-              <span className={`${txn.realizedPnLDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {txn.realizedPnLDelta >= 0 ? '+' : ''}{formatCurrency(txn.realizedPnLDelta)}
+              <span className={`${txn.realizedPnLDelta.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {txn.realizedPnLDelta.amount >= 0 ? '+' : ''}{txn.realizedPnLDelta.format()}
               </span>
             </div>
             {txn.note && (
@@ -541,7 +534,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${summaryStats.totalRealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatCurrency(summaryStats.totalRealizedPnL)}
+              {new CurrencyAmount(summaryStats.totalRealizedPnL, 'USD').format()}
             </div>
             <p className="text-xs text-[#b3b3b3]">Total realized</p>
           </CardContent>
@@ -554,7 +547,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${summaryStats.totalCashFlow >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatCurrency(summaryStats.totalCashFlow)}
+              {new CurrencyAmount(summaryStats.totalCashFlow, 'USD').format()}
             </div>
             <p className="text-xs text-[#b3b3b3]">Total cash flow</p>
           </CardContent>
@@ -649,20 +642,20 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         {position.qty}
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {position.kindGroup === 'CASH' ? '—' : formatCurrency(position.avgPrice || 0)}
+                        {position.kindGroup === 'CASH' ? '—' : position.avgPrice.format()}
                       </td>
                       <td className="py-2 px-2 text-right">
                         {position.kindGroup === 'CASH' ? (
                           <span className="text-[#b3b3b3]">—</span>
                         ) : (
-                          <span className={position.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                            {position.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(position.realizedPnLTotal)}
+                          <span className={position.realizedPnLTotal.amount >= 0 ? 'text-green-400' : 'text-red-400'}>
+                            {position.realizedPnLTotal.amount >= 0 ? '+' : ''}{position.realizedPnLTotal.format()}
                           </span>
                         )}
                       </td>
                       <td className="py-2 px-2 text-right">
-                        <span className={position.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {position.cashTotal >= 0 ? '+' : ''}{formatCurrency(position.cashTotal)}
+                        <span className={position.cashTotal.amount >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          {position.cashTotal.amount >= 0 ? '+' : ''}{position.cashTotal.format()}
                         </span>
                       </td>
                       <td className="py-2 px-2">
@@ -677,7 +670,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                           }
                         >
                           {position.kindGroup === 'CASH' 
-                            ? (position.cashTotal >= 0 ? 'Deposit' : 'Withdraw')
+                            ? (position.cashTotal.amount >= 0 ? 'Deposit' : 'Withdraw')
                             : position.qty === 0 
                               ? 'Closed' 
                               : 'Open'
@@ -724,15 +717,15 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   {selectedPosition.kindGroup !== 'CASH' && (
                     <div className="flex justify-between">
                       <span className="text-[#b3b3b3]">Realized P&L</span>
-                      <span className={selectedPosition.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                        {selectedPosition.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.realizedPnLTotal)}
+                      <span className={selectedPosition.realizedPnLTotal.amount >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        {selectedPosition.realizedPnLTotal.amount >= 0 ? '+' : ''}{selectedPosition.realizedPnLTotal.format()}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span className="text-[#b3b3b3]">Cash Flow</span>
-                    <span className={selectedPosition.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      {selectedPosition.cashTotal >= 0 ? '+' : ''}{formatCurrency(selectedPosition.cashTotal)}
+                    <span className={selectedPosition.cashTotal.amount >= 0 ? 'text-green-400' : 'text-red-400'}>
+                      {selectedPosition.cashTotal.amount >= 0 ? '+' : ''}{selectedPosition.cashTotal.format()}
                     </span>
                   </div>
                   {selectedPosition.kindGroup === 'OPTION' && selectedPosition.rolled && (
