@@ -561,14 +561,18 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   // Ticker management methods
   const ensureTickersExist = useCallback(async (tickerNames: string[]): Promise<{ [tickerName: string]: string }> => {
     if (!tickerNames.length) return {};
+    if (!user) {
+      throw new Error('User must be authenticated to manage tickers');
+    }
 
     try {
       console.log('Ensuring tickers exist:', tickerNames);
       
-      // First, check which tickers already exist
+      // First, check which tickers already exist for this user
       const { data: existingTickers, error: fetchError } = await supabase
         .from('tickers')
         .select('id, name')
+        .eq('user_id', user.id)
         .in('name', tickerNames);
 
       if (fetchError) {
@@ -592,10 +596,10 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
       if (tickersToCreate.length > 0) {
         console.log('Creating new tickers:', tickersToCreate);
         
-        // Create missing tickers
+        // Create missing tickers with user_id
         const { data: newTickers, error: createError } = await supabase
           .from('tickers')
-          .insert(tickersToCreate.map(name => ({ name })))
+          .insert(tickersToCreate.map(name => ({ name, user_id: user.id })))
           .select('id, name');
 
         if (createError) {
@@ -617,14 +621,20 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
       console.error('Error ensuring tickers exist:', err);
       throw err;
     }
-  }, []);
+  }, [user]);
 
   const getTickerId = useCallback(async (tickerName: string): Promise<string | null> => {
+    if (!user) {
+      console.error('User must be authenticated to get ticker ID');
+      return null;
+    }
+
     try {
       const { data, error } = await supabase
         .from('tickers')
         .select('id')
         .eq('name', tickerName)
+        .eq('user_id', user.id)
         .single();
 
       if (error) {
@@ -637,7 +647,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
       console.error('Error getting ticker ID:', err);
       return null;
     }
-  }, []);
+  }, [user]);
 
   const value: PortfolioContextType = {
     transactions,
