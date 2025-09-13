@@ -695,12 +695,6 @@ Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-27, 11:12:29",-25000,0.64942,,16235
         expect(audTxn.timestamp).toBe(usdTxn.timestamp); // Same timestamp
       });
       
-      console.log('✅ Complete forex import flow test passed');
-      console.log(`   - Parsed ${result.trades.length} forex trades`);
-      console.log(`   - Created ${transactions.length} transactions`);
-      console.log(`   - Database format: ${dbTransactions.length} records`);
-      console.log(`   - AUD transactions: ${audTransactions.length}`);
-      console.log(`   - USD transactions: ${usdTransactions.length}`);
     });
 
     it('should handle mixed forex and regular trades correctly', () => {
