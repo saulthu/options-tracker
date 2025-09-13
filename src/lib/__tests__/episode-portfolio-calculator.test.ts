@@ -110,10 +110,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 5.00,
-          strike: 160,
+          price: new CurrencyAmount(5.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           memo: 'Sell AAPL call'
         })
       ];
@@ -122,15 +122,15 @@ describe('Episode Portfolio Calculator', () => {
 
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(true);
-      expect(result.ledger[0].cashDelta).toBe(499.50); // +(1 * 5.00 * 100) - 0.50
-      expect(result.balances.get('account-1')).toBe(499.50);
+      expect(result.ledger[0].cashDelta.amount).toBe(499.50); // +(1 * 5.00 * 100) - 0.50
+      expect(result.balances.get('account-1')?.amount).toBe(499.50);
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('OPTION');
       expect(result.episodes[0].episodeKey).toBe('AAPL|CALL|160|2025-09-19');
       expect(result.episodes[0].qty).toBe(-1); // Short position
       expect(result.episodes[0].currentRight).toBe('CALL');
-      expect(result.episodes[0].currentStrike).toBe(160);
+      expect(result.episodes[0].currentStrike?.amount).toBe(160);
       expect(result.episodes[0].currentExpiry).toBe('2025-09-19');
     });
 
@@ -141,8 +141,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 100,
-          price: 150,
-          fees: 1,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           memo: 'Sell AAPL shares (should fail)'
         })
       ];
@@ -152,7 +152,7 @@ describe('Episode Portfolio Calculator', () => {
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(false);
       expect(result.ledger[0].error).toBe('Equities cannot be negative (long-only)');
-      expect(result.balances.get('account-1')).toBe(0); // No change to balance
+      expect(result.balances.get('account-1')?.amount).toBe(0); // No change to balance
       expect(result.episodes).toHaveLength(0); // No episodes for rejected transactions
     });
 
@@ -165,8 +165,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 100,
-          price: 150,
-          fees: 1,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           memo: 'Buy AAPL shares'
         }),
         // Sell covered call
@@ -177,10 +177,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 5.00,
-          strike: 160,
+          price: new CurrencyAmount(5.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           memo: 'Sell covered call'
         })
       ];
@@ -216,8 +216,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 100,
-          price: 150,
-          fees: 1,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           timestamp: '2025-09-01T11:00:00Z'
         }),
         createTestTransaction({
@@ -226,8 +226,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 50,
-          price: 160,
-          fees: 1,
+          price: new CurrencyAmount(160, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           timestamp: '2025-09-01T12:00:00Z'
         })
       ];
@@ -295,7 +295,7 @@ describe('Episode Portfolio Calculator', () => {
 
     it('should calculate total realized P&L', () => {
       const totalPnL = getTotalRealizedPnL(result.episodes);
-      expect(totalPnL).toBeCloseTo(498.5, 1); // (160 - 150.01) * 50 - 1
+      expect(totalPnL.get('USD')?.amount).toBeCloseTo(498.5, 1); // (160 - 150.01) * 50 - 1
     });
 
     it('should create ticker lookup from transactions', () => {
@@ -326,10 +326,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 5.00,
-          strike: 160,
+          price: new CurrencyAmount(5.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         }),
         // Buy 1 AAPL call (close position)
@@ -339,10 +339,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 3.00,
-          strike: 160,
+          price: new CurrencyAmount(3.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T11:00:00Z'
         }),
         // Sell 1 AAPL call (roll - within 10 hours, opposite side, equal quantity)
@@ -352,10 +352,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 4.00,
-          strike: 165, // Different strike (roll)
+          price: new CurrencyAmount(4.00, 'USD'),
+          strike: new CurrencyAmount(165, 'USD'), // Different strike (roll)
           expiry: '2025-09-26', // Different expiry (roll)
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T12:00:00Z' // Within 10 hours
         })
       ];
@@ -371,13 +371,13 @@ describe('Episode Portfolio Calculator', () => {
       
       // First episode (closed)
       expect(firstEpisode.qty).toBe(0); // Closed position
-      expect(firstEpisode.currentStrike).toBe(160); // Original strike
+      expect(firstEpisode.currentStrike?.amount).toBe(160); // Original strike
       expect(firstEpisode.currentExpiry).toBe('2025-09-19'); // Original expiry
       expect(firstEpisode.txns).toHaveLength(2);
       
       // Second episode (new contract)
       expect(secondEpisode.qty).toBe(-1); // Short position
-      expect(secondEpisode.currentStrike).toBe(165); // New strike
+      expect(secondEpisode.currentStrike?.amount).toBe(165); // New strike
       expect(secondEpisode.currentExpiry).toBe('2025-09-26'); // New expiry
       expect(secondEpisode.txns).toHaveLength(1);
     });
@@ -391,10 +391,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 5.00,
-          strike: 160,
+          price: new CurrencyAmount(5.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         }),
         // Buy 1 AAPL call (close position)
@@ -404,10 +404,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 3.00,
-          strike: 160,
+          price: new CurrencyAmount(3.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T11:00:00Z'
         }),
         // Sell 1 AAPL call (too late - after 10 hours)
@@ -417,10 +417,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 4.00,
-          strike: 165,
+          price: new CurrencyAmount(4.00, 'USD'),
+          strike: new CurrencyAmount(165, 'USD'),
           expiry: '2025-09-26',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T22:00:00Z' // 12 hours later
         })
       ];
@@ -445,10 +445,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 5.00,
-          strike: 160,
+          price: new CurrencyAmount(5.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         }),
         // Buy 1 AAPL call (close position)
@@ -458,10 +458,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 3.00,
-          strike: 160,
+          price: new CurrencyAmount(3.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T11:00:00Z'
         }),
         // Sell 2 AAPL calls (different quantity)
@@ -471,10 +471,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 2, // Different quantity
-          price: 4.00,
-          strike: 165,
+          price: new CurrencyAmount(4.00, 'USD'),
+          strike: new CurrencyAmount(165, 'USD'),
           expiry: '2025-09-26',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T12:00:00Z'
         })
       ];
@@ -496,8 +496,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 100,
-          price: 150,
-          fees: 1,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         }),
         // Try to sell 150 shares (would cross zero)
@@ -507,8 +507,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 150, // More than we own
-          price: 160,
-          fees: 1,
+          price: new CurrencyAmount(160, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           timestamp: '2025-09-01T11:00:00Z'
         })
       ];
@@ -531,10 +531,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 2.00,
-          strike: 160,
+          price: new CurrencyAmount(2.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         }),
         createTestTransaction({
@@ -543,10 +543,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 1.00,
-          strike: 165,
+          price: new CurrencyAmount(1.00, 'USD'),
+          strike: new CurrencyAmount(165, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:01:00Z'
         }),
         // Sell put spread (lower strike)
@@ -556,10 +556,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 1.50,
-          strike: 150,
+          price: new CurrencyAmount(1.50, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:02:00Z'
         }),
         createTestTransaction({
@@ -568,10 +568,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 0.50,
-          strike: 145,
+          price: new CurrencyAmount(0.50, 'USD'),
+          strike: new CurrencyAmount(145, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:03:00Z'
         })
       ];
@@ -596,10 +596,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-2', // MSFT
           side: 'SELL',
           qty: 1,
-          price: 2.00,
-          strike: 300,
+          price: new CurrencyAmount(2.00, 'USD'),
+          strike: new CurrencyAmount(300, 'USD'),
           expiry: '2025-10-17',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-11T10:00:00Z'
         }),
         // Buy MSFT $295 PUT (different strike - should be separate episode)
@@ -609,10 +609,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-2', // MSFT
           side: 'BUY',
           qty: 1,
-          price: 1.00,
-          strike: 295,
+          price: new CurrencyAmount(1.00, 'USD'),
+          strike: new CurrencyAmount(295, 'USD'),
           expiry: '2025-10-17',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-11T10:01:00Z'
         })
       ];
@@ -627,13 +627,13 @@ describe('Episode Portfolio Calculator', () => {
       // First episode: SELL $300 PUT
       expect(episodes[0].episodeKey).toBe('MSFT|PUT|300|2025-10-17');
       expect(episodes[0].qty).toBe(-1); // Short position
-      expect(episodes[0].currentStrike).toBe(300);
+      expect(episodes[0].currentStrike?.amount).toBe(300);
       expect(episodes[0].txns).toHaveLength(1);
       
       // Second episode: BUY $295 PUT
       expect(episodes[1].episodeKey).toBe('MSFT|PUT|295|2025-10-17');
       expect(episodes[1].qty).toBe(1); // Long position
-      expect(episodes[1].currentStrike).toBe(295);
+      expect(episodes[1].currentStrike?.amount).toBe(295);
       expect(episodes[1].txns).toHaveLength(1);
     });
 
@@ -646,10 +646,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 3.00,
-          strike: 160,
+          price: new CurrencyAmount(3.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-09-19',
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         }),
         // Buy longer-term call
@@ -659,10 +659,10 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 2.00,
-          strike: 160,
+          price: new CurrencyAmount(2.00, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
           expiry: '2025-10-17', // Different expiry
-          fees: 0.50,
+          fees: new CurrencyAmount(0.50, 'USD'),
           timestamp: '2025-09-01T10:01:00Z'
         })
       ];
@@ -699,8 +699,8 @@ describe('Episode Portfolio Calculator', () => {
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
       expect(result.episodes).toHaveLength(2);
-      expect(result.balances.get('account-1')).toBe(1000);
-      expect(result.balances.get('account-2')).toBe(3000); // 1000 (opening) + 2000 (transaction)
+      expect(result.balances.get('account-1')?.amount).toBe(1000);
+      expect(result.balances.get('account-2')?.amount).toBe(3000); // 1000 (opening) + 2000 (transaction)
     });
 
     it('should handle zero quantity transactions', () => {
@@ -711,8 +711,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 0, // Zero quantity
-          price: 150,
-          fees: 1,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         })
       ];
@@ -734,9 +734,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 2.50,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(2.50, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-01T10:00:00Z'
         })
@@ -757,9 +757,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 2.50,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(2.50, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-01T10:00:00Z'
         })
@@ -780,9 +780,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 2.50,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(2.50, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-01T10:00:00Z'
         })
@@ -803,9 +803,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 2.50,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(2.50, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-01T10:00:00Z'
         })
@@ -827,9 +827,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 2.50,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(2.50, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-01T10:00:00Z'
         }),
@@ -840,9 +840,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 1.25,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(1.25, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-02T10:00:00Z'
         })
@@ -865,9 +865,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 2.50,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(2.50, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-01T10:00:00Z'
         }),
@@ -878,9 +878,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 3.75,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(3.75, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-02T10:00:00Z'
         })
@@ -902,8 +902,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 100,
-          price: 150,
-          fees: 1,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           timestamp: '2025-09-01T10:00:00Z'
         }),
         createTestTransaction({
@@ -929,9 +929,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 1,
-          price: 2.50,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(2.50, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-01T10:00:00Z'
         }),
@@ -942,9 +942,9 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'SELL',
           qty: 1,
-          price: 3.75,
-          fees: 1,
-          strike: 150,
+          price: new CurrencyAmount(3.75, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
+          strike: new CurrencyAmount(150, 'USD'),
           expiry: '2025-12-19',
           timestamp: '2025-09-02T10:00:00Z'
         })
@@ -955,8 +955,8 @@ describe('Episode Portfolio Calculator', () => {
 
       expect(episode.qty).toBe(0); // Position is closed
       expect(episode.closeTimestamp).toBeDefined();
-      expect(episode.avgPrice).toBe(2.51); // Should preserve average price (2.50 + 1/100)
-      expect(episode.realizedPnLTotal).toBeCloseTo(123, 0); // (3.75 - 2.51) * 100 - 1, accounting for floating point precision
+      expect(episode.avgPrice.amount).toBe(2.51); // Should preserve average price (2.50 + 1/100)
+      expect(episode.realizedPnLTotal.amount).toBeCloseTo(123, 0); // (3.75 - 2.51) * 100 - 1, accounting for floating point precision
     });
   });
 
@@ -981,7 +981,7 @@ describe('Episode Portfolio Calculator', () => {
         ticker_id: 'ticker-1',
         side: 'BUY',
         qty: 100,
-        price: 150.00,
+        price: new CurrencyAmount(150.00, 'USD'),
         memo: 'Test share memo'
       });
       
@@ -999,8 +999,8 @@ describe('Episode Portfolio Calculator', () => {
         ticker_id: 'ticker-1',
         side: 'SELL',
         qty: 1,
-        price: 5.00,
-        strike: 150,
+        price: new CurrencyAmount(5.00, 'USD'),
+        strike: new CurrencyAmount(150, 'USD'),
         expiry: '2025-12-19',
         memo: 'Test option memo'
       });
