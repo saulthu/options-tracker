@@ -454,7 +454,7 @@ Trades,Data,Order,Forex,USD,CHF.USD,"2025-08-22, 13:16:01",-500,1.10,,550,0,,,-1
       // USD transaction (selling USD to buy EUR) - negative quantity, SELL side
       expect(usdTransaction!.side).toBe('SELL');
       expect(usdTransaction!.qty).toBe(-1085); // Negative for outflow
-      expect(usdTransaction!.fees.amount).toBe(2);
+      expect(usdTransaction!.fees.amount).toBe(-2);
       expect(usdTransaction!.memo).toContain('Forex: Sell 1085 USD to buy 1000 EUR');
       
       // EUR transaction (buying EUR with USD) - positive quantity, BUY side
@@ -491,8 +491,8 @@ Trades,Data,Order,Forex,USD,CHF.USD,"2025-08-22, 13:16:01",-500,1.10,,550,0,,,-1
       const gbpTransaction = transactions.find(t => t.currency === 'GBP');
       const usdTransaction = transactions.find(t => t.currency === 'USD');
       
-      // GBP transaction should have the fees
-      expect(gbpTransaction!.fees.amount).toBe(1.50);
+      // GBP transaction should have the fees (preserving original negative sign from IBKR)
+      expect(gbpTransaction!.fees.amount).toBe(-1.50);
       expect(gbpTransaction!.memo).toContain('Forex: Sell 500 GBP to buy 632.5 USD');
       
       // USD transaction should have no fees (already accounted for in GBP)
@@ -672,7 +672,8 @@ Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-27, 11:12:29",-25000,0.64942,,16235
         expect(txn.timestamp).toBeDefined();
         expect(txn.instrument_kind).toBe('CASH');
         expect(txn.qty).not.toBe(0); // Should be non-zero (positive or negative)
-        expect(txn.fees).toBeGreaterThanOrEqual(0);
+        // Fees can be negative (charges) or positive (credits) - preserve original sign
+        expect(txn.fees).toBeDefined();
         expect(txn.currency).toMatch(/^(AUD|USD)$/);
         expect(txn.memo).toContain('Forex');
         
@@ -807,7 +808,7 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(stockTransaction.side).toBe('BUY');
     expect(stockTransaction.qty).toBe(100);
     expect(stockTransaction.price?.amount).toBe(150.00);
-    expect(stockTransaction.fees.amount).toBe(5);
+    expect(stockTransaction.fees.amount).toBe(-5);
     expect(stockTransaction.user_id).toBe('user-456');
     expect(stockTransaction.account_id).toBe('account-123');
   });
@@ -824,7 +825,7 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(optionTransaction.side).toBe('BUY');
     expect(optionTransaction.qty).toBe(1);
     expect(optionTransaction.price?.amount).toBe(5.00);
-    expect(optionTransaction.fees.amount).toBe(2);
+    expect(optionTransaction.fees.amount).toBe(-2);
   });
 
   it('should handle timezone conversion', () => {
@@ -888,7 +889,7 @@ describe('convertIBKRTradesToTransactions', () => {
     // USD transaction (selling USD to buy EUR) - negative quantity, SELL side
     expect(usdTransaction!.side).toBe('SELL');
     expect(usdTransaction!.qty).toBe(-1085); // Negative for outflow
-    expect(usdTransaction!.fees.amount).toBe(2); // Fees in USD
+    expect(usdTransaction!.fees.amount).toBe(-2); // Fees in USD
     
     // EUR transaction (buying EUR with USD) - positive quantity, BUY side
     expect(eurTransaction!.side).toBe('BUY');

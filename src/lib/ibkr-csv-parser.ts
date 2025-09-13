@@ -1033,7 +1033,7 @@ function convertForexTradeToCashTransactions(
       side: 'SELL', // Explicitly set to SELL for outflow
       qty: -quoteAmount, // Negative for outflow
       price: new CurrencyAmount(1, quoteCurrencyCode),
-      fees: new CurrencyAmount(Math.abs(trade.commFee.amount), quoteCurrencyCode),
+      fees: new CurrencyAmount(trade.commFee.amount, quoteCurrencyCode),
       currency: quoteCurrencyCode,
       memo: `Forex: Sell ${quoteAmount} ${quoteCurrencyCode} to buy ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}`
     });
@@ -1062,7 +1062,7 @@ function convertForexTradeToCashTransactions(
       side: 'SELL', // Explicitly set to SELL for outflow
       qty: -baseAmount, // Negative for outflow
       price: new CurrencyAmount(1, baseCurrencyCode),
-      fees: new CurrencyAmount(Math.abs(trade.commFee.amount), baseCurrencyCode),
+      fees: new CurrencyAmount(trade.commFee.amount, baseCurrencyCode),
       currency: baseCurrencyCode,
       memo: `Forex: Sell ${baseAmount} ${baseCurrencyCode} to buy ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}`
     });
@@ -1164,7 +1164,7 @@ function convertRegularTradeToTransaction(
       side,
       qty: Math.abs(trade.quantity),
       price: trade.tPrice,
-      fees: new CurrencyAmount(Math.abs(trade.commFee.amount), trade.tPrice.currency),
+      fees: new CurrencyAmount(trade.commFee.amount, trade.tPrice.currency),
       currency: trade.tPrice.currency,
       memo: `${trade.assetCategory} - ${trade.symbol} (${trade.code || 'N/A'})`
     };
@@ -1240,7 +1240,7 @@ export function convertIBKRFeesToTransactions(
         timestamp,
         instrument_kind: 'CASH',
         side: 'SELL', // Fees are always outflows
-        qty: Math.abs(fee.amount.amount),
+        qty: fee.amount.amount,
         price: new CurrencyAmount(1, fee.amount.currency),
         fees: new CurrencyAmount(0, fee.amount.currency),
         currency: fee.amount.currency,

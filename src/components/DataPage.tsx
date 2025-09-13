@@ -9,7 +9,7 @@ import IBKRImporter from '@/components/IBKRImporter';
 import AccountTile from '@/components/AccountTile';
 import ImportTypeSelector from '@/components/ImportTypeSelector';
 import AlertModal from '@/components/ui/alert-modal';
-import ConfirmModal from '@/components/ui/confirm-modal';
+import SafeDeleteModal from '@/components/ui/safe-delete-modal';
 import { Transaction } from '@/types/database';
 import { RawTransaction } from '@/types/episodes';
 import { isValidCurrencyCode } from '@/lib/currency-amount';
@@ -81,17 +81,19 @@ export default function DataPage({}: DataPageProps) {
     type: 'info'
   });
 
-  const [confirmModal, setConfirmModal] = useState<{
+  const [safeDeleteModal, setSafeDeleteModal] = useState<{
     isOpen: boolean;
     title: string;
     message: string;
     accountId: string | null;
+    accountName: string;
     isLoading: boolean;
   }>({
     isOpen: false,
     title: '',
     message: '',
     accountId: null,
+    accountName: '',
     isLoading: false
   });
 
@@ -206,38 +208,40 @@ export default function DataPage({}: DataPageProps) {
 
     const transactionCount = transactions.filter(t => t.account_id === accountId).length;
     
-    // Show confirmation modal
-    setConfirmModal({
+    // Show safe delete modal
+    setSafeDeleteModal({
       isOpen: true,
       title: 'Delete All Transactions',
-      message: `Are you sure you want to delete ALL transactions for "${account.name}"?\n\nThis action cannot be undone and will permanently remove ${transactionCount} transactions.`,
+      message: `Are you sure you want to delete ALL transactions for "${account.name}"?\n\nThis action cannot be undone and will permanently remove ${transactionCount} transactions.\n\nTo confirm deletion, you must type the account name exactly as shown below.`,
       accountId,
+      accountName: account.name,
       isLoading: false
     });
   };
 
   const handleConfirmDelete = async () => {
-    if (!confirmModal.accountId) return;
+    if (!safeDeleteModal.accountId) return;
 
-    const account = accounts.find(a => a.id === confirmModal.accountId);
+    const account = accounts.find(a => a.id === safeDeleteModal.accountId);
     if (!account) return;
 
     // Set loading state
-    setConfirmModal(prev => ({ ...prev, isLoading: true }));
+    setSafeDeleteModal(prev => ({ ...prev, isLoading: true }));
 
     try {
-      console.log(`Deleting all transactions for account: ${account.name} (${confirmModal.accountId})`);
-      await deleteAllTransactionsForAccount(confirmModal.accountId);
+      console.log(`Deleting all transactions for account: ${account.name} (${safeDeleteModal.accountId})`);
+      await deleteAllTransactionsForAccount(safeDeleteModal.accountId);
       console.log('Transactions deleted, refreshing portfolio...');
       await refreshPortfolio();
       console.log('Portfolio refreshed successfully');
       
-      // Close confirmation modal and show success alert
-      setConfirmModal({
+      // Close safe delete modal and show success alert
+      setSafeDeleteModal({
         isOpen: false,
         title: '',
         message: '',
         accountId: null,
+        accountName: '',
         isLoading: false
       });
       
@@ -245,12 +249,13 @@ export default function DataPage({}: DataPageProps) {
     } catch (error) {
       console.error('Error deleting transactions:', error);
       
-      // Close confirmation modal and show error alert
-      setConfirmModal({
+      // Close safe delete modal and show error alert
+      setSafeDeleteModal({
         isOpen: false,
         title: '',
         message: '',
         accountId: null,
+        accountName: '',
         isLoading: false
       });
       
@@ -259,11 +264,12 @@ export default function DataPage({}: DataPageProps) {
   };
 
   const handleCancelDelete = () => {
-    setConfirmModal({
+    setSafeDeleteModal({
       isOpen: false,
       title: '',
       message: '',
       accountId: null,
+      accountName: '',
       isLoading: false
     });
   };
@@ -352,17 +358,18 @@ export default function DataPage({}: DataPageProps) {
         type={alertModal.type}
       />
 
-      {/* Confirm Modal */}
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
+      {/* Safe Delete Modal */}
+      <SafeDeleteModal
+        isOpen={safeDeleteModal.isOpen}
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
-        title={confirmModal.title}
-        message={confirmModal.message}
+        title={safeDeleteModal.title}
+        message={safeDeleteModal.message}
+        accountName={safeDeleteModal.accountName}
         confirmText="Delete All"
         cancelText="Cancel"
         type="danger"
-        isLoading={confirmModal.isLoading}
+        isLoading={safeDeleteModal.isLoading}
       />
     </div>
   );
