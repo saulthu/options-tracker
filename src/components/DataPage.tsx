@@ -9,6 +9,7 @@ import IBKRImporter from '@/components/IBKRImporter';
 import AccountTile from '@/components/AccountTile';
 import ImportTypeSelector from '@/components/ImportTypeSelector';
 import AlertModal from '@/components/ui/alert-modal';
+import ConfirmModal from '@/components/ui/confirm-modal';
 import { Transaction } from '@/types/database';
 
 interface DataPageProps {
@@ -41,6 +42,20 @@ export default function DataPage({}: DataPageProps) {
     title: '',
     message: '',
     type: 'info'
+  });
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    accountId: string | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    accountId: null,
+    isLoading: false
   });
 
   const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -152,28 +167,72 @@ export default function DataPage({}: DataPageProps) {
     showAlert('Generic Import Coming Soon', 'Generic CSV import functionality will be available soon.', 'info');
   };
 
-  const handleDeleteAll = async (accountId: string) => {
+  const handleDeleteAll = (accountId: string) => {
     const account = accounts.find(a => a.id === accountId);
     if (!account) return;
 
-    // Show confirmation dialog
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ALL transactions for "${account.name}"?\n\nThis action cannot be undone and will permanently remove ${transactions.filter(t => t.account_id === accountId).length} transactions.`
-    );
+    const transactionCount = transactions.filter(t => t.account_id === accountId).length;
+    
+    // Show confirmation modal
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete All Transactions',
+      message: `Are you sure you want to delete ALL transactions for "${account.name}"?\n\nThis action cannot be undone and will permanently remove ${transactionCount} transactions.`,
+      accountId,
+      isLoading: false
+    });
+  };
 
-    if (!confirmed) return;
+  const handleConfirmDelete = async () => {
+    if (!confirmModal.accountId) return;
+
+    const account = accounts.find(a => a.id === confirmModal.accountId);
+    if (!account) return;
+
+    // Set loading state
+    setConfirmModal(prev => ({ ...prev, isLoading: true }));
 
     try {
-      console.log(`Deleting all transactions for account: ${account.name} (${accountId})`);
-      await deleteAllTransactionsForAccount(accountId);
+      console.log(`Deleting all transactions for account: ${account.name} (${confirmModal.accountId})`);
+      await deleteAllTransactionsForAccount(confirmModal.accountId);
       console.log('Transactions deleted, refreshing portfolio...');
       await refreshPortfolio();
       console.log('Portfolio refreshed successfully');
+      
+      // Close confirmation modal and show success alert
+      setConfirmModal({
+        isOpen: false,
+        title: '',
+        message: '',
+        accountId: null,
+        isLoading: false
+      });
+      
       showAlert('Delete Successful', `All transactions for "${account.name}" have been deleted.`, 'success');
     } catch (error) {
       console.error('Error deleting transactions:', error);
+      
+      // Close confirmation modal and show error alert
+      setConfirmModal({
+        isOpen: false,
+        title: '',
+        message: '',
+        accountId: null,
+        isLoading: false
+      });
+      
       showAlert('Delete Failed', `Failed to delete transactions: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     }
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: '',
+      message: '',
+      accountId: null,
+      isLoading: false
+    });
   };
 
   return (
@@ -259,6 +318,19 @@ export default function DataPage({}: DataPageProps) {
         title={alertModal.title}
         message={alertModal.message}
         type={alertModal.type}
+      />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="Delete All"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={confirmModal.isLoading}
       />
     </div>
   );
