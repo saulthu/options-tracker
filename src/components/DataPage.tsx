@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import Image from 'next/image';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/contexts/PortfolioContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, Download } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Settings } from 'lucide-react';
 import IBKRImporter from '@/components/IBKRImporter';
-import AccountSelector from '@/components/AccountSelector';
+import AccountTile from '@/components/AccountTile';
+import ImportTypeSelector from '@/components/ImportTypeSelector';
 import AlertModal from '@/components/ui/alert-modal';
 import { Transaction } from '@/types/database';
 
@@ -17,7 +17,17 @@ interface DataPageProps {
 
 export default function DataPage({}: DataPageProps) {
   const { user } = useAuth();
-  const { accounts, addTransaction, ensureTickersExist, refreshPortfolio } = usePortfolio();
+  const { 
+    accounts, 
+    transactions, 
+    getBalance, 
+    getTotalPnL, 
+    addTransaction, 
+    ensureTickersExist, 
+    refreshPortfolio 
+  } = usePortfolio();
+  
+  const [currentView, setCurrentView] = useState<'accounts' | 'import-type' | 'importer'>('accounts');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showIBKRImporter, setShowIBKRImporter] = useState(false);
   const [alertModal, setAlertModal] = useState<{
@@ -44,6 +54,20 @@ export default function DataPage({}: DataPageProps) {
   const closeAlert = () => {
     setAlertModal(prev => ({ ...prev, isOpen: false }));
   };
+
+  // Calculate account data for tiles
+  const accountData = useMemo(() => {
+    return accounts.map(account => {
+      const accountTransactions = transactions.filter(t => t.account_id === account.id);
+      const accountValue = getBalance(account.id) + getTotalPnL(account.id);
+      
+      return {
+        account,
+        transactionCount: accountTransactions.length,
+        accountValue
+      };
+    });
+  }, [accounts, transactions, getBalance, getTotalPnL]);
 
   if (!user) {
     return (
@@ -102,33 +126,28 @@ export default function DataPage({}: DataPageProps) {
     }
   };
 
-  const handleAccountSelect = (accountId: string) => {
+  const handleImport = (accountId: string) => {
     setSelectedAccountId(accountId);
+    setCurrentView('import-type');
   };
 
-  const handleShowIBKRImporter = () => {
-    if (accounts.length === 0) {
-      showAlert('Account Required', 'Please create an account first before importing data. Go to Settings to add an account.', 'warning');
-      return;
-    }
-    if (!selectedAccountId) {
-      showAlert('Account Selection Required', 'Please select a target account before importing data.', 'warning');
-      return;
-    }
+  const handleExport = (_accountId: string) => {
+    // TODO: Implement export functionality
+    showAlert('Export Coming Soon', 'Export functionality will be available soon.', 'info');
+  };
+
+  const handleBackToAccounts = () => {
+    setCurrentView('accounts');
+    setSelectedAccountId(null);
+  };
+
+  const handleSelectIBKR = () => {
+    setCurrentView('importer');
     setShowIBKRImporter(true);
   };
 
-  const handleShowExport = () => {
-    if (accounts.length === 0) {
-      showAlert('Account Required', 'Please create an account first before exporting data. Go to Settings to add an account.', 'warning');
-      return;
-    }
-    if (!selectedAccountId) {
-      showAlert('Account Selection Required', 'Please select a target account before exporting data.', 'warning');
-      return;
-    }
-    // TODO: Implement export functionality
-    showAlert('Export Coming Soon', 'Export functionality will be available soon.', 'info');
+  const handleSelectGeneric = () => {
+    showAlert('Generic Import Coming Soon', 'Generic CSV import functionality will be available soon.', 'info');
   };
 
   return (
@@ -139,135 +158,66 @@ export default function DataPage({}: DataPageProps) {
         <p className="text-[#b3b3b3]">Import and export your trading data</p>
       </div>
 
-      {/* Account Selection - First Step */}
-      <AccountSelector
-        accounts={accounts}
-        selectedAccountId={selectedAccountId}
-        onAccountSelect={handleAccountSelect}
-      />
-
-      {/* Main Content - Only show when account is selected */}
-      {selectedAccountId && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Import Card */}
-          <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Upload className="h-5 w-5" />
-                Import Data
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Interactive Brokers Import */}
-                <div 
-                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-blue-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
-                  onClick={handleShowIBKRImporter}
-                >
-                  <Image 
-                    src="/ibkr.svg" 
-                    alt="Interactive Brokers" 
-                    width={32}
-                    height={32}
-                  />
-                  <div className="flex-1">
-                    <div className="text-white font-medium">Interactive Brokers</div>
-                    <div className="text-sm text-[#b3b3b3]">Import from IBKR CSV file</div>
+      {/* Main Content Based on Current View */}
+      {currentView === 'accounts' && (
+        <>
+          {/* Account Tiles */}
+          {accountData.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {accountData.map(({ account, transactionCount, accountValue }) => (
+                <AccountTile
+                  key={account.id}
+                  account={account}
+                  transactionCount={transactionCount}
+                  accountValue={accountValue}
+                  onImport={handleImport}
+                  onExport={handleExport}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <div className="text-[#b3b3b3] text-lg mb-4">No accounts found</div>
+                  <div className="text-sm text-[#666] mb-6">
+                    Create your first trading account to start importing data
                   </div>
-                  <div className="text-[#666] group-hover:text-blue-400 transition-colors">
-                    →
-                  </div>
+                  <button
+                    onClick={() => {
+                      // Navigate to settings - this would typically be handled by the parent component
+                      showAlert('Go to Settings', 'Please go to Settings to create your first account.', 'info');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-colors mx-auto"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Go to Settings
+                  </button>
                 </div>
-
-                {/* Generic CSV Import */}
-                <div 
-                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-green-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
-                  onClick={() => {
-                    // TODO: Implement generic CSV import
-                    console.log('Generic CSV import clicked');
-                  }}
-                >
-                  <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
-                    <Upload className="h-5 w-5 text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-white font-medium">Generic CSV</div>
-                    <div className="text-sm text-[#b3b3b3]">Import from any CSV format</div>
-                  </div>
-                  <div className="text-[#666] group-hover:text-green-400 transition-colors">
-                    →
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Export Card */}
-          <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Download className="h-5 w-5" />
-                Export Data
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* CSV Export */}
-                <div 
-                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-blue-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
-                  onClick={handleShowExport}
-                >
-                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-                    <Download className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-white font-medium">Export to CSV</div>
-                    <div className="text-sm text-[#b3b3b3]">Download transactions for selected account</div>
-                  </div>
-                  <div className="text-[#666] group-hover:text-blue-400 transition-colors">
-                    →
-                  </div>
-                </div>
-
-                {/* JSON Export */}
-                <div 
-                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-green-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
-                  onClick={handleShowExport}
-                >
-                  <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
-                    <Download className="h-5 w-5 text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-white font-medium">Export to JSON</div>
-                    <div className="text-sm text-[#b3b3b3]">Download complete data structure</div>
-                  </div>
-                  <div className="text-[#666] group-hover:text-green-400 transition-colors">
-                    →
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
-      {/* No Account Selected Message */}
-      {!selectedAccountId && accounts.length > 0 && (
-        <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
-          <CardContent className="py-12">
-            <div className="text-center">
-              <div className="text-[#b3b3b3] text-lg mb-2">Select an account to continue</div>
-              <div className="text-sm text-[#666]">Choose a target account above to import or export data</div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Import Type Selection */}
+      {currentView === 'import-type' && selectedAccountId && (
+        <ImportTypeSelector
+          accountName={accounts.find(a => a.id === selectedAccountId)?.name || 'Unknown Account'}
+          onBack={handleBackToAccounts}
+          onSelectIBKR={handleSelectIBKR}
+          onSelectGeneric={handleSelectGeneric}
+        />
       )}
 
       {/* IBKR Importer Modal */}
-      {showIBKRImporter && selectedAccountId && (
+      {currentView === 'importer' && showIBKRImporter && selectedAccountId && (
         <IBKRImporter
           onImport={handleIBKRImport}
-          onCancel={() => setShowIBKRImporter(false)}
+          onCancel={() => {
+            setShowIBKRImporter(false);
+            setCurrentView('import-type');
+          }}
           accountId={selectedAccountId}
           userId={user.id}
           ensureTickersExist={ensureTickersExist}
