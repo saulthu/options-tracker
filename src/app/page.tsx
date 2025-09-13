@@ -19,7 +19,6 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { usePortfolio } from "@/contexts/PortfolioContext";
 import { useTimeRange } from "@/contexts/TimeRangeContext";
 import { ViewType } from "@/types/navigation";
-import { CurrencyAmount, sumAmounts } from "@/lib/currency-amount";
 
 
 
@@ -38,34 +37,6 @@ export default function Home() {
     setCurrentView(view);
   };
 
-  // Test function to trigger currency mismatch errors (development only)
-  const testCurrencyErrors = () => {
-    if (process.env.NODE_ENV !== 'development') return;
-    
-    console.log('🧪 Testing currency mismatch errors...');
-    
-    try {
-      // This will trigger a currency mismatch error
-      const usdAmount = new CurrencyAmount(100, 'USD');
-      const audAmount = new CurrencyAmount(100, 'AUD');
-      const result = usdAmount.add(audAmount); // This should throw an error
-      console.log('Unexpected success:', result);
-    } catch (error) {
-      console.log('Expected error caught:', error);
-    }
-    
-    try {
-      // This will also trigger a currency mismatch error
-      const amounts = [
-        new CurrencyAmount(100, 'USD'),
-        new CurrencyAmount(200, 'EUR')
-      ];
-      const sum = sumAmounts(amounts); // This should throw an error
-      console.log('Unexpected success:', sum);
-    } catch (error) {
-      console.log('Expected error caught:', error);
-    }
-  };
 
   // Get the current view's header info
   const getViewHeader = () => {
@@ -218,18 +189,6 @@ export default function Home() {
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {renderViewContent()}
             
-            {/* Development-only currency error test button */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="fixed bottom-4 right-4 z-50">
-                <button
-                  onClick={testCurrencyErrors}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-mono shadow-lg"
-                  title="Test currency mismatch errors (development only)"
-                >
-                  🧪 Test Currency Errors
-                </button>
-              </div>
-            )}
           </main>
         </div>
       </Sidebar>

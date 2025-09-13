@@ -68,7 +68,7 @@ describe('Episode Portfolio Calculator', () => {
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(true);
       expect(result.ledger[0].cashDelta.amount).toBe(1000);
-      expect(result.balances.get('account-1')?.amount).toBe(1000);
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(1000);
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('CASH');
@@ -94,7 +94,7 @@ describe('Episode Portfolio Calculator', () => {
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(true);
       expect(result.ledger[0].cashDelta.amount).toBe(-15001); // -(100 * 150 * 1) - 1
-      expect(result.balances.get('account-1')?.amount).toBe(-15001);
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(-15001);
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('SHARES');
@@ -123,7 +123,7 @@ describe('Episode Portfolio Calculator', () => {
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(true);
       expect(result.ledger[0].cashDelta.amount).toBe(499.50); // +(1 * 5.00 * 100) - 0.50
-      expect(result.balances.get('account-1')?.amount).toBe(499.50);
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(499.50);
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('OPTION');
@@ -152,7 +152,7 @@ describe('Episode Portfolio Calculator', () => {
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(false);
       expect(result.ledger[0].error).toBe('Equities cannot be negative (long-only)');
-      expect(result.balances.get('account-1')?.amount).toBe(0); // No change to balance
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(0); // No change to balance
       expect(result.episodes).toHaveLength(0); // No episodes for rejected transactions
     });
 
@@ -677,6 +677,274 @@ describe('Episode Portfolio Calculator', () => {
     });
   });
 
+  describe('Multi-Currency Support', () => {
+    it('should handle multiple currencies in the same account', () => {
+      const transactions = [
+        createTestTransaction({
+          id: 'usd-cash-1',
+          instrument_kind: 'CASH',
+          qty: 1000,
+          price: new CurrencyAmount(1, 'USD'),
+          fees: new CurrencyAmount(0, 'USD'),
+          currency: 'USD',
+          memo: 'USD cash deposit'
+        }),
+        createTestTransaction({
+          id: 'eur-cash-1',
+          instrument_kind: 'CASH',
+          qty: 500,
+          price: new CurrencyAmount(1, 'EUR'),
+          fees: new CurrencyAmount(0, 'EUR'),
+          currency: 'EUR',
+          memo: 'EUR cash deposit'
+        }),
+        createTestTransaction({
+          id: 'aud-cash-1',
+          instrument_kind: 'CASH',
+          qty: 2000,
+          price: new CurrencyAmount(1, 'AUD'),
+          fees: new CurrencyAmount(0, 'AUD'),
+          currency: 'AUD',
+          memo: 'AUD cash deposit'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+
+      // Should have separate balances for each currency
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(1000);
+      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(500);
+      expect(result.balances.get('account-1')?.get('AUD')?.amount).toBe(2000);
+
+      // Should have 3 cash episodes (one per currency)
+      const cashEpisodes = result.episodes.filter(ep => ep.kindGroup === 'CASH');
+      expect(cashEpisodes).toHaveLength(3);
+    });
+
+    it('should handle multi-currency share transactions', () => {
+      const transactions = [
+        // USD share purchase
+        createTestTransaction({
+          id: 'usd-shares-1',
+          instrument_kind: 'SHARES',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 100,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(5, 'USD'),
+          currency: 'USD',
+          memo: 'USD AAPL purchase'
+        }),
+        // EUR share purchase
+        createTestTransaction({
+          id: 'eur-shares-1',
+          instrument_kind: 'SHARES',
+          ticker_id: 'ticker-2',
+          side: 'BUY',
+          qty: 50,
+          price: new CurrencyAmount(200, 'EUR'),
+          fees: new CurrencyAmount(3, 'EUR'),
+          currency: 'EUR',
+          memo: 'EUR MSFT purchase'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+
+      // Should have separate balances for each currency
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(-15005); // -(100 * 150) - 5
+      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(-10003); // -(50 * 200) - 3
+
+      // Should have 2 share episodes
+      const shareEpisodes = result.episodes.filter(ep => ep.kindGroup === 'SHARES');
+      expect(shareEpisodes).toHaveLength(2);
+    });
+
+    it('should handle multi-currency option transactions', () => {
+      const transactions = [
+        // USD call option
+        createTestTransaction({
+          id: 'usd-call-1',
+          instrument_kind: 'CALL',
+          ticker_id: 'ticker-1',
+          side: 'SELL',
+          qty: 1,
+          price: new CurrencyAmount(5, 'USD'),
+          fees: new CurrencyAmount(0.5, 'USD'),
+          strike: new CurrencyAmount(160, 'USD'),
+          expiry: '2025-12-19',
+          currency: 'USD',
+          memo: 'USD AAPL call'
+        }),
+        // EUR put option
+        createTestTransaction({
+          id: 'eur-put-1',
+          instrument_kind: 'PUT',
+          ticker_id: 'ticker-2',
+          side: 'BUY',
+          qty: 2,
+          price: new CurrencyAmount(3, 'EUR'),
+          fees: new CurrencyAmount(1, 'EUR'),
+          strike: new CurrencyAmount(180, 'EUR'),
+          expiry: '2025-12-19',
+          currency: 'EUR',
+          memo: 'EUR MSFT put'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+
+      // Should have separate balances for each currency
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(499.5); // +(1 * 5 * 100) - 0.5
+      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(-601); // -(2 * 3 * 100) - 1
+
+      // Should have 2 option episodes
+      const optionEpisodes = result.episodes.filter(ep => ep.kindGroup === 'OPTION');
+      expect(optionEpisodes).toHaveLength(2);
+    });
+
+    it('should prevent currency mixing in calculations', () => {
+      const transactions = [
+        createTestTransaction({
+          id: 'usd-txn-1',
+          instrument_kind: 'CASH',
+          qty: 1000,
+          price: new CurrencyAmount(1, 'USD'),
+          fees: new CurrencyAmount(0, 'USD'),
+          currency: 'USD'
+        }),
+        createTestTransaction({
+          id: 'eur-txn-1',
+          instrument_kind: 'CASH',
+          qty: 500,
+          price: new CurrencyAmount(1, 'EUR'),
+          fees: new CurrencyAmount(0, 'EUR'),
+          currency: 'EUR'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+
+      // Balances should be separate by currency
+      const accountBalances = result.balances.get('account-1');
+      expect(accountBalances?.get('USD')?.amount).toBe(1000);
+      expect(accountBalances?.get('EUR')?.amount).toBe(500);
+      expect(accountBalances?.get('USD')?.currency).toBe('USD');
+      expect(accountBalances?.get('EUR')?.currency).toBe('EUR');
+    });
+
+    it('should calculate total P&L correctly for multiple currencies', () => {
+      const transactions = [
+        // USD transactions
+        createTestTransaction({
+          id: 'usd-buy-1',
+          instrument_kind: 'SHARES',
+          ticker_id: 'ticker-1',
+          side: 'BUY',
+          qty: 100,
+          price: new CurrencyAmount(100, 'USD'),
+          fees: new CurrencyAmount(5, 'USD'),
+          currency: 'USD'
+        }),
+        createTestTransaction({
+          id: 'usd-sell-1',
+          instrument_kind: 'SHARES',
+          ticker_id: 'ticker-1',
+          side: 'SELL',
+          qty: 100,
+          price: new CurrencyAmount(110, 'USD'),
+          fees: new CurrencyAmount(5, 'USD'),
+          currency: 'USD'
+        }),
+        // EUR transactions
+        createTestTransaction({
+          id: 'eur-buy-1',
+          instrument_kind: 'SHARES',
+          ticker_id: 'ticker-2',
+          side: 'BUY',
+          qty: 50,
+          price: new CurrencyAmount(200, 'EUR'),
+          fees: new CurrencyAmount(3, 'EUR'),
+          currency: 'EUR'
+        }),
+        createTestTransaction({
+          id: 'eur-sell-1',
+          instrument_kind: 'SHARES',
+          ticker_id: 'ticker-2',
+          side: 'SELL',
+          qty: 50,
+          price: new CurrencyAmount(220, 'EUR'),
+          fees: new CurrencyAmount(3, 'EUR'),
+          currency: 'EUR'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      const totalPnL = getTotalRealizedPnL(result.episodes);
+
+      // Should have separate P&L for each currency
+      expect(totalPnL.get('USD')?.amount).toBe(990); // (110 - 100) * 100 - 5 - 5 = 1000 - 10 = 990
+      expect(totalPnL.get('EUR')?.amount).toBe(994); // (220 - 200) * 50 - 3 - 3 = 1000 - 6 = 994
+      expect(totalPnL.get('USD')?.currency).toBe('USD');
+      expect(totalPnL.get('EUR')?.currency).toBe('EUR');
+    });
+
+    it('should handle mixed currency transactions across different accounts', () => {
+      const transactions = [
+        // Account 1 - USD
+        createTestTransaction({
+          id: 'acc1-usd-1',
+          account_id: 'account-1',
+          instrument_kind: 'CASH',
+          qty: 1000,
+          price: new CurrencyAmount(1, 'USD'),
+          fees: new CurrencyAmount(0, 'USD'),
+          currency: 'USD'
+        }),
+        // Account 1 - EUR
+        createTestTransaction({
+          id: 'acc1-eur-1',
+          account_id: 'account-1',
+          instrument_kind: 'CASH',
+          qty: 500,
+          price: new CurrencyAmount(1, 'EUR'),
+          fees: new CurrencyAmount(0, 'EUR'),
+          currency: 'EUR'
+        }),
+        // Account 2 - USD
+        createTestTransaction({
+          id: 'acc2-usd-1',
+          account_id: 'account-2',
+          instrument_kind: 'CASH',
+          qty: 2000,
+          price: new CurrencyAmount(1, 'USD'),
+          fees: new CurrencyAmount(0, 'USD'),
+          currency: 'USD'
+        }),
+        // Account 2 - AUD
+        createTestTransaction({
+          id: 'acc2-aud-1',
+          account_id: 'account-2',
+          instrument_kind: 'CASH',
+          qty: 3000,
+          price: new CurrencyAmount(1, 'AUD'),
+          fees: new CurrencyAmount(0, 'AUD'),
+          currency: 'AUD'
+        })
+      ];
+
+      const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
+
+      // Account 1 should have USD and EUR balances
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(1000);
+      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(500);
+
+      // Account 2 should have USD and AUD balances
+      expect(result.balances.get('account-2')?.get('USD')?.amount).toBe(3000); // 1000 (opening) + 2000 (transaction)
+      expect(result.balances.get('account-2')?.get('AUD')?.amount).toBe(3000);
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle multiple accounts', () => {
       const transactions = [
@@ -699,8 +967,8 @@ describe('Episode Portfolio Calculator', () => {
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
       expect(result.episodes).toHaveLength(2);
-      expect(result.balances.get('account-1')?.amount).toBe(1000);
-      expect(result.balances.get('account-2')?.amount).toBe(3000); // 1000 (opening) + 2000 (transaction)
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(1000);
+      expect(result.balances.get('account-2')?.get('USD')?.amount).toBe(3000); // 1000 (opening) + 2000 (transaction)
     });
 
     it('should handle zero quantity transactions', () => {

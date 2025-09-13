@@ -12,7 +12,7 @@ import AlertModal from '@/components/ui/alert-modal';
 import ConfirmModal from '@/components/ui/confirm-modal';
 import { Transaction } from '@/types/database';
 import { RawTransaction } from '@/types/episodes';
-import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
+import { isValidCurrencyCode } from '@/lib/currency-amount';
 
 interface DataPageProps {
   selectedRange: unknown; // TimeRange type, but keeping it simple for now
@@ -27,22 +27,12 @@ function convertDatabaseTransactionToRaw(dbTxn: Omit<Transaction, 'id' | 'create
     throw new Error(`Invalid currency code in transaction: ${dbTxn.currency}`);
   }
 
-  const currency = dbTxn.currency as CurrencyCode;
+  // Currency is already validated above
 
-  // Convert price to CurrencyAmount if present
-  let price: CurrencyAmount | undefined;
-  if (dbTxn.price !== null && dbTxn.price !== undefined) {
-    price = new CurrencyAmount(dbTxn.price, currency);
-  }
-
-  // Convert fees to CurrencyAmount
-  const fees = new CurrencyAmount(dbTxn.fees || 0, currency);
-
-  // Convert strike to CurrencyAmount if present
-  let strike: CurrencyAmount | undefined;
-  if (dbTxn.strike !== null && dbTxn.strike !== undefined) {
-    strike = new CurrencyAmount(dbTxn.strike, currency);
-  }
+  // Price, fees, and strike are already CurrencyAmount instances
+  const price = dbTxn.price;
+  const fees = dbTxn.fees;
+  const strike = dbTxn.strike;
 
   return {
     user_id: dbTxn.user_id,

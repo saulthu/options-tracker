@@ -7,7 +7,9 @@ import { TimeRange } from '@/components/TimeRangeSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield } from 'lucide-react';
-import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
+import { CurrencyAmount, CurrencyCode } from '@/lib/currency-amount';
+import { MultiCurrencyBalanceInline } from '@/components/MultiCurrencyBalance';
+import { PositionEpisode } from '@/types/episodes';
 
 interface SharesPageProps {
   selectedRange: TimeRange;
@@ -16,12 +18,12 @@ interface SharesPageProps {
 interface SharePosition {
   ticker: string;
   quantity: number;
-  costBasis: number;
-  totalCost: number;
-  currentValue: number;
-  unrealizedPnL: number;
+  costBasis: CurrencyAmount;
+  totalCost: CurrencyAmount;
+  currentValue: CurrencyAmount;
+  unrealizedPnL: CurrencyAmount;
   coveredCalls: number;
-  realizedPnL: number;
+  realizedPnL: CurrencyAmount;
 }
 
 export default function SharesPage({ selectedRange }: SharesPageProps) {
@@ -57,52 +59,58 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
     
     // Calculate positions for each ticker
     tickerGroups.forEach((episodes, ticker) => {
-      // Calculate total quantity and cost basis
-      let totalQuantity = 0;
-      let totalCost = 0;
-      let totalRealizedPnL = 0;
-      
+      // Group episodes by currency to avoid mixing currencies
+      const currencyGroups = new Map<CurrencyCode, PositionEpisode[]>();
       episodes.forEach(episode => {
-        totalQuantity += episode.qty;
-        totalCost += episode.avgPrice.multiply(episode.qty).amount;
-        totalRealizedPnL += episode.realizedPnLTotal.amount;
+        const currency = episode.avgPrice.currency;
+        if (!currencyGroups.has(currency)) {
+          currencyGroups.set(currency, []);
+        }
+        currencyGroups.get(currency)!.push(episode);
       });
       
-      // Calculate covered calls for this ticker
-      const optionEpisodes = getEpisodesByKind('OPTION');
-      const coveredCalls = optionEpisodes
-        .filter(episode => 
-          episode.episodeKey?.startsWith(`${ticker}|`) &&
-          episode.currentRight === 'CALL' &&
-          episode.qty < 0 // Short calls
-        )
-        .reduce((sum, episode) => sum + Math.abs(episode.qty), 0);
-      
-      if (totalQuantity > 0) { // Only show long positions
-        positions.push({
-          ticker,
-          quantity: totalQuantity,
-          costBasis: totalCost / totalQuantity,
-          totalCost,
-          currentValue: totalCost, // Placeholder - will be replaced with real market data
-          unrealizedPnL: 0, // Placeholder - will be calculated when we have market prices
-          coveredCalls,
-          realizedPnL: totalRealizedPnL
+      // Process each currency group separately
+      currencyGroups.forEach((currencyEpisodes, currency) => {
+        // Calculate total quantity and cost basis for this currency
+        let totalQuantity = 0;
+        let totalCost = CurrencyAmount.zero(currency);
+        let totalRealizedPnL = CurrencyAmount.zero(currency);
+        
+        currencyEpisodes.forEach(episode => {
+          totalQuantity += episode.qty;
+          totalCost = totalCost.add(episode.avgPrice.multiply(episode.qty));
+          totalRealizedPnL = totalRealizedPnL.add(episode.realizedPnLTotal);
         });
-      }
+      
+        // Calculate covered calls for this ticker and currency
+        const optionEpisodes = getEpisodesByKind('OPTION');
+        const coveredCalls = optionEpisodes
+          .filter(episode => 
+            episode.episodeKey?.startsWith(`${ticker}|`) &&
+            episode.currentRight === 'CALL' &&
+            episode.qty < 0 && // Short calls
+            episode.avgPrice.currency === currency // Same currency
+          )
+          .reduce((sum, episode) => sum + Math.abs(episode.qty), 0);
+        
+        if (totalQuantity > 0) { // Only show long positions
+          positions.push({
+            ticker: `${ticker} (${currency})`, // Include currency in ticker name
+            quantity: totalQuantity,
+            costBasis: totalCost.divide(totalQuantity),
+            totalCost,
+            currentValue: totalCost, // Placeholder - will be replaced with real market data
+            unrealizedPnL: CurrencyAmount.zero(currency), // Placeholder - will be calculated when we have market prices
+            coveredCalls,
+            realizedPnL: totalRealizedPnL
+          });
+        }
+      });
     });
 
     return positions;
   }, [filteredEpisodes, getEpisodesByKind]);
 
-  // Helper function to create CurrencyAmount for shares (defaults to USD for now)
-  const createCurrencyAmount = (amount: number, currency: string = 'USD') => {
-    if (!isValidCurrencyCode(currency)) {
-      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
-      currency = 'USD';
-    }
-    return new CurrencyAmount(amount, currency as CurrencyCode);
-  };
 
   const formatNumber = useMemo(() => (num: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -157,10 +165,27 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
     );
   }
 
-  // Calculate summary statistics
-  const totalValue = sharePositions.reduce((sum, pos) => sum + pos.currentValue, 0);
-  const totalUnrealizedPnL = sharePositions.reduce((sum, pos) => sum + pos.unrealizedPnL, 0);
-  const totalRealizedPnL = sharePositions.reduce((sum, pos) => sum + pos.realizedPnL, 0);
+  // Calculate summary statistics - group by currency first
+  const valueByCurrency = new Map<CurrencyCode, CurrencyAmount>();
+  const unrealizedPnLByCurrency = new Map<CurrencyCode, CurrencyAmount>();
+  const realizedPnLByCurrency = new Map<CurrencyCode, CurrencyAmount>();
+  
+  sharePositions.forEach(pos => {
+    // Extract currency from ticker name (format: "TICKER (CURRENCY)")
+    const currencyMatch = pos.ticker.match(/\(([A-Z]{3})\)$/);
+    const currency = (currencyMatch ? currencyMatch[1] : 'USD') as CurrencyCode;
+    
+    // Add to currency groups
+    if (valueByCurrency.has(currency)) {
+      valueByCurrency.set(currency, valueByCurrency.get(currency)!.add(pos.currentValue));
+      unrealizedPnLByCurrency.set(currency, unrealizedPnLByCurrency.get(currency)!.add(pos.unrealizedPnL));
+      realizedPnLByCurrency.set(currency, realizedPnLByCurrency.get(currency)!.add(pos.realizedPnL));
+    } else {
+      valueByCurrency.set(currency, pos.currentValue);
+      unrealizedPnLByCurrency.set(currency, pos.unrealizedPnL);
+      realizedPnLByCurrency.set(currency, pos.realizedPnL);
+    }
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -187,7 +212,10 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
           <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-white">{formatNumber(totalValue)}</p>
+                <MultiCurrencyBalanceInline 
+                  balances={valueByCurrency} 
+                  className="text-2xl font-bold text-white"
+                />
                 <p className="text-gray-400 text-sm">Total Value</p>
               </div>
             </CardContent>
@@ -196,9 +224,10 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
           <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className={`text-2xl font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {createCurrencyAmount(totalUnrealizedPnL).format()}
-                </p>
+                <MultiCurrencyBalanceInline 
+                  balances={unrealizedPnLByCurrency} 
+                  className="text-2xl font-bold"
+                />
                 <p className="text-gray-400 text-sm">Unrealized P&L</p>
               </div>
             </CardContent>
@@ -207,9 +236,10 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
           <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
             <CardContent className="pt-6">
               <div className="text-center">
-                <p className={`text-2xl font-bold ${totalRealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {createCurrencyAmount(totalRealizedPnL).format()}
-                </p>
+                <MultiCurrencyBalanceInline 
+                  balances={realizedPnLByCurrency} 
+                  className="text-2xl font-bold"
+                />
                 <p className="text-gray-400 text-sm">Realized P&L</p>
               </div>
             </CardContent>
@@ -261,19 +291,19 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
                           {formatNumber(position.quantity)}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
-                          {createCurrencyAmount(position.costBasis).format()}
+                          {position.costBasis.format()}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
-                          {createCurrencyAmount(position.totalCost).format()}
+                          {position.totalCost.format()}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
-                          {createCurrencyAmount(position.currentValue).format()}
+                          {position.currentValue.format()}
                         </td>
-                        <td className={`py-3 px-4 text-right ${position.unrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {createCurrencyAmount(position.unrealizedPnL).format()}
+                        <td className={`py-3 px-4 text-right ${position.unrealizedPnL.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
+                          {position.unrealizedPnL.format()}
                         </td>
-                        <td className={`py-3 px-4 text-right ${position.realizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {createCurrencyAmount(position.realizedPnL).format()}
+                        <td className={`py-3 px-4 text-right ${position.realizedPnL.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
+                          {position.realizedPnL.format()}
                         </td>
                         <td className="py-3 px-4 text-right text-white">
                           {position.coveredCalls > 0 ? (

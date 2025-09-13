@@ -942,90 +942,218 @@ export function convertIBKRTradesToTransactions(
     throw new Error('Account ID and User ID are required for transaction conversion');
   }
 
-  return trades
-    .filter(trade => {
-      // Skip Forex transactions entirely
-      return !trade.assetCategory?.toLowerCase().includes('forex');
-    })
-    .map((trade, index) => {
+  const transactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] = [];
+
+  for (const trade of trades) {
+    if (trade.assetCategory?.toLowerCase().includes('forex')) {
+      // Convert forex trades to two cash transactions
+      const forexTransactions = convertForexTradeToCashTransactions(trade, accountId, userId, timezone);
+      transactions.push(...forexTransactions);
+    } else {
+      // Convert regular trades
       try {
-        // Determine instrument kind based on asset category
-        let instrumentKind: Transaction['instrument_kind'] = 'SHARES';
-        
-        if (trade.assetCategory?.toLowerCase().includes('option')) {
-          // Parse option symbol to determine if it's a call or put
-          const optionMatch = trade.symbol.match(/(\w+)\s+(\d{2}[A-Z]{3}\d{2})\s+(\d+(?:\.\d+)?)\s+([CP])/);
-          if (optionMatch) {
-            instrumentKind = optionMatch[4] === 'C' ? 'CALL' : 'PUT';
-          } else {
-            // Fallback: check if symbol contains 'C' or 'P'
-            instrumentKind = trade.symbol.includes(' C') ? 'CALL' : 'PUT';
-          }
-        }
-
-      // Parse expiry date from option symbol
-      let expiry: string | undefined;
-      if (instrumentKind === 'CALL' || instrumentKind === 'PUT') {
-        const expiryMatch = trade.symbol.match(/(\d{2})([A-Z]{3})(\d{2})/);
-        if (expiryMatch) {
-          const day = expiryMatch[1];
-          const month = expiryMatch[2];
-          const year = '20' + expiryMatch[3];
-          
-          // Convert month abbreviation to number
-          const monthMap: { [key: string]: string } = {
-            'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
-            'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
-            'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
-          };
-          
-          const monthNum = monthMap[month];
-          if (monthNum) {
-            expiry = `${year}-${monthNum}-${day}`;
-          }
-        }
+        const transaction = convertRegularTradeToTransaction(trade, accountId, userId, timezone, tickerIdMap);
+        transactions.push(transaction);
+      } catch (error) {
+        console.error(`Error converting trade:`, error, trade);
+        throw new Error(`Failed to convert trade: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-
-      // Parse strike price from option symbol
-      let strike: number | undefined;
-      if (instrumentKind === 'CALL' || instrumentKind === 'PUT') {
-        const strikeMatch = trade.symbol.match(/(\d+(?:\.\d+)?)\s+[CP]/);
-        if (strikeMatch) {
-          strike = parseFloat(strikeMatch[1]);
-        }
-      }
-
-      // Convert date to UTC
-      const parser = new IBKRCSVParser('');
-      const utcDateTime = parser['convertToUTC'](trade.dateTime, timezone);
-
-      // Determine side based on quantity
-      const side = trade.quantity > 0 ? 'BUY' : 'SELL';
-
-      // Get ticker ID for the underlying symbol
-      const underlyingSymbol = trade.symbol.split(' ')[0];
-      const tickerId = tickerIdMap[underlyingSymbol];
-
-      return {
-        user_id: userId,
-        account_id: accountId,
-        timestamp: utcDateTime,
-        instrument_kind: instrumentKind,
-        ticker_id: tickerId,
-        expiry,
-        strike,
-        side,
-        qty: Math.abs(trade.quantity),
-        price: trade.tPrice.amount,
-        fees: Math.abs(trade.commFee.amount),
-        currency: trade.tPrice.currency,
-        memo: `${trade.assetCategory} - ${trade.symbol} (${trade.code || 'N/A'})`
-      };
-    } catch (error) {
-      console.error(`Error converting trade ${index + 1}:`, error, trade);
-      throw new Error(`Failed to convert trade ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  });
+  }
+
+  return transactions;
+}
+
+/**
+ * Convert a forex trade to two cash transactions (one for each currency)
+ */
+function convertForexTradeToCashTransactions(
+  trade: IBKRTrade,
+  accountId: string,
+  userId: string,
+  timezone: string
+): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
+  // Parse forex symbol (e.g., "AUD.USD" means buying AUD with USD)
+  const [baseCurrency, quoteCurrency] = trade.symbol.split('.');
+  if (!baseCurrency || !quoteCurrency) {
+    throw new Error(`Invalid forex symbol format: ${trade.symbol}`);
+  }
+
+  // Validate currency codes
+  if (!isValidCurrencyCode(baseCurrency)) {
+    throw new Error(`Invalid base currency code: ${baseCurrency}`);
+  }
+  if (!isValidCurrencyCode(quoteCurrency)) {
+    throw new Error(`Invalid quote currency code: ${quoteCurrency}`);
+  }
+
+  // Cast to CurrencyCode type after validation
+  const baseCurrencyCode = baseCurrency as CurrencyCode;
+  const quoteCurrencyCode = quoteCurrency as CurrencyCode;
+
+  // Convert date to UTC
+  const parser = new IBKRCSVParser('');
+  const utcDateTime = parser['convertToUTC'](trade.dateTime, timezone);
+
+  // Calculate the amounts
+  const baseAmount = Math.abs(trade.quantity); // Amount of base currency
+  const quoteAmount = Math.abs(trade.proceeds.amount); // Amount of quote currency
+  
+  // Determine which currency is being bought/sold based on quantity sign
+  const isBuyingBase = trade.quantity > 0; // Positive quantity = buying base currency
+  
+  const transactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] = [];
+
+  if (isBuyingBase) {
+    // Buying base currency with quote currency
+    // 1. Sell quote currency (outflow)
+    transactions.push({
+      user_id: userId,
+      account_id: accountId,
+      timestamp: utcDateTime,
+      instrument_kind: 'CASH',
+      side: 'SELL',
+      qty: quoteAmount,
+      price: new CurrencyAmount(1, quoteCurrencyCode),
+      fees: new CurrencyAmount(Math.abs(trade.commFee.amount), quoteCurrencyCode),
+      currency: quoteCurrencyCode,
+      memo: `Forex: Sell ${quoteAmount} ${quoteCurrencyCode} to buy ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}`
+    });
+
+    // 2. Buy base currency (inflow)
+    transactions.push({
+      user_id: userId,
+      account_id: accountId,
+      timestamp: utcDateTime,
+      instrument_kind: 'CASH',
+      side: 'BUY',
+      qty: baseAmount,
+      price: new CurrencyAmount(1, baseCurrencyCode),
+      fees: new CurrencyAmount(0, baseCurrencyCode), // Fees already accounted for in quote currency
+      currency: baseCurrencyCode,
+      memo: `Forex: Buy ${baseAmount} ${baseCurrencyCode} with ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}`
+    });
+  } else {
+    // Selling base currency for quote currency
+    // 1. Sell base currency (outflow)
+    transactions.push({
+      user_id: userId,
+      account_id: accountId,
+      timestamp: utcDateTime,
+      instrument_kind: 'CASH',
+      side: 'SELL',
+      qty: baseAmount,
+      price: new CurrencyAmount(1, baseCurrencyCode),
+      fees: new CurrencyAmount(Math.abs(trade.commFee.amount), baseCurrencyCode),
+      currency: baseCurrencyCode,
+      memo: `Forex: Sell ${baseAmount} ${baseCurrencyCode} to buy ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}`
+    });
+
+    // 2. Buy quote currency (inflow)
+    transactions.push({
+      user_id: userId,
+      account_id: accountId,
+      timestamp: utcDateTime,
+      instrument_kind: 'CASH',
+      side: 'BUY',
+      qty: quoteAmount,
+      price: new CurrencyAmount(1, quoteCurrencyCode),
+      fees: new CurrencyAmount(0, quoteCurrencyCode), // Fees already accounted for in base currency
+      currency: quoteCurrencyCode,
+      memo: `Forex: Buy ${quoteAmount} ${quoteCurrencyCode} with ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}`
+    });
+  }
+
+  return transactions;
+}
+
+/**
+ * Convert a regular (non-forex) trade to a transaction
+ */
+function convertRegularTradeToTransaction(
+  trade: IBKRTrade,
+  accountId: string,
+  userId: string,
+  timezone: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
+): Omit<Transaction, 'id' | 'created_at' | 'updated_at'> {
+  try {
+    // Determine instrument kind based on asset category
+    let instrumentKind: Transaction['instrument_kind'] = 'SHARES';
+    
+    if (trade.assetCategory?.toLowerCase().includes('option')) {
+      // Parse option symbol to determine if it's a call or put
+      const optionMatch = trade.symbol.match(/(\w+)\s+(\d{2}[A-Z]{3}\d{2})\s+(\d+(?:\.\d+)?)\s+([CP])/);
+      if (optionMatch) {
+        instrumentKind = optionMatch[4] === 'C' ? 'CALL' : 'PUT';
+      } else {
+        // Fallback: check if symbol contains 'C' or 'P'
+        instrumentKind = trade.symbol.includes(' C') ? 'CALL' : 'PUT';
+      }
+    }
+
+    // Parse expiry date from option symbol
+    let expiry: string | undefined;
+    if (instrumentKind === 'CALL' || instrumentKind === 'PUT') {
+      const expiryMatch = trade.symbol.match(/(\d{2})([A-Z]{3})(\d{2})/);
+      if (expiryMatch) {
+        const day = expiryMatch[1];
+        const month = expiryMatch[2];
+        const year = '20' + expiryMatch[3];
+        
+        // Convert month abbreviation to number
+        const monthMap: { [key: string]: string } = {
+          'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+          'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+          'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        };
+        
+        const monthNum = monthMap[month];
+        if (monthNum) {
+          expiry = `${year}-${monthNum}-${day}`;
+        }
+      }
+    }
+
+    // Parse strike price from option symbol
+    let strike: number | undefined;
+    if (instrumentKind === 'CALL' || instrumentKind === 'PUT') {
+      const strikeMatch = trade.symbol.match(/(\d+(?:\.\d+)?)\s+[CP]/);
+      if (strikeMatch) {
+        strike = parseFloat(strikeMatch[1]);
+      }
+    }
+
+    // Convert date to UTC
+    const parser = new IBKRCSVParser('');
+    const utcDateTime = parser['convertToUTC'](trade.dateTime, timezone);
+
+    // Determine side based on quantity
+    const side = trade.quantity > 0 ? 'BUY' : 'SELL';
+
+    // Get ticker ID for the underlying symbol
+    const underlyingSymbol = trade.symbol.split(' ')[0];
+    const tickerId = tickerIdMap[underlyingSymbol];
+
+    return {
+      user_id: userId,
+      account_id: accountId,
+      timestamp: utcDateTime,
+      instrument_kind: instrumentKind,
+      ticker_id: tickerId,
+      expiry,
+      strike: strike ? new CurrencyAmount(strike, trade.tPrice.currency) : undefined,
+      side,
+      qty: Math.abs(trade.quantity),
+      price: trade.tPrice,
+      fees: new CurrencyAmount(Math.abs(trade.commFee.amount), trade.tPrice.currency),
+      currency: trade.tPrice.currency,
+      memo: `${trade.assetCategory} - ${trade.symbol} (${trade.code || 'N/A'})`
+    };
+  } catch (error) {
+    console.error(`Error converting trade:`, error, trade);
+    throw new Error(`Failed to convert trade: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**
@@ -1059,8 +1187,8 @@ export function convertIBKRCashToTransactions(
         instrument_kind: 'CASH',
         side,
         qty: Math.abs(transaction.amount.amount),
-        price: 1, // Cash transactions have price of 1
-        fees: 0,
+        price: new CurrencyAmount(1, transaction.amount.currency), // Cash transactions have price of 1
+        fees: new CurrencyAmount(0, transaction.amount.currency),
         currency: transaction.amount.currency,
         memo: `${transaction.description} (${transaction.amount.currency})`
       };
@@ -1095,8 +1223,8 @@ export function convertIBKRFeesToTransactions(
         instrument_kind: 'CASH',
         side: 'SELL', // Fees are always outflows
         qty: Math.abs(fee.amount.amount),
-        price: 1,
-        fees: 0,
+        price: new CurrencyAmount(1, fee.amount.currency),
+        fees: new CurrencyAmount(0, fee.amount.currency),
         currency: fee.amount.currency,
         memo: `${fee.subtitle}: ${fee.description} (${fee.amount.currency})`
       };
@@ -1131,8 +1259,8 @@ export function convertIBKRInterestToTransactions(
         instrument_kind: 'CASH',
         side: 'BUY', // Interest is always an inflow
         qty: Math.abs(interestItem.amount.amount),
-        price: 1,
-        fees: 0,
+        price: new CurrencyAmount(1, interestItem.amount.currency),
+        fees: new CurrencyAmount(0, interestItem.amount.currency),
         currency: interestItem.amount.currency,
         memo: `${interestItem.description} (${interestItem.amount.currency})`
       };
@@ -1172,8 +1300,8 @@ export function convertIBKRDividendsToTransactions(
         ticker_id: tickerId,
         side: 'BUY', // Dividends are always inflows
         qty: Math.abs(dividend.amount.amount),
-        price: 1,
-        fees: 0,
+        price: new CurrencyAmount(1, dividend.amount.currency),
+        fees: new CurrencyAmount(0, dividend.amount.currency),
         currency: dividend.amount.currency,
         memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.amount.currency})`
       };
@@ -1213,8 +1341,8 @@ export function convertIBKRWithholdingTaxToTransactions(
         ticker_id: tickerId,
         side: 'SELL', // Withholding tax is always an outflow
         qty: Math.abs(tax.amount.amount),
-        price: 1,
-        fees: 0,
+        price: new CurrencyAmount(1, tax.amount.currency),
+        fees: new CurrencyAmount(0, tax.amount.currency),
         currency: tax.amount.currency,
         memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.amount.currency})`
       };
@@ -1257,8 +1385,8 @@ export function convertIBKRCorporateActionsToTransactions(
         ticker_id: tickerId,
         side,
         qty: Math.abs(action.amount.amount),
-        price: 1,
-        fees: 0,
+        price: new CurrencyAmount(1, action.amount.currency),
+        fees: new CurrencyAmount(0, action.amount.currency),
         currency: action.amount.currency,
         memo: `Corporate Action: ${action.description}${action.symbol ? ` (${action.symbol})` : ''} (${action.amount.currency})`
       };

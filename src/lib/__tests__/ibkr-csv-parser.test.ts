@@ -11,6 +11,7 @@ import {
   convertIBKRCorporateActionsToTransactions,
   extractTickerNamesFromIBKRData
 } from '../ibkr-csv-parser';
+import { CurrencyAmount } from '../currency-amount';
 
 // Sample IBKR CSV content for testing
 const sampleIBKRCSV = `Statement,Header,Field Name,Field Value
@@ -310,6 +311,300 @@ describe('IBKRCSVParser', () => {
   });
 });
 
+describe('Forex Trade Processing', () => {
+  let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
+  
+  beforeAll(async () => {
+    const currencyModule = await import('../currency-amount');
+    CurrencyAmount = currencyModule.CurrencyAmount;
+  });
+
+  describe('Forex CSV Parsing', () => {
+    it('should parse forex trades from CSV correctly', () => {
+      const forexCSV = `Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,,Proceeds,Comm in USD,,,MTM in USD,Code
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-22, 13:14:01",-100,0.64201,,64.201,0,,,-0.699,
+Trades,Data,Order,Forex,USD,EUR.USD,"2025-08-26, 14:26:17",1000,1.0850,,-1085,-2,1087,0,0,
+Trades,Data,Order,Forex,USD,GBP.USD,"2025-08-27, 11:12:29",-500,1.2650,,632.50,-1,633.50,0,0,`;
+
+      const parser = new IBKRCSVParser(forexCSV);
+      const result = parser.parse();
+
+      expect(result.trades).toHaveLength(3);
+      
+      const audTrade = result.trades.find(t => t.symbol === 'AUD.USD');
+      expect(audTrade).toBeDefined();
+      expect(audTrade?.assetCategory).toBe('Forex');
+      expect(audTrade?.quantity).toBe(-100);
+      expect(audTrade?.proceeds.amount).toBeCloseTo(64.201, 2);
+      expect(audTrade?.tPrice.amount).toBeCloseTo(0.64201, 2);
+
+      const eurTrade = result.trades.find(t => t.symbol === 'EUR.USD');
+      expect(eurTrade).toBeDefined();
+      expect(eurTrade?.quantity).toBe(1000);
+      expect(eurTrade?.proceeds.amount).toBe(-1085);
+
+      const gbpTrade = result.trades.find(t => t.symbol === 'GBP.USD');
+      expect(gbpTrade).toBeDefined();
+      expect(gbpTrade?.quantity).toBe(-500);
+      expect(gbpTrade?.proceeds.amount).toBe(632.50);
+    });
+
+    it('should handle various forex currency pairs', () => {
+      const multiCurrencyCSV = `Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,,Proceeds,Comm in USD,,,MTM in USD,Code
+Trades,Data,Order,Forex,USD,JPY.USD,"2025-08-22, 13:14:01",-100000,0.0067,,670,0,,,-5,
+Trades,Data,Order,Forex,USD,CAD.USD,"2025-08-22, 13:15:01",-1000,0.75,,750,0,,,-2,
+Trades,Data,Order,Forex,USD,CHF.USD,"2025-08-22, 13:16:01",-500,1.10,,550,0,,,-1,`;
+
+      const parser = new IBKRCSVParser(multiCurrencyCSV);
+      const result = parser.parse();
+
+      expect(result.trades).toHaveLength(3);
+      
+      const jpyTrade = result.trades.find(t => t.symbol === 'JPY.USD');
+      expect(jpyTrade).toBeDefined();
+      expect(jpyTrade?.quantity).toBe(-100000);
+      expect(jpyTrade?.proceeds.amount).toBe(670);
+
+      const cadTrade = result.trades.find(t => t.symbol === 'CAD.USD');
+      expect(cadTrade).toBeDefined();
+      expect(cadTrade?.quantity).toBe(-1000);
+      expect(cadTrade?.proceeds.amount).toBe(750);
+
+      const chfTrade = result.trades.find(t => t.symbol === 'CHF.USD');
+      expect(chfTrade).toBeDefined();
+      expect(chfTrade?.quantity).toBe(-500);
+      expect(chfTrade?.proceeds.amount).toBe(550);
+    });
+  });
+
+  describe('Forex Transaction Conversion', () => {
+    it('should convert selling base currency forex trades correctly', () => {
+      const sellingTrades = [
+        {
+          dataDiscriminator: 'Order',
+          assetCategory: 'Forex',
+          currency: 'USD',
+          symbol: 'AUD.USD',
+          dateTime: '2025-08-22, 13:14:01',
+          quantity: -100, // Selling 100 AUD for USD
+          tPrice: new CurrencyAmount(0.64201, 'USD'),
+          cPrice: new CurrencyAmount(0.64201, 'USD'),
+          proceeds: new CurrencyAmount(64.201, 'USD'),
+          commFee: new CurrencyAmount(0, 'USD'),
+          basis: new CurrencyAmount(64.201, 'USD'),
+          realizedPL: new CurrencyAmount(0, 'USD'),
+          mtmPL: new CurrencyAmount(-0.699, 'USD'),
+          code: 'O'
+        }
+      ];
+
+      const transactions = convertIBKRTradesToTransactions(sellingTrades, 'account-123', 'user-456', 'EST', {});
+      
+      expect(transactions).toHaveLength(2);
+      
+      const audTransaction = transactions.find(t => t.currency === 'AUD');
+      const usdTransaction = transactions.find(t => t.currency === 'USD');
+      
+      expect(audTransaction).toBeDefined();
+      expect(usdTransaction).toBeDefined();
+      
+      // AUD transaction (selling AUD)
+      expect(audTransaction!.side).toBe('SELL');
+      expect(audTransaction!.qty).toBe(100);
+      expect(audTransaction!.instrument_kind).toBe('CASH');
+      expect(audTransaction!.memo).toContain('Forex: Sell 100 AUD to buy 64.2 USD');
+      
+      // USD transaction (buying USD with AUD)
+      expect(usdTransaction!.side).toBe('BUY');
+      expect(usdTransaction!.qty).toBeCloseTo(64.201, 2);
+      expect(usdTransaction!.instrument_kind).toBe('CASH');
+      expect(usdTransaction!.memo).toContain('Forex: Buy 64.2 USD with 100 AUD');
+    });
+
+    it('should convert buying base currency forex trades correctly', () => {
+      const buyingTrades = [
+        {
+          dataDiscriminator: 'Order',
+          assetCategory: 'Forex',
+          currency: 'USD',
+          symbol: 'EUR.USD',
+          dateTime: '2025-08-26, 14:26:17',
+          quantity: 1000, // Buying 1000 EUR with USD
+          tPrice: new CurrencyAmount(1.0850, 'USD'),
+          cPrice: new CurrencyAmount(1.0850, 'USD'),
+          proceeds: new CurrencyAmount(-1085, 'USD'), // Cost in USD
+          commFee: new CurrencyAmount(-2, 'USD'),
+          basis: new CurrencyAmount(1087, 'USD'),
+          realizedPL: new CurrencyAmount(0, 'USD'),
+          mtmPL: new CurrencyAmount(0, 'USD'),
+          code: 'O'
+        }
+      ];
+
+      const transactions = convertIBKRTradesToTransactions(buyingTrades, 'account-123', 'user-456', 'EST', {});
+      
+      expect(transactions).toHaveLength(2);
+      
+      const usdTransaction = transactions.find(t => t.currency === 'USD');
+      const eurTransaction = transactions.find(t => t.currency === 'EUR');
+      
+      expect(usdTransaction).toBeDefined();
+      expect(eurTransaction).toBeDefined();
+      
+      // USD transaction (selling USD to buy EUR)
+      expect(usdTransaction!.side).toBe('SELL');
+      expect(usdTransaction!.qty).toBe(1085);
+      expect(usdTransaction!.fees.amount).toBe(2);
+      expect(usdTransaction!.memo).toContain('Forex: Sell 1085 USD to buy 1000 EUR');
+      
+      // EUR transaction (buying EUR with USD)
+      expect(eurTransaction!.side).toBe('BUY');
+      expect(eurTransaction!.qty).toBe(1000);
+      expect(eurTransaction!.fees.amount).toBe(0); // Fees already accounted for in USD
+      expect(eurTransaction!.memo).toContain('Forex: Buy 1000 EUR with 1085 USD');
+    });
+
+    it('should handle forex trades with fees correctly', () => {
+      const tradesWithFees = [
+        {
+          dataDiscriminator: 'Order',
+          assetCategory: 'Forex',
+          currency: 'USD',
+          symbol: 'GBP.USD',
+          dateTime: '2025-08-27, 11:12:29',
+          quantity: -500, // Selling 500 GBP for USD
+          tPrice: new CurrencyAmount(1.2650, 'USD'),
+          cPrice: new CurrencyAmount(1.2650, 'USD'),
+          proceeds: new CurrencyAmount(632.50, 'USD'),
+          commFee: new CurrencyAmount(-1.50, 'USD'),
+          basis: new CurrencyAmount(634, 'USD'),
+          realizedPL: new CurrencyAmount(0, 'USD'),
+          mtmPL: new CurrencyAmount(-5, 'USD'),
+          code: 'O'
+        }
+      ];
+
+      const transactions = convertIBKRTradesToTransactions(tradesWithFees, 'account-123', 'user-456', 'EST', {});
+      
+      expect(transactions).toHaveLength(2);
+      
+      const gbpTransaction = transactions.find(t => t.currency === 'GBP');
+      const usdTransaction = transactions.find(t => t.currency === 'USD');
+      
+      // GBP transaction should have the fees
+      expect(gbpTransaction!.fees.amount).toBe(1.50);
+      expect(gbpTransaction!.memo).toContain('Forex: Sell 500 GBP to buy 632.5 USD');
+      
+      // USD transaction should have no fees (already accounted for in GBP)
+      expect(usdTransaction!.fees.amount).toBe(0);
+      expect(usdTransaction!.memo).toContain('Forex: Buy 632.5 USD with 500 GBP');
+    });
+
+    it('should handle multiple forex trades in sequence', () => {
+      const multipleTrades = [
+        {
+          dataDiscriminator: 'Order',
+          assetCategory: 'Forex',
+          currency: 'USD',
+          symbol: 'AUD.USD',
+          dateTime: '2025-08-22, 13:14:01',
+          quantity: -100,
+          tPrice: new CurrencyAmount(0.64201, 'USD'),
+          cPrice: new CurrencyAmount(0.64201, 'USD'),
+          proceeds: new CurrencyAmount(64.201, 'USD'),
+          commFee: new CurrencyAmount(0, 'USD'),
+          basis: new CurrencyAmount(64.201, 'USD'),
+          realizedPL: new CurrencyAmount(0, 'USD'),
+          mtmPL: new CurrencyAmount(-0.699, 'USD'),
+          code: 'O'
+        },
+        {
+          dataDiscriminator: 'Order',
+          assetCategory: 'Forex',
+          currency: 'USD',
+          symbol: 'AUD.USD',
+          dateTime: '2025-08-26, 14:26:17',
+          quantity: -200000,
+          tPrice: new CurrencyAmount(0.64774, 'USD'),
+          cPrice: new CurrencyAmount(0.64774, 'USD'),
+          proceeds: new CurrencyAmount(129548, 'USD'),
+          commFee: new CurrencyAmount(-2.59096, 'USD'),
+          basis: new CurrencyAmount(129550.59096, 'USD'),
+          realizedPL: new CurrencyAmount(0, 'USD'),
+          mtmPL: new CurrencyAmount(-342, 'USD'),
+          code: 'O'
+        }
+      ];
+
+      const transactions = convertIBKRTradesToTransactions(multipleTrades, 'account-123', 'user-456', 'EST', {});
+      
+      expect(transactions).toHaveLength(4); // 2 trades * 2 transactions each
+      
+      const audTransactions = transactions.filter(t => t.currency === 'AUD');
+      const usdTransactions = transactions.filter(t => t.currency === 'USD');
+      
+      expect(audTransactions).toHaveLength(2);
+      expect(usdTransactions).toHaveLength(2);
+      
+      // All should be forex transactions
+      transactions.forEach(t => {
+        expect(t.instrument_kind).toBe('CASH');
+        expect(t.memo).toContain('Forex');
+      });
+    });
+
+    it('should throw error for invalid forex symbol format', () => {
+      const invalidTrades = [
+        {
+          dataDiscriminator: 'Order',
+          assetCategory: 'Forex',
+          currency: 'USD',
+          symbol: 'INVALID', // Missing dot separator
+          dateTime: '2025-08-22, 13:14:01',
+          quantity: -100,
+          tPrice: new CurrencyAmount(0.64201, 'USD'),
+          cPrice: new CurrencyAmount(0.64201, 'USD'),
+          proceeds: new CurrencyAmount(64.201, 'USD'),
+          commFee: new CurrencyAmount(0, 'USD'),
+          basis: new CurrencyAmount(64.201, 'USD'),
+          realizedPL: new CurrencyAmount(0, 'USD'),
+          mtmPL: new CurrencyAmount(-0.699, 'USD'),
+          code: 'O'
+        }
+      ];
+
+      expect(() => {
+        convertIBKRTradesToTransactions(invalidTrades, 'account-123', 'user-456', 'EST', {});
+      }).toThrow('Invalid forex symbol format: INVALID');
+    });
+
+    it('should throw error for unsupported currency codes', () => {
+      const unsupportedCurrencyTrades = [
+        {
+          dataDiscriminator: 'Order',
+          assetCategory: 'Forex',
+          currency: 'USD',
+          symbol: 'BTC.USD', // BTC not supported
+          dateTime: '2025-08-22, 13:14:01',
+          quantity: -100,
+          tPrice: new CurrencyAmount(0.64201, 'USD'),
+          cPrice: new CurrencyAmount(0.64201, 'USD'),
+          proceeds: new CurrencyAmount(64.201, 'USD'),
+          commFee: new CurrencyAmount(0, 'USD'),
+          basis: new CurrencyAmount(64.201, 'USD'),
+          realizedPL: new CurrencyAmount(0, 'USD'),
+          mtmPL: new CurrencyAmount(-0.699, 'USD'),
+          code: 'O'
+        }
+      ];
+
+      expect(() => {
+        convertIBKRTradesToTransactions(unsupportedCurrencyTrades, 'account-123', 'user-456', 'EST', {});
+      }).toThrow('Invalid base currency code: BTC');
+    });
+  });
+});
+
 describe('convertIBKRTradesToTransactions', () => {
   let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
   let mockTrades: Array<{
@@ -380,8 +675,8 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(stockTransaction.ticker_id).toBe('ticker-uuid-123');
     expect(stockTransaction.side).toBe('BUY');
     expect(stockTransaction.qty).toBe(100);
-    expect(stockTransaction.price).toBe(150.00);
-    expect(stockTransaction.fees).toBe(5);
+    expect(stockTransaction.price.amount).toBe(150.00);
+    expect(stockTransaction.fees.amount).toBe(5);
     expect(stockTransaction.user_id).toBe('user-456');
     expect(stockTransaction.account_id).toBe('account-123');
   });
@@ -394,11 +689,11 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(optionTransaction.instrument_kind).toBe('CALL');
     expect(optionTransaction.ticker_id).toBe('ticker-uuid-123');
     expect(optionTransaction.expiry).toBe('2024-03-15');
-    expect(optionTransaction.strike).toBe(150);
+    expect(optionTransaction.strike?.amount).toBe(150);
     expect(optionTransaction.side).toBe('BUY');
     expect(optionTransaction.qty).toBe(1);
-    expect(optionTransaction.price).toBe(5.00);
-    expect(optionTransaction.fees).toBe(2);
+    expect(optionTransaction.price.amount).toBe(5.00);
+    expect(optionTransaction.fees.amount).toBe(2);
   });
 
   it('should handle timezone conversion', () => {
@@ -422,7 +717,7 @@ describe('convertIBKRTradesToTransactions', () => {
     }).toThrow('Account ID and User ID are required for transaction conversion');
   });
 
-  it('should ignore Forex transactions', () => {
+  it('should convert Forex transactions to two cash transactions', () => {
     const tradesWithForex = [
       ...mockTrades,
       {
@@ -431,10 +726,10 @@ describe('convertIBKRTradesToTransactions', () => {
         currency: 'USD',
         symbol: 'EUR.USD',
         dateTime: '2024-03-15, 10:30:00',
-        quantity: 1000,
+        quantity: 1000, // Buying 1000 EUR with USD
         tPrice: new CurrencyAmount(1.0850, 'USD'),
         cPrice: new CurrencyAmount(1.0850, 'USD'),
-        proceeds: new CurrencyAmount(-1085, 'USD'),
+        proceeds: new CurrencyAmount(-1085, 'USD'), // Cost in USD
         commFee: new CurrencyAmount(-2, 'USD'),
         basis: new CurrencyAmount(1087, 'USD'),
         realizedPL: new CurrencyAmount(0, 'USD'),
@@ -445,12 +740,173 @@ describe('convertIBKRTradesToTransactions', () => {
 
     const transactions = convertIBKRTradesToTransactions(tradesWithForex, 'account-123', 'user-456', 'EST', {});
     
-    // Should only have the original 2 transactions, Forex should be filtered out
+    // Should have original 2 transactions + 2 forex cash transactions
+    expect(transactions).toHaveLength(4);
+    
+    // Verify forex transactions are present
+    const forexTransactions = transactions.filter(t => t.memo?.includes('Forex'));
+    expect(forexTransactions).toHaveLength(2);
+    
+    // Check the forex cash transactions
+    const usdTransaction = forexTransactions.find(t => t.currency === 'USD');
+    const eurTransaction = forexTransactions.find(t => t.currency === 'EUR');
+    
+    expect(usdTransaction).toBeDefined();
+    expect(eurTransaction).toBeDefined();
+    
+    // USD transaction (selling USD to buy EUR)
+    expect(usdTransaction!.side).toBe('SELL');
+    expect(usdTransaction!.qty).toBe(1085); // Amount of USD sold
+    expect(usdTransaction!.fees.amount).toBe(2); // Fees in USD
+    
+    // EUR transaction (buying EUR with USD)
+    expect(eurTransaction!.side).toBe('BUY');
+    expect(eurTransaction!.qty).toBe(1000); // Amount of EUR bought
+    expect(eurTransaction!.fees.amount).toBe(0); // No fees in EUR (already accounted for in USD)
+  });
+
+  it('should handle selling base currency in forex trades', () => {
+    const tradesWithForex = [
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'AUD.USD',
+        dateTime: '2025-08-22, 13:14:01',
+        quantity: -100, // Selling 100 AUD for USD
+        tPrice: new CurrencyAmount(0.64201, 'USD'),
+        cPrice: new CurrencyAmount(0.64201, 'USD'),
+        proceeds: new CurrencyAmount(64.201, 'USD'), // Proceeds in USD
+        commFee: new CurrencyAmount(0, 'USD'),
+        basis: new CurrencyAmount(64.201, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(-0.699, 'USD'),
+        code: 'O'
+      }
+    ];
+
+    const transactions = convertIBKRTradesToTransactions(tradesWithForex, 'account-123', 'user-456', 'EST', {});
+    
+    // Should have 2 forex cash transactions
     expect(transactions).toHaveLength(2);
     
-    // Verify no Forex transactions are present
+    // Verify forex transactions are present
     const forexTransactions = transactions.filter(t => t.memo?.includes('Forex'));
-    expect(forexTransactions).toHaveLength(0);
+    expect(forexTransactions).toHaveLength(2);
+    
+    // Check the forex cash transactions
+    const audTransaction = forexTransactions.find(t => t.currency === 'AUD');
+    const usdTransaction = forexTransactions.find(t => t.currency === 'USD');
+    
+    expect(audTransaction).toBeDefined();
+    expect(usdTransaction).toBeDefined();
+    
+    // AUD transaction (selling AUD)
+    expect(audTransaction!.side).toBe('SELL');
+    expect(audTransaction!.qty).toBe(100); // Amount of AUD sold
+    
+    // USD transaction (buying USD with AUD)
+    expect(usdTransaction!.side).toBe('BUY');
+    expect(usdTransaction!.qty).toBeCloseTo(64.201, 2); // Amount of USD bought
+  });
+
+  it('should handle real forex data from user example', () => {
+    const realForexTrades = [
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'AUD.USD',
+        dateTime: '2025-08-22, 13:14:01',
+        quantity: -100, // Selling 100 AUD for USD
+        tPrice: new CurrencyAmount(0.64201, 'USD'),
+        cPrice: new CurrencyAmount(0.64201, 'USD'),
+        proceeds: new CurrencyAmount(64.201, 'USD'), // Proceeds in USD
+        commFee: new CurrencyAmount(0, 'USD'),
+        basis: new CurrencyAmount(64.201, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(-0.699, 'USD'),
+        code: 'O'
+      },
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'AUD.USD',
+        dateTime: '2025-08-26, 14:26:17',
+        quantity: -200000, // Selling 200,000 AUD for USD
+        tPrice: new CurrencyAmount(0.64774, 'USD'),
+        cPrice: new CurrencyAmount(0.64774, 'USD'),
+        proceeds: new CurrencyAmount(129548, 'USD'), // Proceeds in USD
+        commFee: new CurrencyAmount(-2.59096, 'USD'),
+        basis: new CurrencyAmount(129550.59096, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(-342, 'USD'),
+        code: 'O'
+      },
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'AUD.USD',
+        dateTime: '2025-08-27, 11:12:29',
+        quantity: -25000, // Selling 25,000 AUD for USD
+        tPrice: new CurrencyAmount(0.64942, 'USD'),
+        cPrice: new CurrencyAmount(0.64942, 'USD'),
+        proceeds: new CurrencyAmount(16235.5, 'USD'), // Proceeds in USD
+        commFee: new CurrencyAmount(-2, 'USD'),
+        basis: new CurrencyAmount(16237.5, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(-29, 'USD'),
+        code: 'O'
+      }
+    ];
+
+    const transactions = convertIBKRTradesToTransactions(realForexTrades, 'account-123', 'user-456', 'EST', {});
+    
+    // Should have 6 transactions (3 forex trades * 2 cash transactions each)
+    expect(transactions).toHaveLength(6);
+    
+    // Verify all are cash transactions
+    transactions.forEach(t => {
+      expect(t.instrument_kind).toBe('CASH');
+      expect(t.memo).toContain('Forex');
+    });
+    
+    // Group by currency
+    const audTransactions = transactions.filter(t => t.currency === 'AUD');
+    const usdTransactions = transactions.filter(t => t.currency === 'USD');
+    
+    expect(audTransactions).toHaveLength(3); // 3 AUD sell transactions
+    expect(usdTransactions).toHaveLength(3); // 3 USD buy transactions
+    
+    // Check first trade (100 AUD for 64.201 USD)
+    const firstAudTxn = audTransactions[0];
+    const firstUsdTxn = usdTransactions[0];
+    
+    expect(firstAudTxn.side).toBe('SELL');
+    expect(firstAudTxn.qty).toBe(100);
+    expect(firstUsdTxn.side).toBe('BUY');
+    expect(firstUsdTxn.qty).toBeCloseTo(64.201, 2);
+    
+    // Check second trade (200,000 AUD for 129,548 USD)
+    const secondAudTxn = audTransactions[1];
+    const secondUsdTxn = usdTransactions[1];
+    
+    expect(secondAudTxn.side).toBe('SELL');
+    expect(secondAudTxn.qty).toBe(200000);
+    expect(secondUsdTxn.side).toBe('BUY');
+    expect(secondUsdTxn.qty).toBe(129548);
+    expect(secondUsdTxn.fees.amount).toBe(0); // Fees should be in AUD transaction
+    
+    // Check third trade (25,000 AUD for 16,235.5 USD)
+    const thirdAudTxn = audTransactions[2];
+    const thirdUsdTxn = usdTransactions[2];
+    
+    expect(thirdAudTxn.side).toBe('SELL');
+    expect(thirdAudTxn.qty).toBe(25000);
+    expect(thirdUsdTxn.side).toBe('BUY');
+    expect(thirdUsdTxn.qty).toBeCloseTo(16235.5, 2);
   });
 });
 
@@ -492,8 +948,8 @@ describe('convertIBKRCashToTransactions', () => {
     expect(deposit.instrument_kind).toBe('CASH');
     expect(deposit.side).toBe('BUY');
     expect(deposit.qty).toBe(50000);
-    expect(deposit.price).toBe(1);
-    expect(deposit.fees).toBe(0);
+    expect(deposit.price.amount).toBe(1);
+    expect(deposit.fees.amount).toBe(0);
     expect(deposit.memo).toContain('Electronic Fund Transfer');
     
     const withdrawal = transactions[1];
@@ -550,8 +1006,8 @@ describe('convertIBKRDividendsToTransactions', () => {
     expect(dividend1.instrument_kind).toBe('CASH');
     expect(dividend1.side).toBe('BUY');
     expect(dividend1.qty).toBe(150);
-    expect(dividend1.price).toBe(1);
-    expect(dividend1.fees).toBe(0);
+    expect(dividend1.price.amount).toBe(1);
+    expect(dividend1.fees.amount).toBe(0);
     expect(dividend1.memo).toContain('Dividend: AAPL Dividend (AAPL)');
     
     const dividend2 = transactions[1];
@@ -608,8 +1064,8 @@ describe('convertIBKRWithholdingTaxToTransactions', () => {
     expect(tax.instrument_kind).toBe('CASH');
     expect(tax.side).toBe('SELL'); // Withholding tax is always an outflow
     expect(tax.qty).toBe(22.50);
-    expect(tax.price).toBe(1);
-    expect(tax.fees).toBe(0);
+    expect(tax.price.amount).toBe(1);
+    expect(tax.fees.amount).toBe(0);
     expect(tax.memo).toContain('Withholding Tax: AAPL Dividend Tax (AAPL)');
   });
 });
@@ -684,13 +1140,13 @@ describe('extractTickerNamesFromIBKRData', () => {
         symbol: 'AAPL',
         dateTime: '2024-03-15, 10:30:00',
         quantity: 100,
-        tPrice: 150.00,
-        cPrice: 150.00,
-        proceeds: -15000,
-        commFee: -5,
-        basis: 15005,
-        realizedPL: 0,
-        mtmPL: 0,
+        tPrice: new CurrencyAmount(150.00, 'USD'),
+        cPrice: new CurrencyAmount(150.00, 'USD'),
+        proceeds: new CurrencyAmount(-15000, 'USD'),
+        commFee: new CurrencyAmount(-5, 'USD'),
+        basis: new CurrencyAmount(15005, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(0, 'USD'),
         code: 'O'
       },
       {
@@ -700,13 +1156,13 @@ describe('extractTickerNamesFromIBKRData', () => {
         symbol: 'EUR.USD',
         dateTime: '2024-03-15, 10:30:00',
         quantity: 1000,
-        tPrice: 1.0850,
-        cPrice: 1.0850,
-        proceeds: -1085,
-        commFee: -2,
-        basis: 1087,
-        realizedPL: 0,
-        mtmPL: 0,
+        tPrice: new CurrencyAmount(1.0850, 'USD'),
+        cPrice: new CurrencyAmount(1.0850, 'USD'),
+        proceeds: new CurrencyAmount(-1085, 'USD'),
+        commFee: new CurrencyAmount(-2, 'USD'),
+        basis: new CurrencyAmount(1087, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(0, 'USD'),
         code: 'O'
       }
     ];
@@ -745,7 +1201,13 @@ describe('Trade vs Transaction Count Consistency', () => {
     );
     expect(nonForexTrades).toHaveLength(9);
     
-    // Convert trades to transactions (should filter out Forex)
+    // Count Forex trades
+    const forexTrades = result.trades.filter(trade => 
+      trade.assetCategory?.toLowerCase().includes('forex')
+    );
+    expect(forexTrades).toHaveLength(2);
+    
+    // Convert trades to transactions (Forex now converts to 2 transactions each)
     const tickerIdMap = { 'AAPL': 'ticker-1', 'MSFT': 'ticker-2', 'TSLA': 'ticker-3' };
     const tradeTransactions = convertIBKRTradesToTransactions(
       result.trades,
@@ -755,18 +1217,17 @@ describe('Trade vs Transaction Count Consistency', () => {
       tickerIdMap
     );
     
-    // Count converted transactions (should exclude Forex)
-    expect(tradeTransactions).toHaveLength(9);
+    // Count converted transactions (9 non-Forex + 4 Forex cash transactions)
+    expect(tradeTransactions).toHaveLength(13);
     
     // Verify the counts are consistent
-    expect(tradeTransactions.length).toBe(nonForexTrades.length);
-    expect(tradeTransactions.length).toBeLessThan(totalRawTrades);
+    expect(tradeTransactions.length).toBe(nonForexTrades.length + (forexTrades.length * 2));
     
-    // Verify no Forex transactions were converted
+    // Verify Forex transactions were converted to cash transactions
     const forexTransactions = tradeTransactions.filter(t => 
       t.memo?.includes('Forex')
     );
-    expect(forexTransactions).toHaveLength(0);
+    expect(forexTransactions).toHaveLength(4); // 2 forex trades * 2 cash transactions each
   });
 
   it('should handle mixed asset categories correctly', () => {
@@ -778,13 +1239,13 @@ describe('Trade vs Transaction Count Consistency', () => {
         symbol: 'AAPL',
         dateTime: '2024-03-15, 10:30:00',
         quantity: 100,
-        tPrice: 150.00,
-        cPrice: 150.00,
-        proceeds: -15000,
-        commFee: -5,
-        basis: 15005,
-        realizedPL: 0,
-        mtmPL: 0,
+        tPrice: new CurrencyAmount(150.00, 'USD'),
+        cPrice: new CurrencyAmount(150.00, 'USD'),
+        proceeds: new CurrencyAmount(-15000, 'USD'),
+        commFee: new CurrencyAmount(-5, 'USD'),
+        basis: new CurrencyAmount(15005, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(0, 'USD'),
         code: 'O'
       },
       {
@@ -794,13 +1255,13 @@ describe('Trade vs Transaction Count Consistency', () => {
         symbol: 'AAPL 15MAR24 150 C',
         dateTime: '2024-03-15, 10:35:00',
         quantity: 1,
-        tPrice: 5.00,
-        cPrice: 5.00,
-        proceeds: -500,
-        commFee: -2,
-        basis: 502,
-        realizedPL: 0,
-        mtmPL: 0,
+        tPrice: new CurrencyAmount(5.00, 'USD'),
+        cPrice: new CurrencyAmount(5.00, 'USD'),
+        proceeds: new CurrencyAmount(-500, 'USD'),
+        commFee: new CurrencyAmount(-2, 'USD'),
+        basis: new CurrencyAmount(502, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(0, 'USD'),
         code: 'O'
       },
       {
@@ -810,13 +1271,13 @@ describe('Trade vs Transaction Count Consistency', () => {
         symbol: 'EUR.USD',
         dateTime: '2024-03-15, 10:30:00',
         quantity: 1000,
-        tPrice: 1.0850,
-        cPrice: 1.0850,
-        proceeds: -1085,
-        commFee: -2,
-        basis: 1087,
-        realizedPL: 0,
-        mtmPL: 0,
+        tPrice: new CurrencyAmount(1.0850, 'USD'),
+        cPrice: new CurrencyAmount(1.0850, 'USD'),
+        proceeds: new CurrencyAmount(-1085, 'USD'),
+        commFee: new CurrencyAmount(-2, 'USD'),
+        basis: new CurrencyAmount(1087, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(0, 'USD'),
         code: 'O'
       },
       {
@@ -826,13 +1287,13 @@ describe('Trade vs Transaction Count Consistency', () => {
         symbol: 'GBP.USD',
         dateTime: '2024-03-15, 10:30:00',
         quantity: 500,
-        tPrice: 1.2650,
-        cPrice: 1.2650,
-        proceeds: -632.50,
-        commFee: -1,
-        basis: 633.50,
-        realizedPL: 0,
-        mtmPL: 0,
+        tPrice: new CurrencyAmount(1.2650, 'USD'),
+        cPrice: new CurrencyAmount(1.2650, 'USD'),
+        proceeds: new CurrencyAmount(-632.50, 'USD'),
+        commFee: new CurrencyAmount(-1, 'USD'),
+        basis: new CurrencyAmount(633.50, 'USD'),
+        realizedPL: new CurrencyAmount(0, 'USD'),
+        mtmPL: new CurrencyAmount(0, 'USD'),
         code: 'O'
       }
     ];
@@ -846,20 +1307,21 @@ describe('Trade vs Transaction Count Consistency', () => {
       tickerIdMap
     );
 
-    // Should have 2 transactions (stocks + options), not 4 (excluding 2 Forex)
-    expect(transactions).toHaveLength(2);
+    // Should have 2 regular transactions + 4 forex cash transactions (2 forex trades * 2 each)
+    expect(transactions).toHaveLength(6);
     
     // Verify we have the expected transaction types
     const stockTransaction = transactions.find(t => t.instrument_kind === 'SHARES');
     const optionTransaction = transactions.find(t => t.instrument_kind === 'CALL');
+    const forexTransactions = transactions.filter(t => t.memo?.includes('Forex'));
     
     expect(stockTransaction).toBeDefined();
     expect(optionTransaction).toBeDefined();
+    expect(forexTransactions).toHaveLength(4); // 2 forex trades * 2 cash transactions each
     
-    // Verify no Forex transactions
-    const forexTransactions = transactions.filter(t => 
-      t.memo?.includes('Forex')
-    );
-    expect(forexTransactions).toHaveLength(0);
+    // Verify forex transactions are cash transactions
+    forexTransactions.forEach(t => {
+      expect(t.instrument_kind).toBe('CASH');
+    });
   });
 });

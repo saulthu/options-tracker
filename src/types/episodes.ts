@@ -1,7 +1,7 @@
 // TypeScript interfaces for the new episode-based portfolio calculation system
 // Based on updated_portfolio_calc.md specification
 
-import { CurrencyAmount } from '../lib/currency-amount';
+import { CurrencyAmount, CurrencyCode } from '../lib/currency-amount';
 
 export type InstrumentKind = 'CASH' | 'SHARES' | 'CALL' | 'PUT';
 export type KindGroup = 'CASH' | 'SHARES' | 'OPTION';
@@ -97,7 +97,7 @@ export interface PositionEpisode {
  */
 export interface PortfolioResult {
   ledger: LedgerRow[];
-  balances: Map<string, CurrencyAmount>; // accountId -> cash balance
+  balances: Map<string, Map<CurrencyCode, CurrencyAmount>>; // accountId -> currency -> cash balance
   episodes: PositionEpisode[];
 }
 

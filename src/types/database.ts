@@ -1,4 +1,6 @@
 
+import { CurrencyAmount } from '@/lib/currency-amount';
+
 export interface Ticker {
   id: string
   user_id: string
@@ -39,11 +41,11 @@ export interface Transaction {
   instrument_kind: 'CASH' | 'SHARES' | 'CALL' | 'PUT'
   ticker_id?: string
   expiry?: string // YYYY-MM-DD
-  strike?: number
+  strike?: CurrencyAmount
   side?: 'BUY' | 'SELL'
   qty: number
-  price?: number
-  fees: number
+  price?: CurrencyAmount
+  fees: CurrencyAmount
   currency: string // 3-letter currency code (ISO 4217) - kept for database compatibility
   memo?: string
   // Joined data from PortfolioContext

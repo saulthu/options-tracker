@@ -7,7 +7,8 @@ import { TimeRange } from "@/components/TimeRangeSelector";
 import { RawTransaction } from "@/types/episodes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from "@/lib/currency-amount";
+import { CurrencyAmount, CurrencyCode } from "@/lib/currency-amount";
+import { MultiCurrencyBalanceInline } from '@/components/MultiCurrencyBalance';
 
 interface TransactionsPageProps {
   selectedRange: TimeRange;
@@ -53,14 +54,24 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
   // Calculate summary statistics
   const summaryStats = useMemo(() => {
     const totalTransactions = filteredTransactions.length;
-    const totalValue = filteredTransactions.reduce((sum, t) => {
+    // Group by currency to avoid mixing currencies
+    const valueByCurrency = new Map<CurrencyCode, CurrencyAmount>();
+    
+    filteredTransactions.forEach(t => {
       if (t.price && t.qty) {
         const multiplier = t.instrument_kind === 'CASH' ? 1 : (t.instrument_kind === 'SHARES' ? 1 : 100);
-        const value = t.price.multiply(t.qty * multiplier).amount;
-        return sum + value;
+        const value = t.price.multiply(t.qty * multiplier);
+        const currency = value.currency as CurrencyCode;
+        
+        if (valueByCurrency.has(currency)) {
+          valueByCurrency.set(currency, valueByCurrency.get(currency)!.add(value));
+        } else {
+          valueByCurrency.set(currency, value);
+        }
       }
-      return sum;
-    }, 0);
+    });
+    
+    const totalValue = valueByCurrency;
     const accountsCount = Object.keys(transactionsByAccount).length;
     
     return {
@@ -70,14 +81,6 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     };
   }, [filteredTransactions, transactionsByAccount]);
 
-  // Helper function to create CurrencyAmount
-  const createCurrencyAmount = (amount: number, currency: string = 'USD') => {
-    if (!isValidCurrencyCode(currency)) {
-      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
-      currency = 'USD';
-    }
-    return new CurrencyAmount(amount, currency as CurrencyCode);
-  };
 
   // Format date/time
   const formatDateTime = (timestamp: string) => {
@@ -106,7 +109,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     
     if (transaction.instrument_kind === 'CALL' || transaction.instrument_kind === 'PUT') {
       const optionType = transaction.instrument_kind;
-      const strike = transaction.strike ? `$${transaction.strike.amount}` : '';
+      const strike = transaction.strike ? transaction.strike.format() : '';
       const expiry = transaction.expiry ? new Date(transaction.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       return `${action} ${ticker} ${optionType} ${strike} ${expiry}`.trim();
     }
@@ -163,9 +166,10 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
         </div>
         <div className="text-right">
           <div className="text-sm text-[#b3b3b3]">Total Value</div>
-          <div className={`text-lg font-semibold ${summaryStats.totalValue >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {createCurrencyAmount(summaryStats.totalValue, 'USD').format()}
-          </div>
+          <MultiCurrencyBalanceInline 
+            balances={summaryStats.totalValue} 
+            className="text-lg font-semibold"
+          />
         </div>
       </div>
 
@@ -228,7 +232,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                       </td>
                       <td className="py-3 px-4 text-sm text-right">
                         <span className={`font-medium ${
-                          (transaction.price && transaction.qty ? transaction.price.multiply(transaction.qty).amount : 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                          (transaction.price && transaction.qty ? transaction.price.multiply(transaction.qty).isPositive() : false) ? 'text-green-400' : 'text-red-400'
                         }`}>
                           {transaction.price && transaction.qty ? transaction.price.multiply(transaction.qty).format() : '-'}
                         </span>

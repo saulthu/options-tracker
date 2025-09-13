@@ -126,14 +126,14 @@ function buildLedger(
   transactions: RawTransaction[],
   tickerLookup: TickerLookup,
   openingBalances: OpeningBalances = new Map()
-): { ledger: LedgerRow[]; balances: Map<string, CurrencyAmount> } {
+): { ledger: LedgerRow[]; balances: Map<string, Map<CurrencyCode, CurrencyAmount>> } {
   // Sort transactions deterministically by (timestamp ASC, id ASC)
   const sortedTxns = [...transactions].sort((a, b) => {
     const timeCompare = a.timestamp.localeCompare(b.timestamp);
     return timeCompare !== 0 ? timeCompare : a.id.localeCompare(b.id);
   });
 
-  const balances = new Map<string, CurrencyAmount>();
+  const balances = new Map<string, Map<CurrencyCode, CurrencyAmount>>();
   const positions = new Map<string, number>(); // (userId, accountId, instrumentKey) -> qty
   const ledger: LedgerRow[] = [];
 
@@ -143,10 +143,17 @@ function buildLedger(
     const kind = t.instrument_kind;
     const fees = t.fees;
 
-    // Initialize account balance
+    // Initialize account balance for this currency
     if (!balances.has(accountId)) {
-      const openingBalance = openingBalances.get(accountId) || CurrencyAmount.zero(fees.currency);
-      balances.set(accountId, openingBalance);
+      balances.set(accountId, new Map<CurrencyCode, CurrencyAmount>());
+    }
+    
+    const accountBalances = balances.get(accountId)!;
+    const currency = fees.currency;
+    
+    if (!accountBalances.has(currency)) {
+      const openingBalance = openingBalances.get(accountId) || CurrencyAmount.zero(currency);
+      accountBalances.set(currency, openingBalance);
     }
 
     // Resolve ticker name
@@ -164,9 +171,9 @@ function buildLedger(
         throw new Error('Price should be set to 1.0 for cash transactions');
       }
       const cashDelta = price.multiply(qty);
-      const currentBalance = balances.get(accountId)!;
+      const currentBalance = accountBalances.get(currency)!;
       const newBalance = currentBalance.add(cashDelta);
-      balances.set(accountId, newBalance);
+      accountBalances.set(currency, newBalance);
 
       ledger.push({
         txnId: t.id,
@@ -192,7 +199,7 @@ function buildLedger(
     // Handle trading transactions (SHARES, CALL, PUT)
     if (!side || !ticker) {
       // Invalid transaction - missing required fields
-      const currentBalance = balances.get(accountId)!;
+      const currentBalance = accountBalances.get(currency)!;
       ledger.push({
         txnId: t.id,
         userId,
@@ -225,7 +232,7 @@ function buildLedger(
     // Validation rules
     if (kind === 'SHARES' && currentQty + signedQty < 0) {
       // SHARES cannot go negative (long-only)
-      const currentBalance = balances.get(accountId)!;
+      const currentBalance = accountBalances.get(currency)!;
       ledger.push({
         txnId: t.id,
         userId,
@@ -252,7 +259,7 @@ function buildLedger(
       const remaining = currentQty + signedQty;
       // Check for crossing zero
       if (remaining !== 0 && sign(remaining) !== sign(currentQty)) {
-        const currentBalance = balances.get(accountId)!;
+        const currentBalance = accountBalances.get(currency)!;
         ledger.push({
           txnId: t.id,
           userId,
@@ -278,17 +285,16 @@ function buildLedger(
 
     // Transaction accepted - calculate cash effect and update positions
     const mult = multiplierFor(kind);
-    if (!price) {
-      throw new Error(`Price is required for ${kind} transactions`);
-    }
+    const effectivePrice = price || CurrencyAmount.zero(currency);
+    const effectiveFees = fees || CurrencyAmount.zero(currency);
     
     // Calculate cash delta: -(signedQty * price * mult) - fees
-    const grossValue = price.multiply(signedQty * mult);
-    const cashDelta = grossValue.multiply(-1).subtract(fees);
+    const grossValue = effectivePrice.multiply(signedQty * mult);
+    const cashDelta = grossValue.multiply(-1).subtract(effectiveFees);
     
-    const currentBalance = balances.get(accountId)!;
+    const currentBalance = accountBalances.get(currency)!;
     const newBalance = currentBalance.add(cashDelta);
-    balances.set(accountId, newBalance);
+    accountBalances.set(currency, newBalance);
     positions.set(positionKey, currentQty + signedQty);
 
     ledger.push({
@@ -378,12 +384,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     const mult = multiplierFor(lr.instrumentKind);
     const direction = lr.side === 'BUY' ? 1 : -1;
     const signedQty = direction * lr.qty;
-    const price = lr.price;
+    const price = lr.price || CurrencyAmount.zero(lr.fees.currency);
     const fees = lr.fees;
-
-    if (!price) {
-      throw new Error(`Price is required for ${lr.instrumentKind} transactions`);
-    }
 
     const units = Math.abs(lr.qty) * mult;
     const feePerUnit = units > 0 ? fees.divide(units) : CurrencyAmount.zero(fees.currency);
@@ -632,7 +634,7 @@ export function buildPortfolioView(
   
   // Process each currency group separately
   const allLedger: LedgerRow[] = [];
-  const allBalances = new Map<string, CurrencyAmount>();
+  const allBalances = new Map<string, Map<CurrencyCode, CurrencyAmount>>();
   const allEpisodes: PositionEpisode[] = [];
   
   for (const [, txns] of currencyGroups) {
@@ -640,8 +642,14 @@ export function buildPortfolioView(
     const episodes = buildEpisodes(ledger);
     
     allLedger.push(...ledger);
-    for (const [accountId, balance] of balances) {
-      allBalances.set(accountId, balance);
+    for (const [accountId, accountBalances] of balances) {
+      if (!allBalances.has(accountId)) {
+        allBalances.set(accountId, new Map<CurrencyCode, CurrencyAmount>());
+      }
+      const existingBalances = allBalances.get(accountId)!;
+      for (const [currency, balance] of accountBalances) {
+        existingBalances.set(currency, balance);
+      }
     }
     allEpisodes.push(...episodes);
   }
@@ -766,8 +774,8 @@ export function getAccountRealizedPnL(episodes: PositionEpisode[], accountId: st
 /**
  * Get account balance from balances map
  */
-export function getAccountBalance(balances: Map<string, CurrencyAmount>, accountId: string): CurrencyAmount {
-  return balances.get(accountId) || CurrencyAmount.zero('USD'); // Default to USD if not found
+export function getAccountBalance(balances: Map<string, Map<CurrencyCode, CurrencyAmount>>, accountId: string): Map<CurrencyCode, CurrencyAmount> {
+  return balances.get(accountId) || new Map<CurrencyCode, CurrencyAmount>();
 }
 
 /**

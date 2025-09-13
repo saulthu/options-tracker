@@ -10,7 +10,6 @@ import {
   getAccountEpisodes,
   getTotalRealizedPnL,
   getAccountRealizedPnL,
-  getAccountBalance
 } from '@/lib/episode-portfolio-calculator-v2';
 import { InstrumentKind } from '@/types/episodes';
 import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
@@ -353,9 +352,10 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     const currencies = new Set(accountTransactions.map(t => t.currency));
     
     // Get balance for each currency
+    const accountBalancesMap = portfolio.balances.get(accountId) || new Map<CurrencyCode, CurrencyAmount>();
     for (const currency of currencies) {
-      const balance = getAccountBalance(portfolio.balances, accountId);
-      if (balance.currency === currency) {
+      const balance = accountBalancesMap.get(currency as CurrencyCode);
+      if (balance) {
         accountBalances.set(currency as CurrencyCode, balance);
       } else {
         // If no balance for this currency, it's zero
@@ -471,10 +471,47 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   const addTransactions = useCallback(async (transactions: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>[]) => {
     try {
       console.log(`Attempting to batch insert ${transactions.length} transactions`);
+      console.log('Sample transaction before conversion:', transactions[0]);
+      
+      // Convert CurrencyAmount instances to primitive types for Supabase
+      const dbTransactions = transactions.map(txn => ({
+        user_id: txn.user_id,
+        account_id: txn.account_id,
+        timestamp: txn.timestamp,
+        instrument_kind: txn.instrument_kind,
+        ticker_id: txn.ticker_id,
+        expiry: txn.expiry,
+        strike: txn.strike?.amount || null,
+        side: txn.side,
+        qty: txn.qty,
+        price: txn.price?.amount || null,
+        fees: txn.fees.amount || 0, // Ensure fees is never null
+        currency: txn.fees.currency, // Use fees currency as the transaction currency
+        memo: txn.memo
+      }));
+      
+      console.log('Sample transaction after conversion:', dbTransactions[0]);
+      
+      // Validate required fields
+      const validationErrors: string[] = [];
+      dbTransactions.forEach((txn, index) => {
+        if (!txn.user_id) validationErrors.push(`Transaction ${index}: missing user_id`);
+        if (!txn.account_id) validationErrors.push(`Transaction ${index}: missing account_id`);
+        if (!txn.timestamp) validationErrors.push(`Transaction ${index}: missing timestamp`);
+        if (!txn.instrument_kind) validationErrors.push(`Transaction ${index}: missing instrument_kind`);
+        if (txn.qty === undefined || txn.qty === null) validationErrors.push(`Transaction ${index}: missing qty`);
+        if (txn.fees === undefined || txn.fees === null) validationErrors.push(`Transaction ${index}: missing fees`);
+        if (!txn.currency) validationErrors.push(`Transaction ${index}: missing currency`);
+      });
+      
+      if (validationErrors.length > 0) {
+        console.error('Validation errors:', validationErrors);
+        throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+      }
       
       const { data, error: insertError } = await supabase
         .from('transactions')
-        .insert(transactions)
+        .insert(dbTransactions)
         .select();
 
       if (insertError) {
@@ -485,6 +522,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
           details: insertError.details,
           hint: insertError.hint
         });
+        console.error('First transaction that failed:', dbTransactions[0]);
+        console.error('All transactions being inserted:', dbTransactions);
         throw insertError;
       }
 
