@@ -48,8 +48,8 @@ describe('Episode Portfolio Calculator', () => {
       ['ticker-2', 'MSFT']
     ]);
     openingBalances = new Map([
-      ['account-1', 0],
-      ['account-2', 1000]
+      ['account-1', new CurrencyAmount(0, 'USD')],
+      ['account-2', new CurrencyAmount(1000, 'USD')]
     ]);
   });
 
@@ -83,8 +83,8 @@ describe('Episode Portfolio Calculator', () => {
           ticker_id: 'ticker-1',
           side: 'BUY',
           qty: 100,
-          price: 150,
-          fees: 1,
+          price: new CurrencyAmount(150, 'USD'),
+          fees: new CurrencyAmount(1, 'USD'),
           memo: 'Buy AAPL shares'
         })
       ];
@@ -93,14 +93,14 @@ describe('Episode Portfolio Calculator', () => {
 
       expect(result.ledger).toHaveLength(1);
       expect(result.ledger[0].accepted).toBe(true);
-      expect(result.ledger[0].cashDelta).toBe(-15001); // -(100 * 150 * 1) - 1
-      expect(result.balances.get('account-1')).toBe(-15001);
+      expect(result.ledger[0].cashDelta.amount).toBe(-15001); // -(100 * 150 * 1) - 1
+      expect(result.balances.get('account-1')?.amount).toBe(-15001);
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('SHARES');
       expect(result.episodes[0].episodeKey).toBe('AAPL');
       expect(result.episodes[0].qty).toBe(100);
-      expect(result.episodes[0].avgPrice).toBe(150.01); // 150 + (1/100)
+      expect(result.episodes[0].avgPrice.amount).toBe(150.01); // 150 + (1/100)
     });
 
     it('should handle option transactions with 100x multiplier', () => {

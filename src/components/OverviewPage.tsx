@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, DollarSign, Activity } from "lucide-react";
+import { MultiCurrencyBalanceInline } from '@/components/MultiCurrencyBalance';
 import PnLChart from "@/components/PnLChart";
 import { usePortfolio } from "@/contexts/PortfolioContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,7 +32,7 @@ export default function OverviewPage() {
   const totalTrades = transactions.length;
   const episodes = getEpisodes();
   const openPositions = episodes.filter(ep => ep.qty !== 0).length;
-  const cashBalance = getBalance(user.id);
+  const cashBalances = getBalance(user.id);
   const realizedPnL = getTotalPnL(user.id);
   
   // Get recent transactions (last 5)
@@ -51,9 +52,10 @@ export default function OverviewPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                <span className={cashBalance.amount >= 0 ? "text-green-400" : "text-red-400"}>
-                  {cashBalance.amount >= 0 ? "+" : ""}{cashBalance.format()}
-                </span>
+                <MultiCurrencyBalanceInline 
+                  balances={cashBalances} 
+                  className="text-2xl font-bold"
+                />
               </div>
               <p className="text-xs text-[#b3b3b3]">
                 Available cash
@@ -94,9 +96,10 @@ export default function OverviewPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">
-                <span className={realizedPnL.amount >= 0 ? "text-green-400" : "text-red-400"}>
-                  {realizedPnL.amount >= 0 ? "+" : ""}{realizedPnL.format()}
-                </span>
+                <MultiCurrencyBalanceInline 
+                  balances={realizedPnL} 
+                  className="text-2xl font-bold"
+                />
               </div>
               <p className="text-xs text-[#b3b3b3]">
                 Closed positions P&L

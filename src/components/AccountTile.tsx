@@ -4,12 +4,15 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Upload, Download, TrendingUp, Building2, Trash2, Hash } from 'lucide-react';
 import { Account } from '@/types/database';
-import { CurrencyAmount } from '@/lib/currency-amount';
+import { CurrencyAmount, CurrencyCode } from '@/lib/currency-amount';
+import { MultiCurrencyBalanceInline } from '@/components/MultiCurrencyBalance';
 
 interface AccountTileProps {
   account: Account;
   transactionCount: number;
-  accountValue: CurrencyAmount;
+  accountValues: Map<CurrencyCode, CurrencyAmount>;
+  balances?: Map<CurrencyCode, CurrencyAmount>;
+  pnl?: Map<CurrencyCode, CurrencyAmount>;
   onImport: (accountId: string) => void;
   onExport: () => void;
   onDeleteAll: (accountId: string) => void;
@@ -18,23 +21,11 @@ interface AccountTileProps {
 export default function AccountTile({ 
   account, 
   transactionCount, 
-  accountValue, 
+  accountValues,
   onImport, 
   onExport,
   onDeleteAll
 }: AccountTileProps) {
-  const formatValue = (value: CurrencyAmount) => {
-    if (value.amount === 0) return value.format();
-    if (Math.abs(value.amount) >= 1000000) {
-      const symbol = value.currencyInfo.symbol;
-      return `${symbol}${(value.amount / 1000000).toFixed(1)}M`;
-    }
-    if (Math.abs(value.amount) >= 1000) {
-      const symbol = value.currencyInfo.symbol;
-      return `${symbol}${(value.amount / 1000).toFixed(1)}K`;
-    }
-    return value.format();
-  };
 
   return (
     <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
@@ -57,9 +48,10 @@ export default function AccountTile({
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-400" />
               <span className="text-sm text-[#b3b3b3]">Value:</span>
-              <span className={`text-lg font-semibold ${accountValue.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {formatValue(accountValue)}
-              </span>
+              <MultiCurrencyBalanceInline 
+                balances={accountValues} 
+                className="text-lg font-semibold"
+              />
             </div>
             
             {/* Transaction Count */}

@@ -120,8 +120,9 @@ interface PortfolioContextType {
   getOpenEpisodes: (accountId?: string) => PositionEpisode[];
   getClosedEpisodes: (accountId?: string) => PositionEpisode[];
   getEpisodesByKind: (kindGroup: 'CASH' | 'SHARES' | 'OPTION', accountId?: string) => PositionEpisode[];
-  getBalance: (accountId: string) => CurrencyAmount;
-  getTotalPnL: (accountId?: string) => CurrencyAmount;
+  getBalance: (accountId: string) => Map<CurrencyCode, CurrencyAmount>;
+  getTotalPnL: (accountId?: string) => Map<CurrencyCode, CurrencyAmount>;
+  getAccountValue: (accountId: string) => Map<CurrencyCode, CurrencyAmount>;
   getFilteredEpisodes: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredPositions: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredTransactions: (timeRange: TimeRange) => RawTransaction[];
@@ -341,24 +342,58 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return episodes.filter(episode => episode.kindGroup === kindGroup);
   }, [portfolio]);
 
-  const getBalance = useCallback((accountId: string): CurrencyAmount => {
-    if (!portfolio) return CurrencyAmount.zero('USD');
-    return getAccountBalance(portfolio.balances, accountId);
+  const getBalance = useCallback((accountId: string): Map<CurrencyCode, CurrencyAmount> => {
+    if (!portfolio) return new Map();
+    
+    // Get all balances for this account across all currencies
+    const accountBalances = new Map<CurrencyCode, CurrencyAmount>();
+    
+    // Find all currencies that have transactions for this account
+    const accountTransactions = transactions.filter(t => t.account_id === accountId);
+    const currencies = new Set(accountTransactions.map(t => t.currency));
+    
+    // Get balance for each currency
+    for (const currency of currencies) {
+      const balance = getAccountBalance(portfolio.balances, accountId);
+      if (balance.currency === currency) {
+        accountBalances.set(currency as CurrencyCode, balance);
+      } else {
+        // If no balance for this currency, it's zero
+        accountBalances.set(currency as CurrencyCode, CurrencyAmount.zero(currency as CurrencyCode));
+      }
+    }
+    
+    return accountBalances;
+  }, [portfolio, transactions]);
+
+  const getTotalPnL = useCallback((accountId?: string): Map<CurrencyCode, CurrencyAmount> => {
+    if (!portfolio) return new Map();
+    if (accountId) {
+      return getAccountRealizedPnL(portfolio.episodes, accountId);
+    }
+    return getTotalRealizedPnL(portfolio.episodes);
   }, [portfolio]);
 
-  const getTotalPnL = useCallback((accountId?: string): CurrencyAmount => {
-    if (!portfolio) return CurrencyAmount.zero('USD');
-    if (accountId) {
-      const accountPnL = getAccountRealizedPnL(portfolio.episodes, accountId);
-      // Return the first currency's P&L (assuming single currency for now)
-      const firstCurrency = Array.from(accountPnL.keys())[0] || 'USD';
-      return accountPnL.get(firstCurrency) || CurrencyAmount.zero(firstCurrency);
+  const getAccountValue = useCallback((accountId: string): Map<CurrencyCode, CurrencyAmount> => {
+    if (!portfolio) return new Map();
+    
+    const balances = getBalance(accountId);
+    const pnl = getTotalPnL(accountId);
+    
+    // Combine balances and P&L for each currency
+    const accountValues = new Map<CurrencyCode, CurrencyAmount>();
+    
+    // Get all currencies from both balance and P&L
+    const allCurrencies = new Set([...balances.keys(), ...pnl.keys()]);
+    
+    for (const currency of allCurrencies) {
+      const balance = balances.get(currency) || CurrencyAmount.zero(currency);
+      const pnlAmount = pnl.get(currency) || CurrencyAmount.zero(currency);
+      accountValues.set(currency, balance.add(pnlAmount));
     }
-    const totalPnL = getTotalRealizedPnL(portfolio.episodes);
-    // Return the first currency's P&L (assuming single currency for now)
-    const firstCurrency = Array.from(totalPnL.keys())[0] || 'USD';
-    return totalPnL.get(firstCurrency) || CurrencyAmount.zero(firstCurrency);
-  }, [portfolio]);
+    
+    return accountValues;
+  }, [portfolio, getBalance, getTotalPnL]);
 
   const getFilteredEpisodes = useCallback((timeRange: TimeRange, accountId?: string, filterType: 'overlap' | 'openedDuring' | 'closedDuring' = 'overlap'): PositionEpisode[] => {
     if (!portfolio) return [];
@@ -748,6 +783,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     getEpisodesByKind,
     getBalance,
     getTotalPnL,
+    getAccountValue,
     getFilteredEpisodes,
     getFilteredPositions,
     getFilteredTransactions,

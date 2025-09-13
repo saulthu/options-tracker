@@ -70,6 +70,7 @@ export default function DataPage({}: DataPageProps) {
     transactions, 
     getBalance, 
     getTotalPnL, 
+    getAccountValue,
     addTransactions,
     ensureTickersExist, 
     refreshPortfolio,
@@ -122,15 +123,19 @@ export default function DataPage({}: DataPageProps) {
   const accountData = useMemo(() => {
     return accounts.map(account => {
       const accountTransactions = transactions.filter(t => t.account_id === account.id);
-      const accountValue = getBalance(account.id).add(getTotalPnL(account.id));
+      const balances = getBalance(account.id);
+      const pnl = getTotalPnL(account.id);
+      const accountValues = getAccountValue(account.id);
       
       return {
         account,
         transactionCount: accountTransactions.length,
-        accountValue
+        balances,
+        pnl,
+        accountValues
       };
     });
-  }, [accounts, transactions, getBalance, getTotalPnL]);
+  }, [accounts, transactions, getBalance, getTotalPnL, getAccountValue]);
 
 
   if (!user) {
@@ -289,12 +294,14 @@ export default function DataPage({}: DataPageProps) {
           {/* Account Tiles */}
           {accountData.length > 0 ? (
             <div className="space-y-3">
-              {accountData.map(({ account, transactionCount, accountValue }) => (
+              {accountData.map(({ account, transactionCount, accountValues, balances, pnl }) => (
                 <AccountTile
                   key={account.id}
                   account={account}
                   transactionCount={transactionCount}
-                  accountValue={accountValue}
+                  accountValues={accountValues}
+                  balances={balances}
+                  pnl={pnl}
                   onImport={handleImport}
                   onExport={handleExport}
                   onDeleteAll={handleDeleteAll}

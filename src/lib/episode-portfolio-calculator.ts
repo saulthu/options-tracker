@@ -149,7 +149,7 @@ function buildLedger(
 
     // Initialize account balance
     if (!balances.has(accountId)) {
-      const openingBalance = openingBalances.get(accountId) || CurrencyAmount.zero(fees.currency);
+      const openingBalance = openingBalances.get(accountId) || CurrencyAmount.zero(fees?.currency || 'USD');
       balances.set(accountId, openingBalance);
     }
 
@@ -208,7 +208,7 @@ function buildLedger(
         price,
         fees,
         memo: t.memo,
-        cashDelta: CurrencyAmount.zero(fees.currency),
+        cashDelta: CurrencyAmount.zero(fees?.currency || 'USD'),
         balanceAfter: currentBalance,
         accepted: false,
         error: 'Missing required fields (side or ticker)'
@@ -240,7 +240,7 @@ function buildLedger(
         price,
         fees,
         memo: t.memo,
-        cashDelta: CurrencyAmount.zero(fees.currency),
+        cashDelta: CurrencyAmount.zero(fees?.currency || 'USD'),
         balanceAfter: balances.get(accountId)!,
         accepted: false,
         error: 'Equities cannot be negative (long-only)'
@@ -266,7 +266,7 @@ function buildLedger(
           price,
           fees,
           memo: t.memo,
-          cashDelta: CurrencyAmount.zero(fees.currency),
+          cashDelta: CurrencyAmount.zero(fees?.currency || 'USD'),
           balanceAfter: balances.get(accountId)!,
           accepted: false,
           error: 'Crossing zero not allowed'
@@ -277,7 +277,9 @@ function buildLedger(
 
     // Transaction accepted - calculate cash effect and update positions
     const mult = multiplierFor(kind);
-    const cashDelta = price!.multiply(signedQty * mult).multiply(-1).subtract(fees);
+    const effectivePrice = price || CurrencyAmount.zero(fees?.currency || 'USD');
+    const effectiveFees = fees || CurrencyAmount.zero('USD');
+    const cashDelta = effectivePrice.multiply(signedQty * mult).multiply(-1).subtract(effectiveFees);
     const currentBalance = balances.get(accountId)!;
     const newBalance = currentBalance.add(cashDelta);
     balances.set(accountId, newBalance);
@@ -353,9 +355,9 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
         side: undefined,
         qty: lr.qty,
         price: undefined,
-        fees: CurrencyAmount.zero(lr.fees.currency),
+        fees: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
         cashDelta: lr.cashDelta,
-        realizedPnLDelta: CurrencyAmount.zero(lr.fees.currency),
+        realizedPnLDelta: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
         note: lr.memo
       }]
     };
@@ -373,7 +375,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     const price = lr.price || CurrencyAmount.zero(lr.fees.currency);
     const fees = lr.fees;
     const units = Math.abs(lr.qty) * mult;
-    const feePerUnit = units > 0 ? fees.divide(units) : CurrencyAmount.zero(fees.currency);
+    const feePerUnit = units > 0 ? fees.divide(units) : CurrencyAmount.zero(fees?.currency || 'USD');
     const entryUnitCost = price.add(feePerUnit);
 
     // Update current leg snapshot for options
@@ -384,7 +386,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       episode.currentStrike = lr.strike;
     }
 
-    let realizedPnL = CurrencyAmount.zero(fees.currency);
+    let realizedPnL = CurrencyAmount.zero(fees?.currency || 'USD');
 
     if (episode.qty === 0 || (sign(episode.qty) === sign(signedQty) && Math.abs(episode.qty + signedQty) > Math.abs(episode.qty))) {
       // Opening or adding to position
@@ -471,10 +473,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       closeTimestamp: undefined,
       rolled: false,
       qty: 0,
-      avgPrice: CurrencyAmount.zero(lr.fees.currency),
-      totalFees: CurrencyAmount.zero(lr.fees.currency),
-      cashTotal: CurrencyAmount.zero(lr.fees.currency),
-      realizedPnLTotal: CurrencyAmount.zero(lr.fees.currency),
+      avgPrice: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
+      totalFees: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
+      cashTotal: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
+      realizedPnLTotal: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
       optionDirection,
       txns: []
     };
@@ -528,7 +530,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     closedEpisode.txns[closedEpisode.txns.length - 1].note = 'ROLL-CLOSE';
     closedEpisode.closeTimestamp = undefined;
     closedEpisode.qty = 0;
-    closedEpisode.avgPrice = CurrencyAmount.zero(lr.fees.currency); // Reset for new position in roll
+    closedEpisode.avgPrice = CurrencyAmount.zero(lr.fees?.currency || 'USD'); // Reset for new position in roll
     
     applyTradeToEpisode(closedEpisode, lr, 'ROLL-OPEN');
     activeEpisodes.set(`${userId}|${accountId}|${episodeKey(right, ticker, lr.strike?.amount, lr.expiry)}`, closedEpisode);
