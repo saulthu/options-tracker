@@ -53,6 +53,7 @@ interface PortfolioContextType {
   addTransaction: (transaction: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateTransaction: (id: string, updates: Partial<RawTransaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  deleteAllTransactionsForAccount: (accountId: string) => Promise<void>;
   
   // Account management
   createAccount: (accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>) => Promise<{ data?: Account; error?: string }>;
@@ -381,6 +382,26 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, []);
 
+  const deleteAllTransactionsForAccount = useCallback(async (accountId: string) => {
+    try {
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('account_id', accountId);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      console.log(`All transactions for account ${accountId} deleted successfully`);
+    } catch (err) {
+      console.error('Error deleting transactions for account:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete transactions');
+      // Re-throw the error so calling code can handle it
+      throw err;
+    }
+  }, []);
+
   // Account management functions
   const createAccount = useCallback(async (accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>): Promise<{ data?: Account; error?: string }> => {
     if (!user) return { error: 'No user found' };
@@ -594,6 +615,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    deleteAllTransactionsForAccount,
     createAccount,
     updateAccount,
     deleteAccount,

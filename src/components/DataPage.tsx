@@ -24,7 +24,8 @@ export default function DataPage({}: DataPageProps) {
     getTotalPnL, 
     addTransaction, 
     ensureTickersExist, 
-    refreshPortfolio 
+    refreshPortfolio,
+    deleteAllTransactionsForAccount
   } = usePortfolio();
   
   const [currentView, setCurrentView] = useState<'accounts' | 'import-type' | 'importer'>('accounts');
@@ -68,6 +69,7 @@ export default function DataPage({}: DataPageProps) {
       };
     });
   }, [accounts, transactions, getBalance, getTotalPnL]);
+
 
   if (!user) {
     return (
@@ -150,6 +152,27 @@ export default function DataPage({}: DataPageProps) {
     showAlert('Generic Import Coming Soon', 'Generic CSV import functionality will be available soon.', 'info');
   };
 
+  const handleDeleteAll = async (accountId: string) => {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ALL transactions for "${account.name}"?\n\nThis action cannot be undone and will permanently remove ${transactions.filter(t => t.account_id === accountId).length} transactions.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteAllTransactionsForAccount(accountId);
+      await refreshPortfolio();
+      showAlert('Delete Successful', `All transactions for "${account.name}" have been deleted.`, 'success');
+    } catch (error) {
+      console.error('Error deleting transactions:', error);
+      showAlert('Delete Failed', `Failed to delete transactions: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
@@ -158,12 +181,13 @@ export default function DataPage({}: DataPageProps) {
         <p className="text-[#b3b3b3]">Import and export your trading data</p>
       </div>
 
+
       {/* Main Content Based on Current View */}
       {currentView === 'accounts' && (
         <>
           {/* Account Tiles */}
           {accountData.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-3">
               {accountData.map(({ account, transactionCount, accountValue }) => (
                 <AccountTile
                   key={account.id}
@@ -172,6 +196,7 @@ export default function DataPage({}: DataPageProps) {
                   accountValue={accountValue}
                   onImport={handleImport}
                   onExport={handleExport}
+                  onDeleteAll={handleDeleteAll}
                 />
               ))}
             </div>
