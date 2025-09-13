@@ -1024,28 +1024,28 @@ function convertForexTradeToCashTransactions(
 
   if (isBuyingBase) {
     // Buying base currency with quote currency
-    // 1. Sell quote currency (outflow)
+    // 1. Sell quote currency (outflow) - negative quantity
     transactions.push({
       user_id: userId,
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: 'SELL',
-      qty: quoteAmount,
+      side: undefined, // Cash transactions don't use side field
+      qty: -quoteAmount, // Negative for outflow
       price: new CurrencyAmount(1, quoteCurrencyCode),
       fees: new CurrencyAmount(Math.abs(trade.commFee.amount), quoteCurrencyCode),
       currency: quoteCurrencyCode,
       memo: `Forex: Sell ${quoteAmount} ${quoteCurrencyCode} to buy ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}`
     });
 
-    // 2. Buy base currency (inflow)
+    // 2. Buy base currency (inflow) - positive quantity
     transactions.push({
       user_id: userId,
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: 'BUY',
-      qty: baseAmount,
+      side: undefined, // Cash transactions don't use side field
+      qty: baseAmount, // Positive for inflow
       price: new CurrencyAmount(1, baseCurrencyCode),
       fees: new CurrencyAmount(0, baseCurrencyCode), // Fees already accounted for in quote currency
       currency: baseCurrencyCode,
@@ -1053,28 +1053,28 @@ function convertForexTradeToCashTransactions(
     });
   } else {
     // Selling base currency for quote currency
-    // 1. Sell base currency (outflow)
+    // 1. Sell base currency (outflow) - negative quantity
     transactions.push({
       user_id: userId,
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: 'SELL',
-      qty: baseAmount,
+      side: undefined, // Cash transactions don't use side field
+      qty: -baseAmount, // Negative for outflow
       price: new CurrencyAmount(1, baseCurrencyCode),
       fees: new CurrencyAmount(Math.abs(trade.commFee.amount), baseCurrencyCode),
       currency: baseCurrencyCode,
       memo: `Forex: Sell ${baseAmount} ${baseCurrencyCode} to buy ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}`
     });
 
-    // 2. Buy quote currency (inflow)
+    // 2. Buy quote currency (inflow) - positive quantity
     transactions.push({
       user_id: userId,
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: 'BUY',
-      qty: quoteAmount,
+      side: undefined, // Cash transactions don't use side field
+      qty: quoteAmount, // Positive for inflow
       price: new CurrencyAmount(1, quoteCurrencyCode),
       fees: new CurrencyAmount(0, quoteCurrencyCode), // Fees already accounted for in base currency
       currency: quoteCurrencyCode,

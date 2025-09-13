@@ -100,9 +100,10 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     const ticker = transaction.tickers?.name || 'Unknown';
     
     if (transaction.instrument_kind === 'CASH') {
-      // For forex transactions, show the currency and action
+      // For forex transactions, show the currency and direction based on quantity
       if (transaction.memo?.includes('Forex')) {
-        return `${action} ${transaction.currency}`;
+        const direction = transaction.qty > 0 ? 'Buy' : 'Sell';
+        return `${direction} ${transaction.currency}`;
       }
       return 'Cash';
     }
@@ -219,10 +220,17 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                               ? 'bg-green-400 text-black'
                               : transaction.side === 'SELL'
                               ? 'bg-red-400 text-black'
+                              : transaction.instrument_kind === 'CASH' && transaction.memo?.includes('Forex')
+                              ? transaction.qty > 0 
+                                ? 'bg-green-400 text-black'
+                                : 'bg-red-400 text-black'
                               : 'bg-gray-400 text-black'
                           }`}
                         >
-                          {transaction.side || 'TRADE'}
+                          {transaction.side || 
+                           (transaction.instrument_kind === 'CASH' && transaction.memo?.includes('Forex')
+                             ? (transaction.qty > 0 ? 'BUY' : 'SELL')
+                             : 'TRADE')}
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-sm text-white">
