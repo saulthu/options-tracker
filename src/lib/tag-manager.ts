@@ -163,6 +163,40 @@ export class PortfolioTagManager {
       )
     );
   }
+
+  /**
+   * Get all unique tags from a specific episode's transactions
+   */
+  getEpisodeTags(episode: PositionEpisode): string[] {
+    const allTags = new Set<string>();
+    
+    episode.txns.forEach(txn => {
+      if (txn.parsedMemo?.tags) {
+        txn.parsedMemo.tags.forEach(tag => allTags.add(tag));
+      }
+    });
+    
+    return Array.from(allTags).sort();
+  }
+
+  /**
+   * Get tag usage statistics for a specific episode
+   */
+  getSingleEpisodeTagStats(episode: PositionEpisode): { tag: string; count: number }[] {
+    const tagCounts = new Map<string, number>();
+    
+    episode.txns.forEach(txn => {
+      if (txn.parsedMemo?.tags) {
+        txn.parsedMemo.tags.forEach(tag => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        });
+      }
+    });
+    
+    return Array.from(tagCounts.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count);
+  }
 }
 
 /**

@@ -132,6 +132,7 @@ interface PortfolioContextType {
   getTagStats: () => { tag: string; count: number }[];
   getFilteredEpisodesByTags: (tagFilter: TagFilterType, timeRange: TimeRange, accountId?: string) => PositionEpisode[];
   getFilteredTransactionsByTags: (tagFilter: TagFilterType, timeRange: TimeRange) => RawTransaction[];
+  getEpisodeTags: (episode: PositionEpisode) => string[];
   
   // Actions
   refreshPortfolio: () => Promise<void>;
@@ -845,6 +846,12 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return tagManager.filterTransactions(tagFilter);
   }, [getFilteredTransactions]);
 
+  const getEpisodeTags = useCallback((episode: PositionEpisode) => {
+    if (!portfolio) return [];
+    const tagManager = createTagManager(transactions, portfolio.episodes);
+    return tagManager.getEpisodeTags(episode);
+  }, [transactions, portfolio]);
+
   const value: PortfolioContextType = {
     transactions,
     accounts,
@@ -865,6 +872,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     getTagStats,
     getFilteredEpisodesByTags,
     getFilteredTransactionsByTags,
+    getEpisodeTags,
     refreshPortfolio,
     refreshOnAccountChange,
     addTransaction,
