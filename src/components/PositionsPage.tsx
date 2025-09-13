@@ -617,12 +617,16 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         {position.qty}
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {formatCurrency(position.avgPrice || 0)}
+                        {position.kindGroup === 'CASH' ? '—' : formatCurrency(position.avgPrice || 0)}
                       </td>
                       <td className="py-2 px-2 text-right">
-                        <span className={position.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {position.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(position.realizedPnLTotal)}
-                        </span>
+                        {position.kindGroup === 'CASH' ? (
+                          <span className="text-[#b3b3b3]">—</span>
+                        ) : (
+                          <span className={position.realizedPnLTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
+                            {position.realizedPnLTotal >= 0 ? '+' : ''}{formatCurrency(position.realizedPnLTotal)}
+                          </span>
+                        )}
                       </td>
                       <td className="py-2 px-2 text-right">
                         <span className={position.cashTotal >= 0 ? 'text-green-400' : 'text-red-400'}>
