@@ -27,7 +27,7 @@ const BADGE_STYLES = {
   cash: 'text-xs bg-slate-600 text-slate-100 border-slate-500 !font-mono',
   shares: 'text-xs bg-emerald-600 text-emerald-100 border-emerald-500 !font-mono',
   options: 'text-xs bg-indigo-700 text-indigo-100 border-indigo-600 !font-mono',
-  forex: 'text-xs bg-orange-700 text-orange-100 border-orange-600 !font-mono',
+  forex: 'text-xs bg-orange-600 text-orange-100 border-orange-500 !font-mono',
 } as const;
 
 // Forex detection function - purely for display purposes
@@ -390,12 +390,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     if (forexInfo.isForex && forexInfo.fromCurrency && forexInfo.toCurrency) {
       // For forex, show "Cash" as ticker but include conversion details
       const ticker = 'Cash';
-      // Show the conversion with sell/buy distinction
-      const direction = `${forexInfo.fromCurrency}→${forexInfo.toCurrency}`;
-      const rate = forexInfo.exchangeRate ? ` @ ${forexInfo.exchangeRate.toFixed(4)}` : '';
-      const leg = forexInfo.isOutflow ? ' (Sell)' : ' (Buy)';
-      const details = `${direction}${rate}${leg}`;
-      return { ticker, details };
+      // Highlight source currency for sell, destination currency for buy
+      const details = forexInfo.isOutflow 
+        ? `${forexInfo.fromCurrency}→${forexInfo.toCurrency}` // Highlight source (what you're selling)
+        : `${forexInfo.fromCurrency}→${forexInfo.toCurrency}`; // Highlight destination (what you're buying)
+      return { ticker, details, isForex: true, forexInfo };
     }
 
     if (position.kindGroup === 'CASH') {
@@ -787,7 +786,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     <tr
                       key={position.episodeId}
                       className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] cursor-pointer font-mono transition-colors duration-150 ${
-                        index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]'
+                        position.qty === 0 
+                          ? (index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]')
+                          : (index % 2 === 0 ? 'bg-[#1f1f1f]' : 'bg-[#2a2a2a]')
                       }`}
                       onClick={() => handlePositionClick(position)}
                       style={{ position: 'relative', zIndex: 1 }}
@@ -827,11 +828,24 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                           </Badge>
                           {(() => {
                             const display = getPositionDisplay(position);
-                            const forexInfo = detectForexTransaction(position);
-                            if (forexInfo.isForex && display.details) {
+                            if (display.isForex && display.details) {
+                              // Highlight currencies for forex transactions
+                              const { fromCurrency, toCurrency, isOutflow } = display.forexInfo;
                               return (
                                 <span className="text-white text-sm">
-                                  {display.details}
+                                  {isOutflow ? (
+                                    // Highlight source currency for sell transactions
+                                    <>
+                                      <span className="text-orange-400 font-semibold">{fromCurrency}</span>
+                                      <span>→{toCurrency}</span>
+                                    </>
+                                  ) : (
+                                    // Highlight destination currency for buy transactions
+                                    <>
+                                      <span>{fromCurrency}→</span>
+                                      <span className="text-orange-400 font-semibold">{toCurrency}</span>
+                                    </>
+                                  )}
                                 </span>
                               );
                             }
@@ -847,14 +861,14 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         </div>
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {position.qty}
+                        {position.kindGroup === 'CASH' ? '' : (position.qty === 0 ? '' : position.qty)}
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {position.kindGroup === 'CASH' ? '—' : position.avgPrice.format()}
+                        {position.kindGroup === 'CASH' ? '' : position.avgPrice.format()}
                       </td>
                       <td className="py-2 px-2 text-right">
                         {position.kindGroup === 'CASH' ? (
-                          <span className="text-[#b3b3b3]">—</span>
+                          ''
                         ) : (
                           <span className={position.realizedPnLTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
                             {position.realizedPnLTotal.format()}
@@ -870,11 +884,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         <Badge 
                           variant="outline" 
                           className={
-                            position.kindGroup === 'CASH' 
-                              ? BADGE_STYLES.cash
-                              : position.qty === 0 
-                                ? BADGE_STYLES.default
-                                : BADGE_STYLES.open
+                            position.kindGroup === 'CASH' || position.qty === 0 
+                              ? BADGE_STYLES.default
+                              : BADGE_STYLES.open
                           }
                         >
                           {position.kindGroup === 'CASH' 
