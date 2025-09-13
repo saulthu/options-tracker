@@ -7,6 +7,7 @@ import { TimeRange } from '@/components/TimeRangeSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield } from 'lucide-react';
+import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
 
 interface SharesPageProps {
   selectedRange: TimeRange;
@@ -95,13 +96,12 @@ export default function SharesPage({ selectedRange }: SharesPageProps) {
   }, [filteredEpisodes, getEpisodesByKind]);
 
   // Memoize expensive calculations
-  const formatCurrency = useMemo(() => (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
+  const formatCurrency = useMemo(() => (amount: number, currency: string = 'USD') => {
+    if (!isValidCurrencyCode(currency)) {
+      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
+      currency = 'USD';
+    }
+    return new CurrencyAmount(amount, currency as CurrencyCode).format();
   }, []);
 
   const formatNumber = useMemo(() => (num: number) => {

@@ -217,10 +217,71 @@ export class CurrencyAmount {
   // Private helper
   private ensureSameCurrency(other: CurrencyAmount): void {
     if (this._currency !== other._currency) {
-      throw new Error(
-        `Cannot perform operation on different currencies: ${this._currency} and ${other._currency}`
-      );
+      const errorMessage = `🚨 CURRENCY MISMATCH: Cannot perform operation on different currencies: ${this._currency} and ${other._currency}`;
+      
+      // Enhanced error logging for development
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.error(errorMessage);
+        console.error('Stack trace:', new Error().stack);
+        
+        // Show a prominent error in the UI during development
+        this.showCurrencyErrorInUI(errorMessage, this._currency, other._currency);
+      }
+      
+      throw new Error(errorMessage);
     }
+  }
+
+  // Show currency error prominently in the UI during development
+  private showCurrencyErrorInUI(message: string, currency1: string, currency2: string): void {
+    if (typeof window === 'undefined') return;
+    
+    // Create or update error display
+    let errorDiv = document.getElementById('currency-error-display');
+    if (!errorDiv) {
+      errorDiv = document.createElement('div');
+      errorDiv.id = 'currency-error-display';
+      errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #dc2626;
+        color: white;
+        padding: 16px;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        z-index: 9999;
+        max-width: 400px;
+        font-family: monospace;
+        font-size: 14px;
+        border: 2px solid #ef4444;
+      `;
+      document.body.appendChild(errorDiv);
+    }
+    
+    // Update error content
+    errorDiv.innerHTML = `
+      <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 18px; margin-right: 8px;">🚨</span>
+        <strong>Currency Mismatch Error</strong>
+        <button onclick="this.parentElement.parentElement.remove()" 
+                style="margin-left: auto; background: none; border: none; color: white; font-size: 18px; cursor: pointer;">×</button>
+      </div>
+      <div style="margin-bottom: 8px;">${message}</div>
+      <div style="font-size: 12px; opacity: 0.9;">
+        Currencies: <strong>${currency1}</strong> vs <strong>${currency2}</strong>
+      </div>
+      <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+        Check the console for full stack trace
+      </div>
+    `;
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (errorDiv && errorDiv.parentNode) {
+        errorDiv.parentNode.removeChild(errorDiv);
+      }
+    }, 10000);
   }
 }
 
@@ -233,12 +294,75 @@ export function sumAmounts(amounts: CurrencyAmount[]): CurrencyAmount {
   const currency = amounts[0].currency;
   amounts.forEach(amount => {
     if (amount.currency !== currency) {
-      throw new Error(`Cannot sum amounts with different currencies: ${currency} and ${amount.currency}`);
+      const errorMessage = `🚨 CURRENCY MISMATCH: Cannot sum amounts with different currencies: ${currency} and ${amount.currency}`;
+      
+      // Enhanced error logging for development
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.error(errorMessage);
+        console.error('Stack trace:', new Error().stack);
+        
+        // Show a prominent error in the UI during development
+        showCurrencyErrorInUI(errorMessage, currency, amount.currency);
+      }
+      
+      throw new Error(errorMessage);
     }
   });
 
   const total = amounts.reduce((sum, amount) => sum + amount.amount, 0);
   return new CurrencyAmount(total, currency);
+}
+
+// Helper function to show currency error in UI (used by utility functions)
+function showCurrencyErrorInUI(message: string, currency1: string, currency2: string): void {
+  if (typeof window === 'undefined') return;
+  
+  // Create or update error display
+  let errorDiv = document.getElementById('currency-error-display');
+  if (!errorDiv) {
+    errorDiv = document.createElement('div');
+    errorDiv.id = 'currency-error-display';
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #dc2626;
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      z-index: 9999;
+      max-width: 400px;
+      font-family: monospace;
+      font-size: 14px;
+      border: 2px solid #ef4444;
+    `;
+    document.body.appendChild(errorDiv);
+  }
+  
+  // Update error content
+  errorDiv.innerHTML = `
+    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+      <span style="font-size: 18px; margin-right: 8px;">🚨</span>
+      <strong>Currency Mismatch Error</strong>
+      <button onclick="this.parentElement.parentElement.remove()" 
+              style="margin-left: auto; background: none; border: none; color: white; font-size: 18px; cursor: pointer;">×</button>
+    </div>
+    <div style="margin-bottom: 8px;">${message}</div>
+    <div style="font-size: 12px; opacity: 0.9;">
+      Currencies: <strong>${currency1}</strong> vs <strong>${currency2}</strong>
+    </div>
+    <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+      Check the console for full stack trace
+    </div>
+  `;
+  
+  // Auto-remove after 10 seconds
+  setTimeout(() => {
+    if (errorDiv && errorDiv.parentNode) {
+      errorDiv.parentNode.removeChild(errorDiv);
+    }
+  }, 10000);
 }
 
 export function averageAmounts(amounts: CurrencyAmount[]): CurrencyAmount {

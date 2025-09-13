@@ -28,6 +28,7 @@ const CURRENCY_INFO = {
     AUD: { code: 'AUD', symbol: 'A$', decimals: 2, name: 'Australian Dollar' },
     CHF: { code: 'CHF', symbol: 'CHF', decimals: 2, name: 'Swiss Franc' },
     CNY: { code: 'CNY', symbol: '¥', decimals: 2, name: 'Chinese Yuan' },
+    HKD: { code: 'HKD', symbol: 'HK$', decimals: 2, name: 'Hong Kong Dollar' },
 };
 class CurrencyAmount {
     constructor(amount, currency) {

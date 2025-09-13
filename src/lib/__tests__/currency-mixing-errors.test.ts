@@ -149,15 +149,15 @@ describe('Currency Mixing Runtime Errors', () => {
       const scenarios = [
         {
           operation: () => usd100.add(eur50),
-          expectedError: 'Cannot perform operation on different currencies: USD and EUR'
+          expectedError: '🚨 CURRENCY MISMATCH: Cannot perform operation on different currencies: USD and EUR'
         },
         {
           operation: () => usd100.subtract(gbp25),
-          expectedError: 'Cannot perform operation on different currencies: USD and GBP'
+          expectedError: '🚨 CURRENCY MISMATCH: Cannot perform operation on different currencies: USD and GBP'
         },
         {
           operation: () => eur50.greaterThan(gbp25),
-          expectedError: 'Cannot perform operation on different currencies: EUR and GBP'
+          expectedError: '🚨 CURRENCY MISMATCH: Cannot perform operation on different currencies: EUR and GBP'
         }
       ];
       

@@ -10,6 +10,7 @@ import PositionFilterSelector from '@/components/PositionFilterSelector';
 import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Target, FileText, Copy } from 'lucide-react';
 import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
 import { PositionFilterType } from '@/types/navigation';
+import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
 
 interface PositionsPageProps {
   selectedRange: TimeRange;
@@ -163,12 +164,20 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     return { totalPositions, openPositions, closedPositions, totalRealizedPnL, totalCashFlow };
   }, [filteredPositions]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+  // Helper function to format currency using CurrencyAmount
+  const formatCurrency = (amount: number, currency: string = 'USD') => {
+    if (!isValidCurrencyCode(currency)) {
+      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
+      currency = 'USD';
+    }
+    return new CurrencyAmount(amount, currency as CurrencyCode).format();
   };
+
+  // formatCurrencyWithSign is available if needed for future use
+  // const formatCurrencyWithSign = (amount: number, currency: string = 'USD') => {
+  //   const formatted = formatCurrency(amount, currency);
+  //   return amount >= 0 ? `+${formatted}` : formatted;
+  // };
 
 
   // const formatNumber = (num: number) => {

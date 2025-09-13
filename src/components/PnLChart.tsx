@@ -101,7 +101,7 @@ export default function PnLChart({ data }: PnLChartProps) {
             </text>
             {minPnL < 0 && maxPnL > 0 && (
               <text x={padding - 10} y={padding + (height - 2 * padding) - ((0 - minPnL) / range) * (height - 2 * padding)} textAnchor="end" className="text-xs fill-gray-500">
-                $0
+                $0.00
               </text>
             )}
             

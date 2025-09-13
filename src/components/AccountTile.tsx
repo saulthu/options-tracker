@@ -4,6 +4,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Upload, Download, TrendingUp, Building2, Trash2, Hash } from 'lucide-react';
 import { Account } from '@/types/database';
+import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
 
 interface AccountTileProps {
   account: Account;
@@ -22,24 +23,25 @@ export default function AccountTile({
   onExport,
   onDeleteAll
 }: AccountTileProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
+  const formatCurrency = (value: number, currency: string = 'USD') => {
+    if (!isValidCurrencyCode(currency)) {
+      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
+      currency = 'USD';
+    }
+    return new CurrencyAmount(value, currency as CurrencyCode).format();
   };
 
-  const formatValue = (value: number) => {
-    if (value === 0) return '$0.00';
+  const formatValue = (value: number, currency: string = 'USD') => {
+    if (value === 0) return formatCurrency(0, currency);
     if (Math.abs(value) >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
+      const symbol = new CurrencyAmount(0, currency as CurrencyCode).currencyInfo.symbol;
+      return `${symbol}${(value / 1000000).toFixed(1)}M`;
     }
     if (Math.abs(value) >= 1000) {
-      return `$${(value / 1000).toFixed(1)}K`;
+      const symbol = new CurrencyAmount(0, currency as CurrencyCode).currencyInfo.symbol;
+      return `${symbol}${(value / 1000).toFixed(1)}K`;
     }
-    return formatCurrency(value);
+    return formatCurrency(value, currency);
   };
 
   return (

@@ -7,6 +7,7 @@ import { TimeRange } from "@/components/TimeRangeSelector";
 import { RawTransaction } from "@/types/episodes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from "@/lib/currency-amount";
 
 interface TransactionsPageProps {
   selectedRange: TimeRange;
@@ -65,12 +66,13 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     };
   }, [filteredTransactions, transactionsByAccount]);
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+  // Format currency using CurrencyAmount
+  const formatCurrency = (amount: number, currency: string = 'USD') => {
+    if (!isValidCurrencyCode(currency)) {
+      console.warn(`Invalid currency code: ${currency}, falling back to USD`);
+      currency = 'USD';
+    }
+    return new CurrencyAmount(amount, currency as CurrencyCode).format();
   };
 
   // Format date/time
@@ -158,7 +160,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
         <div className="text-right">
           <div className="text-sm text-[#b3b3b3]">Total Value</div>
           <div className={`text-lg font-semibold ${summaryStats.totalValue >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {formatCurrency(summaryStats.totalValue)}
+            {formatCurrency(summaryStats.totalValue, 'USD')}
           </div>
         </div>
       </div>
@@ -218,7 +220,7 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
                         {transaction.qty || '-'}
                       </td>
                       <td className="py-3 px-4 text-sm text-[#b3b3b3] text-right">
-                        {transaction.price ? formatCurrency(transaction.price) : '-'}
+                        {transaction.price ? formatCurrency(transaction.price, transaction.currency) : '-'}
                       </td>
                       <td className="py-3 px-4 text-sm text-right">
                         <span className={`font-medium ${
