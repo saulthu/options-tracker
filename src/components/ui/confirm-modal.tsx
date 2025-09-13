@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeButton } from '@/components/ui/theme-button';
 import { AlertTriangle, X } from 'lucide-react';
@@ -38,6 +38,20 @@ export default function ConfirmModal({
   const handleConfirm = useCallback(() => {
     onConfirm();
   }, [onConfirm]);
+
+  // Handle Escape key to close modal (only if not loading)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isLoading) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose, isLoading]);
 
   if (!isOpen) return null;
 

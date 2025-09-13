@@ -298,18 +298,22 @@ export default function DataPage({}: DataPageProps) {
       )}
 
       {/* IBKR Importer Modal */}
-      {currentView === 'importer' && showIBKRImporter && selectedAccountId && (
-        <IBKRImporter
-          onImport={handleIBKRImport}
-          onCancel={() => {
-            setShowIBKRImporter(false);
-            setCurrentView('import-type');
-          }}
-          accountId={selectedAccountId}
-          userId={user.id}
-          ensureTickersExist={ensureTickersExist}
-        />
-      )}
+      {currentView === 'importer' && showIBKRImporter && selectedAccountId && (() => {
+        const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+        return selectedAccount ? (
+          <IBKRImporter
+            onImport={handleIBKRImport}
+            onCancel={() => {
+              setShowIBKRImporter(false);
+              setCurrentView('import-type');
+            }}
+            accountId={selectedAccountId}
+            accountName={selectedAccount.name}
+            userId={user.id}
+            ensureTickersExist={ensureTickersExist}
+          />
+        ) : null;
+      })()}
 
       {/* Alert Modal */}
       <AlertModal

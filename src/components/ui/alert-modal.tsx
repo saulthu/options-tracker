@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeButton } from '@/components/ui/theme-button';
 import { AlertCircle, CheckCircle, X } from 'lucide-react';
@@ -26,6 +26,20 @@ export default function AlertModal({
       onClose();
     }
   }, [onClose]);
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
