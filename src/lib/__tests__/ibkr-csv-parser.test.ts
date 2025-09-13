@@ -1044,6 +1044,35 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(thirdUsdTxn.side).toBe('BUY');
     expect(thirdUsdTxn.qty).toBeCloseTo(16235.5, 2);
   });
+
+  it('should handle IBKR CSV with quoted values and comma separators', () => {
+    const csvWithQuotedValues = `Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,,Proceeds,Comm in USD,,,MTM in USD,Code
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-22, 13:14:01",-100,0.64201,,64.201,0,,,-0.699,
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-26, 14:26:17","-200,000",0.64774,,129548,-2.59096,,,-342,
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-27, 11:12:29","-25,000",0.64942,,16235.5,-2,,,-29,`;
+
+    const parser = new IBKRCSVParser(csvWithQuotedValues);
+    const result = parser.parse();
+
+    expect(result.trades).toHaveLength(3);
+    
+    // Check first trade (no quotes)
+    const trade1 = result.trades[0];
+    expect(trade1.quantity).toBe(-100);
+    expect(trade1.proceeds.amount).toBeCloseTo(64.201, 2);
+    
+    // Check second trade (quoted with commas)
+    const trade2 = result.trades[1];
+    expect(trade2.quantity).toBe(-200000); // Should parse "-200,000" as -200000
+    expect(trade2.proceeds.amount).toBe(129548);
+    expect(trade2.commFee.amount).toBeCloseTo(-2.59096, 2);
+    
+    // Check third trade (quoted with commas)
+    const trade3 = result.trades[2];
+    expect(trade3.quantity).toBe(-25000); // Should parse "-25,000" as -25000
+    expect(trade3.proceeds.amount).toBeCloseTo(16235.5, 2);
+    expect(trade3.commFee.amount).toBe(-2);
+  });
 });
 
 describe('convertIBKRCashToTransactions', () => {

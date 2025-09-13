@@ -104,6 +104,22 @@ export class IBKRCSVParser {
   private content: string;
 
   /**
+   * Clean and parse a numeric value from IBKR CSV
+   * Handles quoted values and comma thousands separators
+   */
+  private cleanNumericValue(value: string): number {
+    if (!value || value.trim() === '') {
+      return 0;
+    }
+    
+    // Remove quotes and commas, then parse
+    const cleaned = value.replace(/["']/g, '').replace(/,/g, '');
+    const parsed = parseFloat(cleaned);
+    
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  /**
    * Create a CurrencyAmount from a string value and currency code
    * Validates currency code and handles parsing errors
    */
@@ -112,7 +128,7 @@ export class IBKRCSVParser {
       throw new Error(`Invalid currency code in IBKR data: ${currency}`);
     }
     
-    const numericValue = parseFloat(value) || 0;
+    const numericValue = this.cleanNumericValue(value);
     return new CurrencyAmount(numericValue, currency as CurrencyCode);
   }
   private lines: string[];
@@ -206,7 +222,7 @@ export class IBKRCSVParser {
     const currency = getValue('Currency');
     const symbol = getValue('Symbol');
     const dateTime = getValue('Date/Time');
-    const quantity = parseFloat(getValue('Quantity')) || 0;
+    const quantity = this.cleanNumericValue(getValue('Quantity'));
     const code = getValue('Code');
 
     // Skip subtotals and totals
@@ -223,7 +239,9 @@ export class IBKRCSVParser {
     const tPrice = this.createCurrencyAmount(getValue('T. Price'), currency);
     const cPrice = this.createCurrencyAmount(getValue('C. Price'), currency);
     const proceeds = this.createCurrencyAmount(getValue('Proceeds'), currency);
-    const commFee = this.createCurrencyAmount(getValue('Comm/Fee'), currency);
+    // Try both possible field names for commission fee
+    const commFeeValue = getValue('Comm in USD') || getValue('Comm/Fee');
+    const commFee = this.createCurrencyAmount(commFeeValue, currency);
     const basis = this.createCurrencyAmount(getValue('Basis'), currency);
     const realizedPL = this.createCurrencyAmount(getValue('Realized P/L'), currency);
     const mtmPL = this.createCurrencyAmount(getValue('MTM P/L'), currency);
