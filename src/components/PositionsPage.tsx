@@ -771,11 +771,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
               <table className="w-full text-sm relative" style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace' }}>
                 <thead>
                   <tr className="border-b border-[#2d2d2d]">
-                    {renderSortableHeader('openTimestamp', 'Open Date')}
                     {renderSortableHeader('episodeKey', 'Ticker')}
                     {renderSortableHeader('kindGroup', 'Type')}
                     {renderSortableHeader('qty', 'Quantity', 'right')}
                     {renderSortableHeader('avgPrice', 'Avg Price', 'right')}
+                    {renderSortableHeader('openTimestamp', 'Open Date')}
                     {renderSortableHeader('realizedPnLTotal', 'Realized P&L', 'right')}
                     {renderSortableHeader('cashTotal', 'Cash Flow', 'right')}
                     <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Status</th>
@@ -791,13 +791,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       onClick={() => handlePositionClick(position)}
                       style={{ position: 'relative', zIndex: 1 }}
                     >
-                      <td className="py-2 px-2 text-white text-xs">
-                        {new Date(position.openTimestamp).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </td>
                       <td className="py-2 px-2">
                         <div className="text-white text-sm">
                           {getPositionDisplay(position).ticker}
@@ -863,6 +856,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       </td>
                       <td className="py-2 px-2 text-right text-white">
                         {position.kindGroup === 'CASH' ? '' : position.avgPrice.format()}
+                      </td>
+                      <td className="py-2 px-2 text-white text-xs">
+                        {new Date(position.openTimestamp).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
                       </td>
                       <td className="py-2 px-2 text-right">
                         {position.kindGroup === 'CASH' ? (
