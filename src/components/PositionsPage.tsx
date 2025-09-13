@@ -785,7 +785,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   {sortedPositions.map((position) => (
                     <tr
                       key={position.episodeId}
-                      className="border-b border-[#2a2a2a] hover:bg-[#0f0f0f] cursor-pointer font-mono transition-colors duration-150 bg-[#1a1a1a]"
+                      className={`border-b border-[#2a2a2a] hover:bg-[#2a2a2a] cursor-pointer font-mono transition-colors duration-150 ${
+                        position.qty !== 0 ? 'bg-[#1a1a1a]' : 'bg-[#121212]'
+                      }`}
                       onClick={() => handlePositionClick(position)}
                       style={{ position: 'relative', zIndex: 1 }}
                     >
