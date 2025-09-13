@@ -1,0 +1,91 @@
+Statement,Header,Field Name,Field Value
+Statement,Data,BrokerName,"Interactive Brokers LLC"
+Statement,Data,Title,Activity Statement
+Statement,Data,Period,"January 1, 2024 - December 31, 2024"
+Statement,Data,WhenGenerated,"2024-12-31, 15:30:00 EST"
+Account Information,Header,Field Name,Field Value
+Account Information,Data,Name,Test Trading LLC
+Account Information,Data,Account,U12345678
+Account Information,Data,Base Currency,USD
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code
+Trades,Data,Order,Stocks,USD,AAPL,"2024-03-15, 10:30:00",100,150.00,150.00,-15000,-5,15005,0,0,"O"
+Trades,Data,Order,Stocks,USD,AAPL,"2024-03-20, 14:15:00",-100,155.00,155.00,15500,-5,-15005,495,0,"C"
+Trades,Data,Order,Equity and Index Options,USD,AAPL 15MAR24 150 C,"2024-03-15, 10:35:00",1,5.00,5.00,-500,-2,502,0,0,"O"
+Trades,Data,Order,Equity and Index Options,USD,AAPL 15MAR24 150 C,"2024-03-20, 14:20:00",-1,6.00,6.00,600,-2,-502,98,0,"C"
+Trades,Data,Order,Equity and Index Options,USD,MSFT 15MAR24 300 P,"2024-03-16, 09:15:00",2,3.50,3.50,-700,-4,704,0,0,"O"
+Trades,Data,Order,Equity and Index Options,USD,MSFT 15MAR24 300 P,"2024-03-19, 15:45:00",-2,1.00,1.00,200,-4,-704,-500,0,"C"
+Trades,Data,Assignment,Stocks,USD,AAPL,"2024-03-22, 09:30:00",100,155.00,155.00,-15500,-1,15501,0,0,"A"
+Trades,Data,Exercise,Equity and Index Options,USD,MSFT 15MAR24 300 P,"2024-03-22, 09:30:00",-2,300.00,300.00,60000,-2,-60002,0,0,"Ex"
+Trades,Data,Order,Stocks,USD,TSLA,"2024-03-25, 11:00:00",50,200.00,200.00,-10000,-3,10003,0,0,"O"
+Trades,Data,Order,Stocks,USD,TSLA,"2024-03-25, 11:00:00",25,200.00,200.00,-5000,-2,5002,0,0,"P"
+Trades,Data,Order,Stocks,USD,TSLA,"2024-03-25, 11:05:00",25,201.00,201.00,-5025,-2,5027,0,0,"P"
+Trades,Data,Order,Stocks,USD,GOOGL,"2024-03-28, 14:30:00",30,180.00,180.00,-5400,-2,5402,0,0,"O"
+Trades,Data,Order,Stocks,USD,GOOGL,"2024-04-02, 10:15:00",-30,185.00,185.00,5550,-2,-5402,148,0,"C"
+Trades,Data,Order,Equity and Index Options,USD,SPY 05APR24 500 C,"2024-04-01, 13:20:00",1,2.50,2.50,-250,-1,251,0,0,"O"
+Trades,Data,Order,Equity and Index Options,USD,SPY 05APR24 500 C,"2024-04-05, 15:00:00",-1,0.00,0.00,0,-1,-251,-251,0,"Ep"
+Trades,Data,Order,Forex,USD,EUR.USD,"2024-04-10, 08:45:00",10000,1.0850,1.0850,-10850,-2,10852,0,0,"O"
+Trades,Data,Order,Forex,USD,EUR.USD,"2024-04-12, 16:30:00",-10000,1.0920,1.0920,10920,-2,-10852,68,0,"C"
+Trades,Data,Order,Stocks,USD,NVDA,"2024-04-15, 10:00:00",20,800.00,800.00,-16000,-3,16003,0,0,"O"
+Trades,Data,Order,Stocks,USD,NVDA,"2024-04-20, 14:30:00",-20,820.00,820.00,16400,-3,-16003,397,0,"C"
+Trades,Data,Order,Equity and Index Options,USD,QQQ 19APR24 380 P,"2024-04-18, 11:15:00",1,4.00,4.00,-400,-2,402,0,0,"O"
+Trades,Data,Order,Equity and Index Options,USD,QQQ 19APR24 380 P,"2024-04-19, 15:00:00",-1,0.00,0.00,0,-2,-402,-402,0,"Ep"
+Deposits & Withdrawals,Header,Currency,Settle Date,Description,Amount
+Deposits & Withdrawals,Data,USD,2024-01-15,Electronic Fund Transfer,50000
+Deposits & Withdrawals,Data,USD,2024-03-01,Wire Transfer,25000
+Deposits & Withdrawals,Data,USD,2024-06-15,ACH Deposit,15000
+Deposits & Withdrawals,Data,USD,2024-09-01,Check Deposit,10000
+Deposits & Withdrawals,Data,USD,2024-12-15,Wire Transfer Out,-20000
+Deposits & Withdrawals,Data,USD,2024-12-30,ACH Withdrawal,-5000
+Fees,Header,Subtitle,Currency,Date,Description,Amount
+Fees,Data,Other Fees,USD,2024-03-31,Monthly Account Fee,-25
+Fees,Data,Other Fees,USD,2024-06-30,Monthly Account Fee,-25
+Fees,Data,Other Fees,USD,2024-09-30,Monthly Account Fee,-25
+Fees,Data,Other Fees,USD,2024-12-31,Monthly Account Fee,-25
+Fees,Data,Regulatory Fees,USD,2024-03-31,SEC Fee,-0.22
+Fees,Data,Regulatory Fees,USD,2024-06-30,SEC Fee,-0.22
+Fees,Data,Regulatory Fees,USD,2024-09-30,SEC Fee,-0.22
+Fees,Data,Regulatory Fees,USD,2024-12-31,SEC Fee,-0.22
+Interest,Header,Currency,Date,Description,Amount
+Interest,Data,USD,2024-03-31,USD Credit Interest for Mar-2024,50
+Interest,Data,USD,2024-06-30,USD Credit Interest for Jun-2024,75
+Interest,Data,USD,2024-09-30,USD Credit Interest for Sep-2024,60
+Interest,Data,USD,2024-12-31,USD Credit Interest for Dec-2024,85
+Dividends,Header,Currency,Date,Description,Amount,Symbol
+Dividends,Data,USD,2024-03-15,AAPL Dividend,150,AAPL
+Dividends,Data,USD,2024-06-15,MSFT Dividend,200,MSFT
+Dividends,Data,USD,2024-09-15,GOOGL Dividend,90,GOOGL
+Dividends,Data,USD,2024-12-15,NVDA Dividend,120,NVDA
+Withholding Tax,Header,Currency,Date,Description,Amount,Symbol
+Withholding Tax,Data,USD,2024-03-15,AAPL Dividend Tax,-22.50,AAPL
+Withholding Tax,Data,USD,2024-06-15,MSFT Dividend Tax,-30.00,MSFT
+Withholding Tax,Data,USD,2024-09-15,GOOGL Dividend Tax,-13.50,GOOGL
+Withholding Tax,Data,USD,2024-12-15,NVDA Dividend Tax,-18.00,NVDA
+Corporate Actions,Header,Currency,Date,Description,Amount,Symbol
+Corporate Actions,Data,USD,2024-05-15,AAPL Stock Split 4:1,0,AAPL
+Corporate Actions,Data,USD,2024-08-15,MSFT Stock Split 2:1,0,MSFT
+Corporate Actions,Data,USD,2024-11-15,GOOGL Special Dividend,500,GOOGL
+Financial Instrument Information,Header,Symbol,Description,Asset Category,Currency,Multiplier
+Financial Instrument Information,Data,AAPL,Apple Inc,Stocks,USD,1
+Financial Instrument Information,Data,MSFT,Microsoft Corporation,Stocks,USD,1
+Financial Instrument Information,Data,GOOGL,Alphabet Inc Class A,Stocks,USD,1
+Financial Instrument Information,Data,TSLA,Tesla Inc,Stocks,USD,1
+Financial Instrument Information,Data,NVDA,NVIDIA Corporation,Stocks,USD,1
+Financial Instrument Information,Data,SPY,SPDR S&P 500 ETF Trust,Stocks,USD,1
+Financial Instrument Information,Data,QQQ,Invesco QQQ Trust,Stocks,USD,1
+Financial Instrument Information,Data,EUR.USD,Euro/US Dollar,Forex,USD,1
+Codes,Header,Code,Description
+Codes,Data,O,Opening Trade
+Codes,Data,C,Closing Trade
+Codes,Data,A,Assignment
+Codes,Data,P,Partial Execution
+Codes,Data,IA,Internal Transfer
+Codes,Data,Ep,Expired Position
+Codes,Data,AFx,AutoFX conversion
+Codes,Data,R,Reversal
+Codes,Data,Ex,Exercise
+Codes,Data,T,Transfer
+Codes,Data,D,Dividend
+Codes,Data,I,Interest
+Codes,Data,F,Fee
+Codes,Data,W,Withdrawal
+Codes,Data,Dep,Deposit

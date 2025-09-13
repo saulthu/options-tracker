@@ -1,0 +1,106 @@
+Statement,Header,Field Name,Field Value
+Statement,Data,BrokerName,"Interactive Brokers LLC"
+Statement,Data,BrokerAddress,"One Pickwick Plaza, Greenwich, CT 06830"
+Statement,Data,Title,Activity Statement
+Statement,Data,Period,"January 1, 2024 - December 31, 2024"
+Statement,Data,WhenGenerated,"2024-12-31, 15:30:00 EST"
+Account Information,Header,Field Name,Field Value
+Account Information,Data,Name,Test Trading LLC
+Account Information,Data,Account Alias,testaccount
+Account Information,Data,Account,U12345678
+Account Information,Data,Address of Account Holder(s),"123 Main St,Anytown, US-CA 90210,United States"
+Account Information,Data,Account Type,Individual
+Account Information,Data,Customer Type,Individual
+Account Information,Data,Account Capabilities,Cash
+Account Information,Data,Base Currency,USD
+Net Asset Value,Header,Asset Class,Prior Total,Current Long,Current Short,Current Total,Change
+Net Asset Value,Data,Cash ,0,50000,0,50000,50000
+Net Asset Value,Data,Options,0,5000,-2000,3000,3000
+Net Asset Value,Data,Interest Accruals,0,50,0,50,50
+Net Asset Value,Data,Total,0,55050,-2000,53050,53050
+Change in NAV,Header,Field Name,Field Value
+Change in NAV,Data,Starting Value,0
+Change in NAV,Data,Mark-to-Market,5000
+Change in NAV,Data,Deposits & Withdrawals,50000
+Change in NAV,Data,Interest,50
+Change in NAV,Data,Change in Interest Accruals,50
+Change in NAV,Data,Other Fees,-25
+Change in NAV,Data,Commissions,-100
+Change in NAV,Data,Other FX Translations,0
+Change in NAV,Data,Ending Value,53050
+Mark-to-Market Performance Summary,Header,Asset Category,Symbol,Prior Quantity,Current Quantity,Prior Price,Current Price,Mark-to-Market P/L Position,Mark-to-Market P/L Transaction,Mark-to-Market P/L Commissions,Mark-to-Market P/L Other,Mark-to-Market P/L Total,Code
+Mark-to-Market Performance Summary,Data,Stocks,AAPL,0,0,--,--,500,0,-5,0,495,
+Mark-to-Market Performance Summary,Data,Stocks,MSFT,0,0,--,--,-200,300,-3,0,97,
+Mark-to-Market Performance Summary,Data,Total,,,,,,300,300,-8,0,592,
+Mark-to-Market Performance Summary,Data,Equity and Index Options,AAPL 15MAR24 150 C,0,0,--,--,0,0,-2,0,-2,
+Mark-to-Market Performance Summary,Data,Equity and Index Options,MSFT 15MAR24 300 P,0,0,--,--,0,0,-1,0,-1,
+Mark-to-Market Performance Summary,Data,Total,,,,,,0,0,-3,0,-3,
+Mark-to-Market Performance Summary,Data,Total (All Assets),,,,,,300,300,-11,0,589,
+Mark-to-Market Performance Summary,Data,Broker Interest Paid and Received,,,,,,,,,,50,
+Mark-to-Market Performance Summary,Data,Other Fees,,,,,,,,,,-25,
+Total P/L for Statement Period,,,,,,,,,,,,614,
+Realized & Unrealized Performance Summary,Header,Asset Category,Symbol,Cost Adj.,Realized S/T Profit,Realized S/T Loss,Realized L/T Profit,Realized L/T Loss,Realized Total,Unrealized S/T Profit,Unrealized S/T Loss,Unrealized L/T Profit,Unrealized L/T Loss,Unrealized Total,Total,Code
+Realized & Unrealized Performance Summary,Data,Stocks,AAPL,0,0,0,0,0,0,0,0,0,0,0,0,
+Realized & Unrealized Performance Summary,Data,Stocks,MSFT,0,0,0,0,0,0,0,0,0,0,0,0,
+Realized & Unrealized Performance Summary,Data,Total,,0,0,0,0,0,0,0,0,0,0,0,0,
+Realized & Unrealized Performance Summary,Data,Equity and Index Options,AAPL 15MAR24 150 C,0,0,0,0,0,0,0,0,0,0,0,0,
+Realized & Unrealized Performance Summary,Data,Equity and Index Options,MSFT 15MAR24 300 P,0,0,0,0,0,0,0,0,0,0,0,0,
+Realized & Unrealized Performance Summary,Data,Total,,0,0,0,0,0,0,0,0,0,0,0,0,
+Realized & Unrealized Performance Summary,Data,Total (All Assets),,0,0,0,0,0,0,0,0,0,0,0,0,
+Cash Report,Header,Currency Summary,Currency,Total,
+Cash Report,Data,Starting Cash,Base Currency Summary,0,
+Cash Report,Data,Commissions,Base Currency Summary,-100,
+Cash Report,Data,Deposits,Base Currency Summary,50000,
+Cash Report,Data,Broker Interest Paid and Received,Base Currency Summary,50,
+Cash Report,Data,Trades (Sales),Base Currency Summary,10000,
+Cash Report,Data,Trades (Purchase),Base Currency Summary,-8000,
+Cash Report,Data,Other Fees,Base Currency Summary,-25,
+Cash Report,Data,Ending Cash,Base Currency Summary,51925,
+Cash Report,Data,Ending Settled Cash,Base Currency Summary,51925,
+Open Positions,Header,DataDiscriminator,Asset Category,Currency,Symbol,Quantity,Mult,Cost Price,Cost Basis,Close Price,Value,Unrealized P/L,Code
+Open Positions,Data,Summary,Equity and Index Options,USD,AAPL 15MAR24 150 C,0,100,0,0,0,0,0,
+Open Positions,Total,,Equity and Index Options,USD,,,,,0,,0,0,
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code
+Trades,Data,Order,Stocks,USD,AAPL,"2024-03-15, 10:30:00",100,150.00,150.00,-15000,-5,15005,0,0,O
+Trades,Data,Order,Stocks,USD,AAPL,"2024-03-20, 14:15:00",-100,155.00,155.00,15500,-5,-15005,495,0,C
+Trades,SubTotal,,Stocks,USD,AAPL,,0,,,500,-10,0,495,0,
+Trades,Data,Order,Stocks,USD,MSFT,"2024-03-18, 11:45:00",50,300.00,300.00,-15000,-3,15003,0,0,O
+Trades,Data,Order,Stocks,USD,MSFT,"2024-03-25, 16:20:00",-50,310.00,310.00,15500,-3,-15003,497,0,C
+Trades,SubTotal,,Stocks,USD,MSFT,,0,,,500,-6,0,497,0,
+Trades,Total,,Stocks,USD,,,,,1000,-16,0,992,0, 
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code
+Trades,Data,Order,Equity and Index Options,USD,AAPL 15MAR24 150 C,"2024-03-15, 10:35:00",1,5.00,5.00,-500,-2,502,0,0,O
+Trades,Data,Order,Equity and Index Options,USD,AAPL 15MAR24 150 C,"2024-03-20, 14:20:00",-1,6.00,6.00,600,-2,-502,98,0,C
+Trades,SubTotal,,Equity and Index Options,USD,AAPL 15MAR24 150 C,,0,,,100,-4,0,98,0,
+Trades,Data,Order,Equity and Index Options,USD,MSFT 15MAR24 300 P,"2024-03-18, 11:50:00",-2,3.00,3.00,600,-1,-599,0,0,O
+Trades,Data,Order,Equity and Index Options,USD,MSFT 15MAR24 300 P,"2024-03-25, 16:25:00",2,2.50,2.50,-500,-1,599,99,0,C
+Trades,SubTotal,,Equity and Index Options,USD,MSFT 15MAR24 300 P,,0,,,100,-2,0,99,0,
+Trades,Total,,Equity and Index Options,USD,,,,,200,-6,0,197,0, 
+Deposits & Withdrawals,Header,Currency,Settle Date,Description,Amount
+Deposits & Withdrawals,Data,USD,2024-01-15,Electronic Fund Transfer,50000
+Deposits & Withdrawals,Data,Total,,,50000
+Fees,Header,Subtitle,Currency,Date,Description,Amount
+Fees,Data,Other Fees,USD,2024-03-31,Monthly Account Fee,-25
+Fees,Data,Total,,,,-25
+Interest,Header,Currency,Date,Description,Amount
+Interest,Data,USD,2024-03-31,USD Credit Interest for Mar-2024,50
+Interest,Data,Total,,,50
+Interest Accruals,Header,Currency,Field Name,Field Value
+Interest Accruals,Data,Base Currency Summary,Starting Accrual Balance,0
+Interest Accruals,Data,Base Currency Summary,Interest Accrued,50
+Interest Accruals,Data,Base Currency Summary,Accrual Reversal,-50
+Interest Accruals,Data,Base Currency Summary,Ending Accrual Balance,0
+Financial Instrument Information,Header,Asset Category,Symbol,Description,Conid,Security ID,Underlying,Listing Exch,Multiplier,Type,Code
+Financial Instrument Information,Data,Stocks,AAPL,APPLE INC,265598,US0378331005,AAPL,NASDAQ,1,COMMON,
+Financial Instrument Information,Data,Stocks,MSFT,MICROSOFT CORP,272093,US5949181045,MSFT,NASDAQ,1,COMMON,
+Financial Instrument Information,Header,Asset Category,Symbol,Description,Conid,Underlying,Listing Exch,Multiplier,Expiry,Delivery Month,Type,Strike,Code
+Financial Instrument Information,Data,Equity and Index Options,AAPL 15MAR24 150 C,AAPL 15MAR24 150 C,123456789,AAPL,CBOE,100,2024-03-15,2024-03,C,150,
+Financial Instrument Information,Data,Equity and Index Options,MSFT 15MAR24 300 P,MSFT 15MAR24 300 P,987654321,MSFT,CBOE,100,2024-03-15,2024-03,P,300,
+Codes,Header,Code,Meaning,Code (Cont.),Meaning (Cont.)
+Codes,Data,O,Opening Trade
+Codes,Data,C,Closing Trade
+Codes,Data,P,Partial Execution
+Notes/Legal Notes,Header,Type,Note
+Notes/Legal Notes,Data,Notes,"This statement has been prepared by Interactive Brokers LLC to confirm the Transactions covered herein."
+Notes/Legal Notes,Data,Notes,"Times are displayed in Eastern Standard Time (EST); there will therefore be a difference between the times reported in this statement/report and the times that a trade is reported by the exchange to have occurred in markets which operate in a different time zone."
+

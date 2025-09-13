@@ -1,17 +1,47 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePortfolio } from '@/contexts/PortfolioContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Download } from 'lucide-react';
+import IBKRImporter from '@/components/IBKRImporter';
+import AlertModal from '@/components/ui/alert-modal';
+import { Transaction } from '@/types/database';
 
 interface DataPageProps {
   selectedRange: unknown; // TimeRange type, but keeping it simple for now
 }
 
-export default function DataPage({ selectedRange: _ }: DataPageProps) {
+export default function DataPage({ selectedRange: _selectedRange }: DataPageProps) {
   const { user } = useAuth();
+  const { accounts, addTransaction } = usePortfolio();
+  const [showIBKRImporter, setShowIBKRImporter] = useState(false);
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal(prev => ({ ...prev, isOpen: false }));
+  };
 
   if (!user) {
     return (
@@ -24,6 +54,49 @@ export default function DataPage({ selectedRange: _ }: DataPageProps) {
       </Card>
     );
   }
+
+  const handleIBKRImport = async (transactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]) => {
+    try {
+      // Add each transaction to the database
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const transaction of transactions) {
+        try {
+          await addTransaction(transaction);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          errors.push(`Failed to import transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      setShowIBKRImporter(false);
+      
+      // Show import results
+      if (errorCount === 0) {
+        showAlert('Import Successful', `Successfully imported ${successCount} transactions!`, 'success');
+      } else {
+        showAlert(
+          'Import Completed with Errors', 
+          `Imported ${successCount} transactions successfully, but ${errorCount} failed.\n\nErrors:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... and ${errors.length - 5} more errors` : ''}`, 
+          'warning'
+        );
+      }
+    } catch (error) {
+      console.error('Error importing IBKR transactions:', error);
+      showAlert('Import Failed', `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    }
+  };
+
+  const handleShowIBKRImporter = () => {
+    if (accounts.length === 0) {
+      showAlert('Account Required', 'Please create an account first before importing data. Go to Settings to add an account.', 'warning');
+      return;
+    }
+    setShowIBKRImporter(true);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -48,10 +121,7 @@ export default function DataPage({ selectedRange: _ }: DataPageProps) {
               {/* Interactive Brokers Import */}
               <div 
                 className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-blue-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
-                onClick={() => {
-                  // TODO: Implement Interactive Brokers import
-                  console.log('Interactive Brokers import clicked');
-                }}
+                onClick={handleShowIBKRImporter}
               >
                 <Image 
                   src="/ibkr.svg" 
@@ -108,6 +178,25 @@ export default function DataPage({ selectedRange: _ }: DataPageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* IBKR Importer Modal */}
+      {showIBKRImporter && (
+        <IBKRImporter
+          onImport={handleIBKRImport}
+          onCancel={() => setShowIBKRImporter(false)}
+          accountId={accounts[0]?.id || ''}
+          userId={user.id}
+        />
+      )}
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
     </div>
   );
 }

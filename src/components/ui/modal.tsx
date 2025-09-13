@@ -72,14 +72,13 @@ export default function Modal({
             )}
           </div>
           {showCloseButton && (
-            <ThemeButton
-              icon={X}
-              size="sm"
+            <button
               onClick={onClose}
-              className="text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] -mr-2"
+              className="text-[#b3b3b3] hover:text-white hover:bg-[#2d2d2d] p-2 rounded-md transition-colors"
+              aria-label="Close modal"
             >
-              Close
-            </ThemeButton>
+              <X className="w-5 h-5" />
+            </button>
           )}
         </div>
         
