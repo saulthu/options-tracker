@@ -1030,7 +1030,7 @@ function convertForexTradeToCashTransactions(
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: undefined, // Cash transactions don't use side field
+      side: 'SELL', // Explicitly set to SELL for outflow
       qty: -quoteAmount, // Negative for outflow
       price: new CurrencyAmount(1, quoteCurrencyCode),
       fees: new CurrencyAmount(Math.abs(trade.commFee.amount), quoteCurrencyCode),
@@ -1044,7 +1044,7 @@ function convertForexTradeToCashTransactions(
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: undefined, // Cash transactions don't use side field
+      side: 'BUY', // Explicitly set to BUY for inflow
       qty: baseAmount, // Positive for inflow
       price: new CurrencyAmount(1, baseCurrencyCode),
       fees: new CurrencyAmount(0, baseCurrencyCode), // Fees already accounted for in quote currency
@@ -1059,7 +1059,7 @@ function convertForexTradeToCashTransactions(
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: undefined, // Cash transactions don't use side field
+      side: 'SELL', // Explicitly set to SELL for outflow
       qty: -baseAmount, // Negative for outflow
       price: new CurrencyAmount(1, baseCurrencyCode),
       fees: new CurrencyAmount(Math.abs(trade.commFee.amount), baseCurrencyCode),
@@ -1073,7 +1073,7 @@ function convertForexTradeToCashTransactions(
       account_id: accountId,
       timestamp: utcDateTime,
       instrument_kind: 'CASH',
-      side: undefined, // Cash transactions don't use side field
+      side: 'BUY', // Explicitly set to BUY for inflow
       qty: quoteAmount, // Positive for inflow
       price: new CurrencyAmount(1, quoteCurrencyCode),
       fees: new CurrencyAmount(0, quoteCurrencyCode), // Fees already accounted for in base currency

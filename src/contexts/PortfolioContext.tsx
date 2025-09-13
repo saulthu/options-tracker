@@ -377,23 +377,11 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   const getAccountValue = useCallback((accountId: string): Map<CurrencyCode, CurrencyAmount> => {
     if (!portfolio) return new Map();
     
-    const balances = getBalance(accountId);
-    const pnl = getTotalPnL(accountId);
-    
-    // Combine balances and P&L for each currency
-    const accountValues = new Map<CurrencyCode, CurrencyAmount>();
-    
-    // Get all currencies from both balance and P&L
-    const allCurrencies = new Set([...balances.keys(), ...pnl.keys()]);
-    
-    for (const currency of allCurrencies) {
-      const balance = balances.get(currency) || CurrencyAmount.zero(currency);
-      const pnlAmount = pnl.get(currency) || CurrencyAmount.zero(currency);
-      accountValues.set(currency, balance.add(pnlAmount));
-    }
-    
-    return accountValues;
-  }, [portfolio, getBalance, getTotalPnL]);
+    // For account value, we just return the balances
+    // The balances already include all cash flows (including forex transactions)
+    // P&L is only relevant for closed positions, not for current account value
+    return getBalance(accountId);
+  }, [portfolio, getBalance]);
 
   const getFilteredEpisodes = useCallback((timeRange: TimeRange, accountId?: string, filterType: 'overlap' | 'openedDuring' | 'closedDuring' = 'overlap'): PositionEpisode[] => {
     if (!portfolio) return [];

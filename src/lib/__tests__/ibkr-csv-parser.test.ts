@@ -408,14 +408,14 @@ Trades,Data,Order,Forex,USD,CHF.USD,"2025-08-22, 13:16:01",-500,1.10,,550,0,,,-1
       expect(audTransaction).toBeDefined();
       expect(usdTransaction).toBeDefined();
       
-      // AUD transaction (selling AUD) - negative quantity, no side
-      expect(audTransaction!.side).toBeUndefined();
+      // AUD transaction (selling AUD) - negative quantity, SELL side
+      expect(audTransaction!.side).toBe('SELL');
       expect(audTransaction!.qty).toBe(-100); // Negative for outflow
       expect(audTransaction!.instrument_kind).toBe('CASH');
       expect(audTransaction!.memo).toContain('Forex: Sell 100 AUD to buy 64.2 USD');
       
-      // USD transaction (buying USD with AUD) - positive quantity, no side
-      expect(usdTransaction!.side).toBeUndefined();
+      // USD transaction (buying USD with AUD) - positive quantity, BUY side
+      expect(usdTransaction!.side).toBe('BUY');
       expect(usdTransaction!.qty).toBeCloseTo(64.201, 2); // Positive for inflow
       expect(usdTransaction!.instrument_kind).toBe('CASH');
       expect(usdTransaction!.memo).toContain('Forex: Buy 64.2 USD with 100 AUD');
@@ -451,14 +451,14 @@ Trades,Data,Order,Forex,USD,CHF.USD,"2025-08-22, 13:16:01",-500,1.10,,550,0,,,-1
       expect(usdTransaction).toBeDefined();
       expect(eurTransaction).toBeDefined();
       
-      // USD transaction (selling USD to buy EUR) - negative quantity, no side
-      expect(usdTransaction!.side).toBeUndefined();
+      // USD transaction (selling USD to buy EUR) - negative quantity, SELL side
+      expect(usdTransaction!.side).toBe('SELL');
       expect(usdTransaction!.qty).toBe(-1085); // Negative for outflow
       expect(usdTransaction!.fees.amount).toBe(2);
       expect(usdTransaction!.memo).toContain('Forex: Sell 1085 USD to buy 1000 EUR');
       
-      // EUR transaction (buying EUR with USD) - positive quantity, no side
-      expect(eurTransaction!.side).toBeUndefined();
+      // EUR transaction (buying EUR with USD) - positive quantity, BUY side
+      expect(eurTransaction!.side).toBe('BUY');
       expect(eurTransaction!.qty).toBe(1000); // Positive for inflow
       expect(eurTransaction!.fees.amount).toBe(0); // Fees already accounted for in USD
       expect(eurTransaction!.memo).toContain('Forex: Buy 1000 EUR with 1085 USD');
@@ -637,7 +637,7 @@ Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-27, 11:12:29",-25000,0.64942,,16235
         expect(txn.user_id).toBe('test-user-456');
         expect(txn.account_id).toBe('test-account-123');
         expect(txn.instrument_kind).toBe('CASH');
-        expect(txn.side).toBeUndefined(); // Cash transactions don't use side field
+        expect(txn.side).toMatch(/^(BUY|SELL)$/); // Forex cash transactions have explicit side
         expect(txn.qty).not.toBe(0); // Should be non-zero (positive or negative)
         expect(txn.currency).toMatch(/^(AUD|USD)$/);
         expect(txn.memo).toContain('Forex');
@@ -885,13 +885,13 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(usdTransaction).toBeDefined();
     expect(eurTransaction).toBeDefined();
     
-    // USD transaction (selling USD to buy EUR) - negative quantity, no side
-    expect(usdTransaction!.side).toBeUndefined();
+    // USD transaction (selling USD to buy EUR) - negative quantity, SELL side
+    expect(usdTransaction!.side).toBe('SELL');
     expect(usdTransaction!.qty).toBe(-1085); // Negative for outflow
     expect(usdTransaction!.fees.amount).toBe(2); // Fees in USD
     
-    // EUR transaction (buying EUR with USD) - positive quantity, no side
-    expect(eurTransaction!.side).toBeUndefined();
+    // EUR transaction (buying EUR with USD) - positive quantity, BUY side
+    expect(eurTransaction!.side).toBe('BUY');
     expect(eurTransaction!.qty).toBe(1000); // Positive for inflow
     expect(eurTransaction!.fees.amount).toBe(0); // No fees in EUR (already accounted for in USD)
   });
@@ -932,12 +932,12 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(audTransaction).toBeDefined();
     expect(usdTransaction).toBeDefined();
     
-    // AUD transaction (selling AUD) - negative quantity, no side
-    expect(audTransaction!.side).toBeUndefined();
+    // AUD transaction (selling AUD) - negative quantity, SELL side
+    expect(audTransaction!.side).toBe('SELL');
     expect(audTransaction!.qty).toBe(-100); // Negative for outflow
     
-    // USD transaction (buying USD with AUD) - positive quantity, no side
-    expect(usdTransaction!.side).toBeUndefined();
+    // USD transaction (buying USD with AUD) - positive quantity, BUY side
+    expect(usdTransaction!.side).toBe('BUY');
     expect(usdTransaction!.qty).toBeCloseTo(64.201, 2); // Positive for inflow
   });
 
@@ -1015,18 +1015,18 @@ describe('convertIBKRTradesToTransactions', () => {
     const firstAudTxn = audTransactions[0];
     const firstUsdTxn = usdTransactions[0];
     
-    expect(firstAudTxn.side).toBeUndefined();
+    expect(firstAudTxn.side).toBe('SELL');
     expect(firstAudTxn.qty).toBe(-100); // Negative for outflow
-    expect(firstUsdTxn.side).toBeUndefined();
+    expect(firstUsdTxn.side).toBe('BUY');
     expect(firstUsdTxn.qty).toBeCloseTo(64.201, 2); // Positive for inflow
     
     // Check second trade (200,000 AUD for 129,548 USD)
     const secondAudTxn = audTransactions[1];
     const secondUsdTxn = usdTransactions[1];
     
-    expect(secondAudTxn.side).toBeUndefined();
+    expect(secondAudTxn.side).toBe('SELL');
     expect(secondAudTxn.qty).toBe(-200000); // Negative for outflow
-    expect(secondUsdTxn.side).toBeUndefined();
+    expect(secondUsdTxn.side).toBe('BUY');
     expect(secondUsdTxn.qty).toBe(129548); // Positive for inflow
     expect(secondUsdTxn.fees.amount).toBe(0); // Fees should be in AUD transaction
     
@@ -1034,9 +1034,9 @@ describe('convertIBKRTradesToTransactions', () => {
     const thirdAudTxn = audTransactions[2];
     const thirdUsdTxn = usdTransactions[2];
     
-    expect(thirdAudTxn.side).toBeUndefined();
+    expect(thirdAudTxn.side).toBe('SELL');
     expect(thirdAudTxn.qty).toBe(-25000); // Negative for outflow
-    expect(thirdUsdTxn.side).toBeUndefined();
+    expect(thirdUsdTxn.side).toBe('BUY');
     expect(thirdUsdTxn.qty).toBeCloseTo(16235.5, 2); // Positive for inflow
   });
 

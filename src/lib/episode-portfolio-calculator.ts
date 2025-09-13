@@ -1,6 +1,6 @@
-// Episode-based Portfolio Calculator
+// Episode-based Portfolio Calculator V2
+// Designed from the ground up to work with CurrencyAmount throughout
 // Based on updated_portfolio_calc.md specification
-// Implements PositionEpisodes and LedgerRows for human-friendly portfolio views
 
 import {
   RawTransaction,
@@ -28,20 +28,22 @@ function parseIso(ts: string): Date {
 /**
  * Create instrument key for a transaction
  */
-function instrumentKey(kind: InstrumentKind, ticker?: string, expiry?: string, strike?: number): string {
+function instrumentKey(kind: InstrumentKind, ticker?: string, expiry?: string, strike?: CurrencyAmount): string {
   if (kind === 'CASH') return 'CASH';
   if (kind === 'SHARES') return ticker || '';
-  return `${ticker}|${expiry}|${strike}|${kind}`;
+  return `${ticker}|${expiry}|${strike?.amount || ''}|${kind}`;
 }
 
 /**
  * Create episode key for grouping transactions
  */
-function episodeKey(kind: InstrumentKind, ticker?: string, strike?: number, expiry?: string): string {
-  if (kind === 'CASH') return 'CASH';
+function episodeKey(kind: InstrumentKind, ticker?: string, strike?: CurrencyAmount, expiry?: string): string {
+  if (kind === 'CASH') {
+    return 'CASH';
+  }
   if (kind === 'SHARES') return ticker || '';
   // Options: group by ticker + right + strike + expiry (each unique contract is separate)
-  return `${ticker}|${kind}|${strike}|${expiry}`;
+  return `${ticker}|${kind}|${strike?.amount || ''}|${expiry}`;
 }
 
 /**
@@ -114,16 +116,12 @@ function sign(x: number): number {
   return 0;
 }
 
-/**
- * Round to 2 decimal places for display
- */
-
 // -----------------------------
 // Pass 1: Build Ledger
 // -----------------------------
 
 /**
- * Build ledger rows from processed transactions
+ * Build ledger rows from raw transactions
  * Enforces validation rules and calculates running balances
  */
 function buildLedger(
@@ -153,18 +151,11 @@ function buildLedger(
     }
     
     const accountBalances = balances.get(accountId)!;
-    const currency = fees?.currency || 'USD';
+    const currency = fees.currency;
     
     if (!accountBalances.has(currency)) {
-      // Check if there's an opening balance for this account
-      const accountOpeningBalance = openingBalances.get(accountId);
-      if (accountOpeningBalance && accountOpeningBalance.currency === currency) {
-        // Use the opening balance if it matches the transaction currency
-        accountBalances.set(currency, accountOpeningBalance);
-      } else {
-        // Use zero balance for new currencies or mismatched currencies
-        accountBalances.set(currency, CurrencyAmount.zero(currency));
-      }
+      const openingBalance = openingBalances.get(accountId) || CurrencyAmount.zero(currency);
+      accountBalances.set(currency, openingBalance);
     }
 
     // Resolve ticker name
@@ -177,8 +168,11 @@ function buildLedger(
 
     // Handle CASH transactions
     if (kind === 'CASH') {
-      // For cash transactions, calculate total value from price and quantity
-      const cashDelta = t.price!.multiply(t.qty);
+      // For cash transactions: qty * price (where price = 1.0 with correct currency)
+      if (!price) {
+        throw new Error('Price should be set to 1.0 for cash transactions');
+      }
+      const cashDelta = price.multiply(qty);
       const currentBalance = accountBalances.get(currency)!;
       const newBalance = currentBalance.add(cashDelta);
       accountBalances.set(currency, newBalance);
@@ -192,7 +186,7 @@ function buildLedger(
         ticker: undefined,
         expiry: undefined,
         strike: undefined,
-        side: undefined,
+        side: t.side, // Preserve the side field for forex transactions
         qty,
         price: price, // This will be CurrencyAmount(1.0, currency) for cash
         fees,
@@ -207,6 +201,7 @@ function buildLedger(
     // Handle trading transactions (SHARES, CALL, PUT)
     if (!side || !ticker) {
       // Invalid transaction - missing required fields
+      const currentBalance = accountBalances.get(currency)!;
       ledger.push({
         txnId: t.id,
         userId,
@@ -221,15 +216,15 @@ function buildLedger(
         price,
         fees,
         memo: t.memo,
-        cashDelta: CurrencyAmount.zero(fees?.currency || 'USD'),
-        balanceAfter: accountBalances.get(currency)!,
+        cashDelta: CurrencyAmount.zero(fees.currency),
+        balanceAfter: currentBalance,
         accepted: false,
         error: 'Missing required fields (side or ticker)'
       });
       continue;
     }
 
-    const instrumentKeyStr = instrumentKey(kind, ticker, expiry, strike?.amount);
+    const instrumentKeyStr = instrumentKey(kind, ticker, expiry, strike);
     const positionKey = `${userId}|${accountId}|${instrumentKeyStr}`;
     const currentQty = positions.get(positionKey) || 0;
 
@@ -239,6 +234,7 @@ function buildLedger(
     // Validation rules
     if (kind === 'SHARES' && currentQty + signedQty < 0) {
       // SHARES cannot go negative (long-only)
+      const currentBalance = accountBalances.get(currency)!;
       ledger.push({
         txnId: t.id,
         userId,
@@ -253,8 +249,8 @@ function buildLedger(
         price,
         fees,
         memo: t.memo,
-        cashDelta: CurrencyAmount.zero(fees?.currency || 'USD'),
-        balanceAfter: accountBalances.get(currency)!,
+        cashDelta: CurrencyAmount.zero(fees.currency),
+        balanceAfter: currentBalance,
         accepted: false,
         error: 'Equities cannot be negative (long-only)'
       });
@@ -265,6 +261,7 @@ function buildLedger(
       const remaining = currentQty + signedQty;
       // Check for crossing zero
       if (remaining !== 0 && sign(remaining) !== sign(currentQty)) {
+        const currentBalance = accountBalances.get(currency)!;
         ledger.push({
           txnId: t.id,
           userId,
@@ -279,8 +276,8 @@ function buildLedger(
           price,
           fees,
           memo: t.memo,
-          cashDelta: CurrencyAmount.zero(fees?.currency || 'USD'),
-          balanceAfter: accountBalances.get(currency)!,
+          cashDelta: CurrencyAmount.zero(fees.currency),
+          balanceAfter: currentBalance,
           accepted: false,
           error: 'Crossing zero not allowed'
         });
@@ -290,9 +287,13 @@ function buildLedger(
 
     // Transaction accepted - calculate cash effect and update positions
     const mult = multiplierFor(kind);
-    const effectivePrice = price || CurrencyAmount.zero(fees?.currency || 'USD');
-    const effectiveFees = fees || CurrencyAmount.zero('USD');
-    const cashDelta = effectivePrice.multiply(signedQty * mult).multiply(-1).subtract(effectiveFees);
+    const effectivePrice = price || CurrencyAmount.zero(currency);
+    const effectiveFees = fees || CurrencyAmount.zero(currency);
+    
+    // Calculate cash delta: -(signedQty * price * mult) - fees
+    const grossValue = effectivePrice.multiply(signedQty * mult);
+    const cashDelta = grossValue.multiply(-1).subtract(effectiveFees);
+    
     const currentBalance = accountBalances.get(currency)!;
     const newBalance = currentBalance.add(cashDelta);
     accountBalances.set(currency, newBalance);
@@ -312,7 +313,7 @@ function buildLedger(
       price,
       fees,
       memo: t.memo,
-      cashDelta: cashDelta,
+      cashDelta,
       balanceAfter: newBalance,
       accepted: true
     });
@@ -354,10 +355,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       closeTimestamp: lr.timestamp, // Cash episodes close immediately
       rolled: false,
       qty: lr.qty,
-      avgPrice: CurrencyAmount.zero(lr.fees.currency),
-      totalFees: CurrencyAmount.zero(lr.fees.currency),
+      avgPrice: CurrencyAmount.zero(lr.cashDelta.currency),
+      totalFees: CurrencyAmount.zero(lr.cashDelta.currency),
       cashTotal: lr.cashDelta,
-      realizedPnLTotal: CurrencyAmount.zero(lr.fees.currency),
+      realizedPnLTotal: CurrencyAmount.zero(lr.cashDelta.currency),
       txns: [{
         txnId: lr.txnId,
         timestamp: lr.timestamp,
@@ -367,10 +368,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
         strike: undefined,
         side: undefined,
         qty: lr.qty,
-        price: undefined,
-        fees: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
+        price: lr.price,
+        fees: lr.fees,
         cashDelta: lr.cashDelta,
-        realizedPnLDelta: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
+        realizedPnLDelta: CurrencyAmount.zero(lr.cashDelta.currency),
         note: lr.memo
       }]
     };
@@ -378,28 +379,31 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     return episode;
   }
 
+
   /**
    * Apply a trade to an existing episode
    */
   function applyTradeToEpisode(episode: PositionEpisode, lr: LedgerRow, note?: string): void {
+
     const mult = multiplierFor(lr.instrumentKind);
     const direction = lr.side === 'BUY' ? 1 : -1;
     const signedQty = direction * lr.qty;
     const price = lr.price || CurrencyAmount.zero(lr.fees.currency);
     const fees = lr.fees;
+
     const units = Math.abs(lr.qty) * mult;
-    const feePerUnit = units > 0 ? fees.divide(units) : CurrencyAmount.zero(fees?.currency || 'USD');
+    const feePerUnit = units > 0 ? fees.divide(units) : CurrencyAmount.zero(fees.currency);
     const entryUnitCost = price.add(feePerUnit);
 
     // Update current leg snapshot for options
     if (isOption(lr.instrumentKind)) {
-      episode.currentInstrumentKey = instrumentKey(lr.instrumentKind, lr.ticker, lr.expiry, lr.strike?.amount);
+      episode.currentInstrumentKey = instrumentKey(lr.instrumentKind, lr.ticker, lr.expiry, lr.strike);
       episode.currentRight = lr.instrumentKind as 'CALL' | 'PUT';
       episode.currentExpiry = lr.expiry;
       episode.currentStrike = lr.strike;
     }
 
-    let realizedPnL = CurrencyAmount.zero(fees?.currency || 'USD');
+    let realizedPnL = CurrencyAmount.zero(fees.currency);
 
     if (episode.qty === 0 || (sign(episode.qty) === sign(signedQty) && Math.abs(episode.qty + signedQty) > Math.abs(episode.qty))) {
       // Opening or adding to position
@@ -410,20 +414,25 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
         // Adding to existing position - weighted average
         const baseUnits = Math.abs(episode.qty) * mult;
         const addUnits = Math.abs(signedQty) * mult;
-        const baseValue = episode.avgPrice.multiply(baseUnits);
-        const addValue = entryUnitCost.multiply(addUnits);
         const totalUnits = baseUnits + addUnits;
-        episode.avgPrice = baseValue.add(addValue).divide(totalUnits);
+        
+        if (totalUnits > 0) {
+          const baseValue = episode.avgPrice.multiply(baseUnits);
+          const addValue = entryUnitCost.multiply(addUnits);
+          episode.avgPrice = baseValue.add(addValue).divide(totalUnits);
+        }
       }
     } else {
       // Reducing position - calculate realized P&L
       const closedQty = Math.abs(signedQty);
       if (episode.qty > 0) {
         // Long position being reduced
-        realizedPnL = price.subtract(episode.avgPrice).multiply(closedQty * mult).subtract(fees);
+        const priceDiff = price.subtract(episode.avgPrice);
+        realizedPnL = priceDiff.multiply(closedQty * mult).subtract(fees);
       } else {
         // Short position being covered
-        realizedPnL = episode.avgPrice.subtract(price).multiply(closedQty * mult).subtract(fees);
+        const priceDiff = episode.avgPrice.subtract(price);
+        realizedPnL = priceDiff.multiply(closedQty * mult).subtract(fees);
       }
       episode.realizedPnLTotal = episode.realizedPnLTotal.add(realizedPnL);
     }
@@ -455,7 +464,6 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       actionTerm
     });
 
-
     // Check if position is closed
     if (episode.qty === 0) {
       // Don't reset avgPrice to 0 - preserve historical context
@@ -468,7 +476,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
    * Start a new episode
    */
   function startNewEpisode(lr: LedgerRow, note?: string): PositionEpisode {
-    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike?.amount, lr.expiry);
+    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike, lr.expiry);
     const kindGroup: KindGroup = isOption(lr.instrumentKind) ? 'OPTION' : lr.instrumentKind as KindGroup;
     
     // Determine option directionality for options
@@ -486,10 +494,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       closeTimestamp: undefined,
       rolled: false,
       qty: 0,
-      avgPrice: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
-      totalFees: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
-      cashTotal: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
-      realizedPnLTotal: CurrencyAmount.zero(lr.fees?.currency || 'USD'),
+      avgPrice: CurrencyAmount.zero(lr.fees.currency),
+      totalFees: CurrencyAmount.zero(lr.fees.currency),
+      cashTotal: CurrencyAmount.zero(lr.fees.currency),
+      realizedPnLTotal: CurrencyAmount.zero(lr.fees.currency),
       optionDirection,
       txns: []
     };
@@ -512,7 +520,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     const right = lr.instrumentKind;
     const strike = lr.strike;
     const expiry = lr.expiry;
-    const rollKey = `${userId}|${accountId}|${ticker}|${right}|${strike}|${expiry}`;
+    const rollKey = `${userId}|${accountId}|${ticker}|${right}|${strike?.amount || ''}|${expiry}`;
     
     const closedEpisode = closedOptionEpisodes.get(rollKey);
     if (!closedEpisode || !closedEpisode.closeTimestamp) return null;
@@ -532,7 +540,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     const isEqualQuantity = Math.abs(lastTxn.qty) === Math.abs(lr.qty);
     
     // For a roll, strike or expiry must be different (indicating a new contract)
-    const isDifferentStrike = lastTxn.strike !== lr.strike;
+    const isDifferentStrike = lastTxn.strike && lr.strike ? !lastTxn.strike.equals(lr.strike) : lastTxn.strike !== lr.strike;
     const isDifferentExpiry = lastTxn.expiry !== lr.expiry;
     const isDifferentContract = isDifferentStrike || isDifferentExpiry;
     
@@ -543,10 +551,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     closedEpisode.txns[closedEpisode.txns.length - 1].note = 'ROLL-CLOSE';
     closedEpisode.closeTimestamp = undefined;
     closedEpisode.qty = 0;
-    closedEpisode.avgPrice = CurrencyAmount.zero(lr.fees?.currency || 'USD'); // Reset for new position in roll
+    closedEpisode.avgPrice = CurrencyAmount.zero(lr.fees.currency); // Reset for new position in roll
     
     applyTradeToEpisode(closedEpisode, lr, 'ROLL-OPEN');
-    activeEpisodes.set(`${userId}|${accountId}|${episodeKey(right, ticker, lr.strike?.amount, lr.expiry)}`, closedEpisode);
+    activeEpisodes.set(`${userId}|${accountId}|${episodeKey(right, ticker, lr.strike, lr.expiry)}`, closedEpisode);
     closedOptionEpisodes.delete(rollKey);
     
     return closedEpisode;
@@ -555,11 +563,20 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
   // Process all ledger rows
   for (const lr of accepted) {
     if (lr.instrumentKind === 'CASH') {
-      createCashEpisode(lr);
+      // For forex transactions, don't group them into episodes
+      // They represent currency conversions, not positions
+      if (lr.memo && lr.memo.includes('Forex:')) {
+        // Create individual cash episodes for forex transactions
+        // This preserves the individual transaction amounts without grouping
+        createCashEpisode(lr);
+      } else {
+        // Regular cash transaction
+        createCashEpisode(lr);
+      }
       continue;
     }
 
-    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike?.amount, lr.expiry);
+    const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike, lr.expiry);
     const activeKey = `${lr.userId}|${lr.accountId}|${episodeKeyStr}`;
     let episode = activeEpisodes.get(activeKey);
 
@@ -580,13 +597,14 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       if (episode.qty === 0) {
         if (isOption(lr.instrumentKind) && lr.ticker) {
           // Store closed option episode for potential roll
-          const rollKey = `${lr.userId}|${lr.accountId}|${lr.ticker}|${lr.instrumentKind}|${lr.strike}|${lr.expiry}`;
+          const rollKey = `${lr.userId}|${lr.accountId}|${lr.ticker}|${lr.instrumentKind}|${lr.strike?.amount || ''}|${lr.expiry}`;
           closedOptionEpisodes.set(rollKey, episode);
         }
         activeEpisodes.delete(activeKey);
       }
     }
   }
+
 
   // Sort episodes by user, account, episode key, and open timestamp
   episodes.sort((a, b) => {
@@ -618,9 +636,21 @@ export function buildPortfolioView(
   tickerLookup: TickerLookup,
   openingBalances: OpeningBalances = new Map()
 ): PortfolioResult {
-  // Group by currency for separate processing
-  const currencyGroups = new Map<CurrencyCode, RawTransaction[]>();
+  // Separate forex transactions from regular transactions
+  const forexTransactions: RawTransaction[] = [];
+  const regularTransactions: RawTransaction[] = [];
+  
   for (const txn of transactions) {
+    if (txn.instrument_kind === 'CASH' && txn.memo && txn.memo.includes('Forex:')) {
+      forexTransactions.push(txn);
+    } else {
+      regularTransactions.push(txn);
+    }
+  }
+  
+  // Group regular transactions by currency for separate processing
+  const currencyGroups = new Map<CurrencyCode, RawTransaction[]>();
+  for (const txn of regularTransactions) {
     const currency = txn.fees.currency;
     if (!currencyGroups.has(currency)) {
       currencyGroups.set(currency, []);
@@ -648,6 +678,24 @@ export function buildPortfolioView(
       }
     }
     allEpisodes.push(...episodes);
+  }
+  
+  // Process forex transactions together (they can span currencies)
+  if (forexTransactions.length > 0) {
+    const { ledger: forexLedger, balances: forexBalances } = buildLedger(forexTransactions, tickerLookup, openingBalances);
+    const forexEpisodes = buildEpisodes(forexLedger);
+    
+    allLedger.push(...forexLedger);
+    for (const [accountId, accountBalances] of forexBalances) {
+      if (!allBalances.has(accountId)) {
+        allBalances.set(accountId, new Map<CurrencyCode, CurrencyAmount>());
+      }
+      const existingBalances = allBalances.get(accountId)!;
+      for (const [currency, balance] of accountBalances) {
+        existingBalances.set(currency, balance);
+      }
+    }
+    allEpisodes.push(...forexEpisodes);
   }
   
   return {

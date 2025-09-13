@@ -27,7 +27,140 @@ const BADGE_STYLES = {
   cash: 'text-xs bg-slate-600 text-slate-100 border-slate-500 !font-mono',
   shares: 'text-xs bg-emerald-600 text-emerald-100 border-emerald-500 !font-mono',
   options: 'text-xs bg-indigo-700 text-indigo-100 border-indigo-600 !font-mono',
+  forex: 'text-xs bg-orange-700 text-orange-100 border-orange-600 !font-mono',
 } as const;
+
+// Forex detection function - purely for display purposes
+const detectForexTransaction = (position: PositionEpisode): { isForex: boolean; fromCurrency?: string; toCurrency?: string; exchangeRate?: number; isOutflow?: boolean } => {
+  // Only check CASH positions
+  if (position.kindGroup !== 'CASH') {
+    return { isForex: false };
+  }
+
+  // Look for forex patterns in the memo field
+  const memo = position.txns[0]?.note || '';
+  
+  // Check if this looks like a forex transaction
+  const isForexMemo = memo.includes('Forex:') || 
+                     memo.includes('to buy') || 
+                     memo.includes('with') ||
+                     memo.includes('Currency conversion');
+  
+  if (!isForexMemo) {
+    return { isForex: false };
+  }
+
+  // Parse forex information from memo field
+  // The memo contains the forex conversion details
+  const forexPatterns = [
+    // "Sell 100 AUD to buy 64.2 USD" or "Buy 64.2 USD with 100 AUD"
+    /(?:Sell|Buy)\s+([\d,]+\.?\d*)\s+([A-Z]{3})\s+(?:to buy|with)\s+([\d,]+\.?\d*)\s+([A-Z]{3})/i,
+    // "Forex: Sell AUD, Buy USD" or similar
+    /Forex:\s*(?:Sell|Buy)\s+([A-Z]{3}),\s*(?:Buy|Sell)\s+([A-Z]{3})/i,
+    // "Currency conversion" patterns
+    /Currency\s+conversion.*?([A-Z]{3}).*?([A-Z]{3})/i
+  ];
+
+  for (const pattern of forexPatterns) {
+    const match = memo.match(pattern);
+    if (match) {
+      // Extract currencies and amounts from the memo
+      let currency1: string;
+      let currency2: string;
+      let amount1: number;
+      let amount2: number;
+
+      if (pattern.source.includes('Sell') && pattern.source.includes('to buy')) {
+        // "Sell X AUD to buy Y USD" format
+        amount1 = parseFloat(match[1].replace(/,/g, ''));
+        currency1 = match[2]; // AUD
+        amount2 = parseFloat(match[3].replace(/,/g, ''));
+        currency2 = match[4]; // USD
+      } else if (pattern.source.includes('Buy') && pattern.source.includes('with')) {
+        // "Buy X USD with Y AUD" format
+        amount1 = parseFloat(match[1].replace(/,/g, '')); // USD amount
+        currency1 = match[2]; // USD
+        amount2 = parseFloat(match[3].replace(/,/g, '')); // AUD amount
+        currency2 = match[4]; // AUD
+      } else {
+        // Generic forex pattern
+        currency1 = match[1];
+        currency2 = match[2];
+        amount1 = 1; // Default values if amounts not available
+        amount2 = 1;
+      }
+
+      // Always determine canonical direction based on common forex pairs
+      // For AUD/USD, always show AUD → USD regardless of memo format
+      let fromCurrency: string;
+      let toCurrency: string;
+      let exchangeRate: number | undefined;
+
+      if (currency1 === 'AUD' && currency2 === 'USD') {
+        fromCurrency = 'AUD';
+        toCurrency = 'USD';
+        exchangeRate = amount2 / amount1; // USD/AUD rate
+      } else if (currency1 === 'USD' && currency2 === 'AUD') {
+        fromCurrency = 'AUD';
+        toCurrency = 'USD';
+        exchangeRate = amount1 / amount2; // USD/AUD rate
+      } else {
+        // For other currency pairs, use the first currency as from
+        fromCurrency = currency1;
+        toCurrency = currency2;
+        exchangeRate = amount2 / amount1;
+      }
+
+      // Determine if this is the sell leg based on the transaction's side field
+      const isOutflow = position.txns[0]?.side === 'SELL';
+
+      return {
+        isForex: true,
+        fromCurrency,
+        toCurrency,
+        exchangeRate,
+        isOutflow
+      };
+    }
+  }
+
+  // If we detected forex but couldn't parse the pattern, try to extract currencies from memo
+  if (isForexMemo) {
+    // Look for any 3-letter currency codes in the memo
+    const currencyMatch = memo.match(/([A-Z]{3})/g);
+    if (currencyMatch && currencyMatch.length >= 2) {
+      // Try to determine canonical direction based on common forex pairs
+      const currencies = [...new Set(currencyMatch)]; // Remove duplicates
+      let fromCurrency = currencies[0];
+      let toCurrency = currencies[1];
+      
+      // If we see AUD and USD, make it AUD → USD (canonical direction)
+      if (currencies.includes('AUD') && currencies.includes('USD')) {
+        fromCurrency = 'AUD';
+        toCurrency = 'USD';
+      }
+      // Add other common pairs as needed
+      
+      return {
+        isForex: true,
+        fromCurrency,
+        toCurrency,
+        exchangeRate: undefined,
+        isOutflow: position.txns[0]?.side === 'SELL' || position.cashTotal.isNegative()
+      };
+    }
+    
+    return {
+      isForex: true,
+      fromCurrency: 'Unknown',
+      toCurrency: 'Unknown',
+      exchangeRate: undefined,
+      isOutflow: position.txns[0]?.side === 'SELL' || position.cashTotal.isNegative()
+    };
+  }
+
+  return { isForex: false };
+};
 
 export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   const { 
@@ -232,20 +365,39 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   };
 
   // Helper function to get badge style based on position type
-  const getBadgeStyle = (kindGroup: string) => {
-    if (kindGroup === 'CASH') {
+  const getBadgeStyle = (position: PositionEpisode) => {
+    // Check if this is a forex transaction (display only)
+    const forexInfo = detectForexTransaction(position);
+    if (forexInfo.isForex) {
+      return BADGE_STYLES.forex;
+    }
+    
+    if (position.kindGroup === 'CASH') {
       return BADGE_STYLES.cash;
     }
-    if (kindGroup === 'SHARES') {
+    if (position.kindGroup === 'SHARES') {
       return BADGE_STYLES.shares;
     }
-    if (kindGroup === 'OPTION') {
+    if (position.kindGroup === 'OPTION') {
       return BADGE_STYLES.options;
     }
     return BADGE_STYLES.default;
   };
 
-  const getPositionDisplay = (position: { kindGroup: string; episodeKey: string; qty: number; currentRight?: string; currentStrike?: CurrencyAmount; currentExpiry?: string }) => {
+  const getPositionDisplay = (position: PositionEpisode) => {
+    // Check if this is a forex transaction (display only)
+    const forexInfo = detectForexTransaction(position);
+    if (forexInfo.isForex && forexInfo.fromCurrency && forexInfo.toCurrency) {
+      // For forex, show "Cash" as ticker but include conversion details
+      const ticker = 'Cash';
+      // Show the conversion with sell/buy distinction
+      const direction = `${forexInfo.fromCurrency}→${forexInfo.toCurrency}`;
+      const rate = forexInfo.exchangeRate ? ` @ ${forexInfo.exchangeRate.toFixed(4)}` : '';
+      const leg = forexInfo.isOutflow ? ' (Sell)' : ' (Buy)';
+      const details = `${direction}${rate}${leg}`;
+      return { ticker, details };
+    }
+
     if (position.kindGroup === 'CASH') {
       return { ticker: 'Cash', details: '' };
     }
@@ -272,14 +424,14 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     <div className="space-y-2">
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Type</span>
-        <Badge variant="outline" className={getBadgeStyle('CASH')}>
+        <Badge variant="outline" className={BADGE_STYLES.cash}>
           Cash
         </Badge>
       </div>
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Amount</span>
         <span className={`text-white font-semibold ${position.cashTotal.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
-          {position.cashTotal.isPositive() ? '+' : ''}{position.cashTotal.format()}
+          {position.cashTotal.format()}
         </span>
       </div>
       <div className="flex justify-between">
@@ -304,7 +456,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     <div className="space-y-2">
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Type</span>
-        <Badge variant="outline" className={getBadgeStyle('SHARES')}>
+        <Badge variant="outline" className={BADGE_STYLES.shares}>
           Shares
         </Badge>
       </div>
@@ -363,7 +515,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           <div className="text-lg font-semibold text-white mb-1 flex justify-center items-center gap-2">
             <Badge 
               variant="outline" 
-              className={getBadgeStyle('OPTION')}
+              className={BADGE_STYLES.options}
             >
               {position.optionDirection === 'CALL' ? 'Call' :
                position.optionDirection === 'PUT' ? 'Put' :
@@ -407,6 +559,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     );
   };
 
+
   // Render transaction details in modal
   const renderTransactionDetails = (txn: EpisodeTxn) => {
     // Simple display for cash transactions
@@ -415,7 +568,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         <div key={txn.txnId} className="border border-[#2d2d2d] rounded p-2 bg-[#0f0f0f]">
           <div className="flex justify-between items-center">
             <span className={`text-lg font-medium ${txn.cashDelta.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
-              {txn.cashDelta.isPositive() ? '+' : ''}{txn.cashDelta.format()}
+              {txn.cashDelta.format()}
             </span>
             <span className="text-xs text-[#b3b3b3]">
               {new Date(txn.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -494,13 +647,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             <div className="flex justify-between">
               <span className="text-[#b3b3b3]">Cash</span>
               <span className={`${txn.cashDelta.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
-                {txn.cashDelta.isPositive() ? '+' : ''}{txn.cashDelta.format()}
+                {txn.cashDelta.format()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#b3b3b3]">P&L</span>
               <span className={`${txn.realizedPnLDelta.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
-                {txn.realizedPnLDelta.isPositive() ? '+' : ''}{txn.realizedPnLDelta.format()}
+                {txn.realizedPnLDelta.format()}
               </span>
             </div>
             {txn.note && (
@@ -608,15 +761,15 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {sortedPositions.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8 px-6">
               <div className="text-lg text-[#b3b3b3]">No positions found</div>
               <div className="text-sm text-[#b3b3b3] mt-2">Try adjusting your time range or add some transactions</div>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace' }}>
+              <table className="w-full text-sm relative" style={{ fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace' }}>
                 <thead>
                   <tr className="border-b border-[#2d2d2d]">
                     {renderSortableHeader('openTimestamp', 'Open Date')}
@@ -633,10 +786,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   {sortedPositions.map((position, index) => (
                     <tr
                       key={position.episodeId}
-                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] cursor-pointer font-mono ${
+                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] cursor-pointer font-mono transition-colors duration-150 ${
                         index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]'
                       }`}
                       onClick={() => handlePositionClick(position)}
+                      style={{ position: 'relative', zIndex: 1 }}
                     >
                       <td className="py-2 px-2 text-white text-xs">
                         {new Date(position.openTimestamp).toLocaleDateString('en-US', {
@@ -654,20 +808,42 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         <div className="flex items-center gap-2">
                           <Badge 
                             variant="outline" 
-                            className={`${getBadgeStyle(position.kindGroup)} w-16 text-center`}
+                            className={`${getBadgeStyle(position)} w-16 text-center`}
                           >
-                            {position.kindGroup === 'OPTION' ? 
-                              (position.optionDirection === 'CALL' ? 'Call' :
-                               position.optionDirection === 'PUT' ? 'Put' :
-                               position.optionDirection || 'Option') : 
-                             position.kindGroup === 'CASH' ? 'Cash' :
-                             position.kindGroup === 'SHARES' ? 'Shares' : position.kindGroup}
+                            {(() => {
+                              const forexInfo = detectForexTransaction(position);
+                              if (forexInfo.isForex) {
+                                return 'Forex';
+                              }
+                              if (position.kindGroup === 'OPTION') {
+                                return position.optionDirection === 'CALL' ? 'Call' :
+                                       position.optionDirection === 'PUT' ? 'Put' :
+                                       position.optionDirection || 'Option';
+                              }
+                              if (position.kindGroup === 'CASH') return 'Cash';
+                              if (position.kindGroup === 'SHARES') return 'Shares';
+                              return position.kindGroup;
+                            })()}
                           </Badge>
-                          {position.kindGroup === 'OPTION' && getPositionDisplay(position).details && (
-                            <span className="text-white text-sm">
-                              {getPositionDisplay(position).details}
-                            </span>
-                          )}
+                          {(() => {
+                            const display = getPositionDisplay(position);
+                            const forexInfo = detectForexTransaction(position);
+                            if (forexInfo.isForex && display.details) {
+                              return (
+                                <span className="text-white text-sm">
+                                  {display.details}
+                                </span>
+                              );
+                            }
+                            if (position.kindGroup === 'OPTION' && display.details) {
+                              return (
+                                <span className="text-white text-sm">
+                                  {display.details}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </td>
                       <td className="py-2 px-2 text-right text-white">
@@ -681,13 +857,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                           <span className="text-[#b3b3b3]">—</span>
                         ) : (
                           <span className={position.realizedPnLTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
-                            {position.realizedPnLTotal.isPositive() ? '+' : ''}{position.realizedPnLTotal.format()}
+                            {position.realizedPnLTotal.format()}
                           </span>
                         )}
                       </td>
                       <td className="py-2 px-2 text-right">
                         <span className={position.cashTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
-                          {position.cashTotal.isPositive() ? '+' : ''}{position.cashTotal.format()}
+                          {position.cashTotal.format()}
                         </span>
                       </td>
                       <td className="py-2 px-2">
@@ -695,7 +871,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                           variant="outline" 
                           className={
                             position.kindGroup === 'CASH' 
-                              ? getBadgeStyle('CASH')
+                              ? BADGE_STYLES.cash
                               : position.qty === 0 
                                 ? BADGE_STYLES.default
                                 : BADGE_STYLES.open
@@ -750,14 +926,14 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     <div className="flex justify-between">
                       <span className="text-[#b3b3b3]">Realized P&L</span>
                       <span className={selectedPosition.realizedPnLTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
-                        {selectedPosition.realizedPnLTotal.isPositive() ? '+' : ''}{selectedPosition.realizedPnLTotal.format()}
+                        {selectedPosition.realizedPnLTotal.format()}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span className="text-[#b3b3b3]">Cash Flow</span>
                     <span className={selectedPosition.cashTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
-                      {selectedPosition.cashTotal.isPositive() ? '+' : ''}{selectedPosition.cashTotal.format()}
+                      {selectedPosition.cashTotal.format()}
                     </span>
                   </div>
                   {selectedPosition.kindGroup === 'OPTION' && selectedPosition.rolled && (

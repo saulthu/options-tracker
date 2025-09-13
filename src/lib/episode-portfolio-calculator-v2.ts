@@ -184,7 +184,7 @@ function buildLedger(
         ticker: undefined,
         expiry: undefined,
         strike: undefined,
-        side: undefined,
+        side: t.side, // Preserve the side field for forex transactions
         qty,
         price: price, // This will be CurrencyAmount(1.0, currency) for cash
         fees,
@@ -364,7 +364,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
         ticker: undefined,
         expiry: undefined,
         strike: undefined,
-        side: undefined,
+        side: lr.side, // Preserve side for forex transactions
         qty: lr.qty,
         price: lr.price,
         fees: lr.fees,
@@ -377,10 +377,13 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     return episode;
   }
 
+
+
   /**
    * Apply a trade to an existing episode
    */
   function applyTradeToEpisode(episode: PositionEpisode, lr: LedgerRow, note?: string): void {
+
     const mult = multiplierFor(lr.instrumentKind);
     const direction = lr.side === 'BUY' ? 1 : -1;
     const signedQty = direction * lr.qty;
@@ -473,6 +476,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
    */
   function startNewEpisode(lr: LedgerRow, note?: string): PositionEpisode {
     const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike, lr.expiry);
+    
     const kindGroup: KindGroup = isOption(lr.instrumentKind) ? 'OPTION' : lr.instrumentKind as KindGroup;
     
     // Determine option directionality for options
@@ -559,6 +563,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
   // Process all ledger rows
   for (const lr of accepted) {
     if (lr.instrumentKind === 'CASH') {
+      // All cash transactions (including forex) are treated as individual episodes
       createCashEpisode(lr);
       continue;
     }
@@ -592,6 +597,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     }
   }
 
+
   // Sort episodes by user, account, episode key, and open timestamp
   episodes.sort((a, b) => {
     const userCompare = a.userId.localeCompare(b.userId);
@@ -622,7 +628,7 @@ export function buildPortfolioView(
   tickerLookup: TickerLookup,
   openingBalances: OpeningBalances = new Map()
 ): PortfolioResult {
-  // Group by currency for separate processing
+  // Group transactions by currency for separate processing
   const currencyGroups = new Map<CurrencyCode, RawTransaction[]>();
   for (const txn of transactions) {
     const currency = txn.fees.currency;

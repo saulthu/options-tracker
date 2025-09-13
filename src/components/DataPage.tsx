@@ -13,9 +13,10 @@ import ConfirmModal from '@/components/ui/confirm-modal';
 import { Transaction } from '@/types/database';
 import { RawTransaction } from '@/types/episodes';
 import { isValidCurrencyCode } from '@/lib/currency-amount';
+import { TimeRange } from '@/components/TimeRangeSelector';
 
 interface DataPageProps {
-  selectedRange: unknown; // TimeRange type, but keeping it simple for now
+  selectedRange: TimeRange;
 }
 
 /**
@@ -58,9 +59,7 @@ export default function DataPage({}: DataPageProps) {
   const { 
     accounts, 
     transactions, 
-    getBalance, 
-    getTotalPnL, 
-    getAccountValue,
+    getAccountValue, // Use all-time account values
     addTransactions,
     ensureTickersExist, 
     refreshPortfolio,
@@ -109,23 +108,23 @@ export default function DataPage({}: DataPageProps) {
     setAlertModal(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Calculate account data for tiles
+  // Calculate account data for tiles using all-time account values
   const accountData = useMemo(() => {
     return accounts.map(account => {
       const accountTransactions = transactions.filter(t => t.account_id === account.id);
-      const balances = getBalance(account.id);
-      const pnl = getTotalPnL(account.id);
+      
+      // Get all-time account values (not filtered by time range)
       const accountValues = getAccountValue(account.id);
       
       return {
         account,
         transactionCount: accountTransactions.length,
-        balances,
-        pnl,
-        accountValues
+        balances: accountValues, // Use all-time account values
+        pnl: new Map(), // P&L not relevant for this view
+        accountValues: accountValues // Use all-time account values
       };
     });
-  }, [accounts, transactions, getBalance, getTotalPnL, getAccountValue]);
+  }, [accounts, transactions, getAccountValue]);
 
 
   if (!user) {
@@ -270,14 +269,7 @@ export default function DataPage({}: DataPageProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-white mb-2">Data Management</h1>
-        <p className="text-[#b3b3b3]">Import and export your trading data</p>
-      </div>
-
-
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6">
       {/* Main Content Based on Current View */}
       {currentView === 'accounts' && (
         <>

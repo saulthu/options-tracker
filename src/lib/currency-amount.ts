@@ -236,7 +236,12 @@ export class CurrencyAmount {
       precision = this.currencyInfo.decimals
     } = options || {};
 
-    const formattedAmount = this._amount.toFixed(precision);
+    // Format the amount with thousands separators
+    const formattedAmount = this._amount.toLocaleString('en-US', {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision
+    });
+    
     const parts = [formattedAmount];
     
     if (showSymbol) {
