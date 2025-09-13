@@ -133,7 +133,7 @@ export default function DataPage({}: DataPageProps) {
     setCurrentView('import-type');
   };
 
-  const handleExport = (_accountId: string) => {
+  const handleExport = () => {
     // TODO: Implement export functionality
     showAlert('Export Coming Soon', 'Export functionality will be available soon.', 'info');
   };

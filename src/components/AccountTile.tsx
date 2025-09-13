@@ -10,7 +10,7 @@ interface AccountTileProps {
   transactionCount: number;
   accountValue: number;
   onImport: (accountId: string) => void;
-  onExport: (accountId: string) => void;
+  onExport: () => void;
   onDeleteAll: (accountId: string) => void;
 }
 
@@ -91,7 +91,7 @@ export default function AccountTile({
             </button>
             
             <button
-              onClick={() => onExport(account.id)}
+              onClick={() => onExport()}
               className="flex items-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg transition-colors group"
             >
               <Download className="h-4 w-4 text-green-400 group-hover:text-green-300" />
