@@ -17,6 +17,9 @@ describe('CurrencyAmount', () => {
 
       const jpyAmount = new CurrencyAmount(100.7, 'JPY');
       expect(jpyAmount.amount).toBe(101); // 0 decimal places
+
+      const hkdAmount = new CurrencyAmount(100.999, 'HKD');
+      expect(hkdAmount.amount).toBe(101.00); // 2 decimal places
     });
 
     it('should throw error for invalid currency', () => {
@@ -26,6 +29,16 @@ describe('CurrencyAmount', () => {
     it('should throw error for invalid amount', () => {
       expect(() => new CurrencyAmount(NaN, 'USD')).toThrow('Invalid amount: NaN');
       expect(() => new CurrencyAmount(Infinity, 'USD')).toThrow('Invalid amount: Infinity');
+    });
+
+    it('should create HKD amounts correctly', () => {
+      const hkdAmount = new CurrencyAmount(100.50, 'HKD');
+      
+      expect(hkdAmount.amount).toBe(100.50);
+      expect(hkdAmount.currency).toBe('HKD');
+      expect(hkdAmount.currencyInfo.code).toBe('HKD');
+      expect(hkdAmount.currencyInfo.symbol).toBe('HK$');
+      expect(hkdAmount.currencyInfo.decimals).toBe(2);
     });
   });
 
@@ -74,6 +87,32 @@ describe('CurrencyAmount', () => {
       expect(() => usd100.divide(0)).toThrow('Invalid divisor: 0');
       expect(() => usd100.divide(NaN)).toThrow('Invalid divisor: NaN');
     });
+
+    it('should support HKD arithmetic operations', () => {
+      const hkd1 = new CurrencyAmount(100, 'HKD');
+      const hkd2 = new CurrencyAmount(50.25, 'HKD');
+      
+      expect(hkd1.add(hkd2).amount).toBe(150.25);
+      expect(hkd1.add(hkd2).currency).toBe('HKD');
+      
+      expect(hkd1.subtract(hkd2).amount).toBe(49.75);
+      expect(hkd1.subtract(hkd2).currency).toBe('HKD');
+      
+      expect(hkd1.multiply(2).amount).toBe(200);
+      expect(hkd1.multiply(2).currency).toBe('HKD');
+      
+      expect(hkd1.divide(2).amount).toBe(50);
+      expect(hkd1.divide(2).currency).toBe('HKD');
+    });
+
+    it('should prevent mixing HKD with other currencies', () => {
+      const hkdAmount = new CurrencyAmount(100, 'HKD');
+      const usdAmount = new CurrencyAmount(100, 'USD');
+      
+      expect(() => hkdAmount.add(usdAmount)).toThrow('Cannot perform operation on different currencies: HKD and USD');
+      expect(() => hkdAmount.subtract(usdAmount)).toThrow('Cannot perform operation on different currencies: HKD and USD');
+      expect(hkdAmount.equals(usdAmount)).toBe(false); // equals returns false for different currencies
+    });
   });
 
   describe('Comparison Operations', () => {
@@ -94,6 +133,21 @@ describe('CurrencyAmount', () => {
     it('should throw error when comparing different currencies', () => {
       expect(() => usd100.greaterThan(eur100)).toThrow('Cannot perform operation on different currencies: USD and EUR');
       expect(() => usd100.lessThan(eur100)).toThrow('Cannot perform operation on different currencies: USD and EUR');
+    });
+
+    it('should compare HKD amounts correctly', () => {
+      const hkd1 = new CurrencyAmount(100, 'HKD');
+      const hkd2 = new CurrencyAmount(200, 'HKD');
+      const hkd3 = new CurrencyAmount(100, 'HKD');
+      
+      expect(hkd1.equals(hkd3)).toBe(true);
+      expect(hkd1.equals(hkd2)).toBe(false);
+      
+      expect(hkd1.greaterThan(hkd2)).toBe(false);
+      expect(hkd2.greaterThan(hkd1)).toBe(true);
+      
+      expect(hkd1.lessThan(hkd2)).toBe(true);
+      expect(hkd2.lessThan(hkd1)).toBe(false);
     });
   });
 
@@ -163,6 +217,24 @@ describe('CurrencyAmount', () => {
     it('should convert to string', () => {
       expect(usd100.toString()).toBe('$ 100.50');
     });
+
+    it('should format HKD amounts with correct symbol', () => {
+      const hkdAmount = new CurrencyAmount(1234.56, 'HKD');
+      
+      expect(hkdAmount.format()).toBe('HK$ 1234.56');
+      expect(hkdAmount.format({ showSymbol: false })).toBe('1234.56');
+      expect(hkdAmount.format({ showSymbol: true })).toBe('HK$ 1234.56');
+    });
+
+    it('should handle HKD edge cases', () => {
+      const zeroHKD = new CurrencyAmount(0, 'HKD');
+      const negativeHKD = new CurrencyAmount(-100.50, 'HKD');
+      const smallHKD = new CurrencyAmount(0.01, 'HKD');
+      
+      expect(zeroHKD.format()).toBe('HK$ 0.00');
+      expect(negativeHKD.format()).toBe('HK$ -100.50');
+      expect(smallHKD.format()).toBe('HK$ 0.01');
+    });
   });
 
   describe('JSON Serialization', () => {
@@ -197,6 +269,27 @@ describe('CurrencyAmount', () => {
     it('should throw error for invalid string', () => {
       expect(() => CurrencyAmount.parse('invalid', 'USD')).toThrow('Cannot parse amount from: invalid');
     });
+
+    it('should create HKD zero amounts', () => {
+      const zeroHKD = CurrencyAmount.zero('HKD');
+      
+      expect(zeroHKD.amount).toBe(0);
+      expect(zeroHKD.currency).toBe('HKD');
+    });
+
+    it('should parse HKD amounts from strings', () => {
+      const hkdAmount = CurrencyAmount.parse('1234.56', 'HKD');
+      
+      expect(hkdAmount.amount).toBe(1234.56);
+      expect(hkdAmount.currency).toBe('HKD');
+    });
+
+    it('should create HKD from JSON', () => {
+      const hkdAmount = CurrencyAmount.fromJSON({ amount: 500.75, currency: 'HKD' });
+      
+      expect(hkdAmount.amount).toBe(500.75);
+      expect(hkdAmount.currency).toBe('HKD');
+    });
   });
 
   describe('Utility Functions', () => {
@@ -227,6 +320,22 @@ describe('CurrencyAmount', () => {
 
     it('should throw error when averaging empty array', () => {
       expect(() => averageAmounts([])).toThrow('Cannot average empty array of amounts');
+    });
+
+    it('should work with HKD in utility functions', () => {
+      const hkdAmounts = [
+        new CurrencyAmount(100, 'HKD'),
+        new CurrencyAmount(200, 'HKD'),
+        new CurrencyAmount(300, 'HKD')
+      ];
+      
+      const sum = sumAmounts(hkdAmounts);
+      expect(sum.amount).toBe(600);
+      expect(sum.currency).toBe('HKD');
+      
+      const average = averageAmounts(hkdAmounts);
+      expect(average.amount).toBe(200);
+      expect(average.currency).toBe('HKD');
     });
   });
 

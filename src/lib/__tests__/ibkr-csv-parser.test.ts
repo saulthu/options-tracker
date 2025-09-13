@@ -312,7 +312,22 @@ describe('IBKRCSVParser', () => {
 
 describe('convertIBKRTradesToTransactions', () => {
   let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
-  let mockTrades: any[];
+  let mockTrades: Array<{
+    dataDiscriminator: string;
+    assetCategory: string;
+    currency: string;
+    symbol: string;
+    dateTime: string;
+    quantity: number;
+    tPrice: CurrencyAmount;
+    cPrice: CurrencyAmount;
+    proceeds: CurrencyAmount;
+    commFee: CurrencyAmount;
+    basis: CurrencyAmount;
+    realizedPL: CurrencyAmount;
+    mtmPL: CurrencyAmount;
+    code: string;
+  }>;
   
   beforeAll(async () => {
     const currencyModule = await import('../currency-amount');
@@ -441,7 +456,12 @@ describe('convertIBKRTradesToTransactions', () => {
 
 describe('convertIBKRCashToTransactions', () => {
   let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
-  let mockCashTransactions: any[];
+  let mockCashTransactions: Array<{
+    currency: string;
+    settleDate: string;
+    description: string;
+    amount: CurrencyAmount;
+  }>;
   
   beforeAll(async () => {
     const currencyModule = await import('../currency-amount');
@@ -491,7 +511,13 @@ describe('convertIBKRCashToTransactions', () => {
 
 describe('convertIBKRDividendsToTransactions', () => {
   let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
-  let mockDividends: any[];
+  let mockDividends: Array<{
+    currency: string;
+    date: string;
+    description: string;
+    amount: CurrencyAmount;
+    symbol?: string;
+  }>;
   
   beforeAll(async () => {
     const currencyModule = await import('../currency-amount');
@@ -550,7 +576,13 @@ describe('convertIBKRDividendsToTransactions', () => {
 
 describe('convertIBKRWithholdingTaxToTransactions', () => {
   let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
-  let mockWithholdingTax: any[];
+  let mockWithholdingTax: Array<{
+    currency: string;
+    date: string;
+    description: string;
+    amount: CurrencyAmount;
+    symbol?: string;
+  }>;
   
   beforeAll(async () => {
     const currencyModule = await import('../currency-amount');
@@ -584,7 +616,13 @@ describe('convertIBKRWithholdingTaxToTransactions', () => {
 
 describe('convertIBKRCorporateActionsToTransactions', () => {
   let CurrencyAmount: typeof import('../currency-amount').CurrencyAmount;
-  let mockCorporateActions: any[];
+  let mockCorporateActions: Array<{
+    currency: string;
+    date: string;
+    description: string;
+    amount: CurrencyAmount;
+    symbol?: string;
+  }>;
   
   beforeAll(async () => {
     const currencyModule = await import('../currency-amount');

@@ -167,7 +167,6 @@ describe('Currency Mixing Runtime Errors', () => {
           fail('Expected error to be thrown');
         } catch (error) {
           expect(error.message).toBe(expectedError);
-          console.log(`✅ Error caught: "${error.message}"`);
         }
       });
     });
