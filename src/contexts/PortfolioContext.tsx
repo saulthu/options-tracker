@@ -51,6 +51,7 @@ interface PortfolioContextType {
   refreshPortfolio: () => Promise<void>;
   refreshOnAccountChange: () => Promise<void>;
   addTransaction: (transaction: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addTransactions: (transactions: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>[]) => Promise<{ successCount: number; errorCount: number; errors: string[] }>;
   updateTransaction: (id: string, updates: Partial<RawTransaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   deleteAllTransactionsForAccount: (accountId: string) => Promise<void>;
@@ -345,6 +346,46 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, []);
 
+  const addTransactions = useCallback(async (transactions: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>[]) => {
+    try {
+      console.log(`Attempting to batch insert ${transactions.length} transactions`);
+      
+      const { data, error: insertError } = await supabase
+        .from('transactions')
+        .insert(transactions)
+        .select();
+
+      if (insertError) {
+        console.error('Supabase batch insert error details:', {
+          error: insertError,
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint
+        });
+        throw insertError;
+      }
+
+      console.log(`Successfully batch inserted ${data?.length || 0} transactions`);
+      
+      return {
+        successCount: data?.length || 0,
+        errorCount: 0,
+        errors: []
+      };
+    } catch (err) {
+      console.error('Error batch adding transactions:', err);
+      setError(err instanceof Error ? err.message : 'Failed to batch add transactions');
+      
+      // Return error details for individual handling
+      return {
+        successCount: 0,
+        errorCount: transactions.length,
+        errors: [`Batch insert failed: ${err instanceof Error ? err.message : 'Unknown error'}`]
+      };
+    }
+  }, []);
+
   const updateTransaction = useCallback(async (id: string, updates: Partial<RawTransaction>) => {
     try {
       const { error: updateError } = await supabase
@@ -616,6 +657,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     refreshPortfolio,
     refreshOnAccountChange,
     addTransaction,
+    addTransactions,
     updateTransaction,
     deleteTransaction,
     deleteAllTransactionsForAccount,

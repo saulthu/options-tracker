@@ -24,6 +24,7 @@ export default function DataPage({}: DataPageProps) {
     getBalance, 
     getTotalPnL, 
     addTransaction, 
+    addTransactions,
     ensureTickersExist, 
     refreshPortfolio,
     deleteAllTransactionsForAccount
@@ -100,28 +101,16 @@ export default function DataPage({}: DataPageProps) {
 
   const handleIBKRImport = async (transactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]) => {
     try {
-      console.log('Starting IBKR import with', transactions.length, 'transactions');
+      console.log('Starting IBKR batch import with', transactions.length, 'transactions');
       console.log('First transaction sample:', transactions[0]);
       
-      // Add each transaction to the database (without refreshing portfolio)
-      let successCount = 0;
-      let errorCount = 0;
-      const errors: string[] = [];
+      // Batch insert all transactions at once
+      const result = await addTransactions(transactions);
+      
+      console.log('Batch import completed:', result);
 
-      for (const transaction of transactions) {
-        try {
-          console.log('Adding transaction:', transaction);
-          await addTransaction(transaction);
-          successCount++;
-        } catch (error) {
-          console.error('Transaction import error:', error);
-          errorCount++;
-          errors.push(`Failed to import transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      }
-
-      // Refresh the portfolio only once at the end of the bulk import
-      console.log('Bulk import completed. Refreshing portfolio...');
+      // Refresh the portfolio after successful batch import
+      console.log('Refreshing portfolio after batch import...');
       await refreshPortfolio();
       console.log('Portfolio refreshed successfully');
 
@@ -129,12 +118,12 @@ export default function DataPage({}: DataPageProps) {
       setCurrentView('accounts');
       
       // Show import results
-      if (errorCount === 0) {
-        showAlert('Import Successful', `Successfully imported ${successCount} transactions!`, 'success');
+      if (result.errorCount === 0) {
+        showAlert('Import Successful', `Successfully imported ${result.successCount} transactions!`, 'success');
       } else {
         showAlert(
           'Import Completed with Errors', 
-          `Imported ${successCount} transactions successfully, but ${errorCount} failed.\n\nErrors:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... and ${errors.length - 5} more errors` : ''}`, 
+          `Imported ${result.successCount} transactions successfully, but ${result.errorCount} failed.\n\nErrors:\n${result.errors.slice(0, 5).join('\n')}${result.errors.length > 5 ? `\n... and ${result.errors.length - 5} more errors` : ''}`, 
           'warning'
         );
       }
