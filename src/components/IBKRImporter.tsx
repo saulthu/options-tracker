@@ -94,6 +94,8 @@ interface IBKRImporterProps {
 
 interface ImportPreview {
   trades: IBKRTrade[];
+  forexTrades: IBKRTrade[];
+  forexTransactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[];
   cashTransactions: IBKRCashTransaction[];
   fees: IBKRFee[];
   interest: IBKRInterest[];
@@ -210,8 +212,23 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
         ...corporateActionTransactions
       ];
 
+      // Separate forex trades from regular trades for preview
+      const forexTrades = result.trades.filter(trade => trade.assetCategory?.toLowerCase().includes('forex'));
+      const regularTrades = result.trades.filter(trade => !trade.assetCategory?.toLowerCase().includes('forex'));
+      
+      // Convert forex trades to transactions for preview
+      const forexTransactions = convertIBKRTradesToTransactions(
+        forexTrades,
+        accountId,
+        userId,
+        result.metadata.timezone,
+        tickerIdMap
+      );
+
       setPreview({
-        trades: result.trades.filter(trade => !trade.assetCategory?.toLowerCase().includes('forex')),
+        trades: regularTrades,
+        forexTrades: forexTrades,
+        forexTransactions: forexTransactions,
         cashTransactions: result.cashTransactions,
         fees: result.fees,
         interest: result.interest,
@@ -291,8 +308,11 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
 
       // Step 1: Convert transactions
       setImportProgress({ current: 1, total: 4, message: 'Converting transactions...' });
+      
+      // Combine regular trades and forex trades for import
+      const allTrades = [...preview.trades, ...preview.forexTrades];
       const tradeTransactions = convertIBKRTradesToTransactions(
-        preview.trades,
+        allTrades,
         accountId,
         userId,
         preview.metadata.timezone,
@@ -522,8 +542,16 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                   <div className="text-2xl font-bold text-white">{preview.totalTransactions}</div>
                 </div>
                 <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
-                  <div className="text-sm text-[#b3b3b3]">Trades</div>
+                  <div className="text-sm text-[#b3b3b3]">Regular Trades</div>
                   <div className="text-2xl font-bold text-blue-400">{preview.trades.length}</div>
+                </div>
+                <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+                  <div className="text-sm text-[#b3b3b3]">Forex Trades</div>
+                  <div className="text-2xl font-bold text-orange-400">{preview.forexTrades.length}</div>
+                </div>
+                <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
+                  <div className="text-sm text-[#b3b3b3]">Forex Transactions</div>
+                  <div className="text-2xl font-bold text-orange-400">{preview.forexTransactions.length}</div>
                 </div>
                 <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
                   <div className="text-sm text-[#b3b3b3]">Cash Transactions</div>
@@ -612,6 +640,96 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
                           {preview.trades.length > 10 && (
                             <div className="px-4 py-3 text-center text-[#b3b3b3] text-sm">
                               ... and {preview.trades.length - 10} more trades
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Forex Trades Preview */}
+                  {preview.forexTrades.length > 0 && (
+                    <div>
+                      <h4 className="text-white font-medium mb-3">Forex Trades ({preview.forexTrades.length})</h4>
+                      <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-[#1a1a1a]">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Date</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Symbol</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Quantity</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Price</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Proceeds</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Fees</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {preview.forexTrades.slice(0, 10).map((trade, index) => (
+                                <tr key={index} className="border-t border-[#2d2d2d]">
+                                  <td className="px-4 py-3 text-white">{formatDate(trade.dateTime)}</td>
+                                  <td className="px-4 py-3 text-white">{trade.symbol}</td>
+                                  <td className="px-4 py-3 text-white">{trade.quantity}</td>
+                                  <td className="px-4 py-3 text-white">{trade.tPrice.format()}</td>
+                                  <td className="px-4 py-3 text-white">{trade.proceeds.format()}</td>
+                                  <td className="px-4 py-3 text-white">{trade.commFee.format()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {preview.forexTrades.length > 10 && (
+                            <div className="px-4 py-3 text-center text-[#b3b3b3] text-sm">
+                              ... and {preview.forexTrades.length - 10} more forex trades
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Forex Transactions Preview */}
+                  {preview.forexTransactions.length > 0 && (
+                    <div>
+                      <h4 className="text-white font-medium mb-3">Forex Transactions ({preview.forexTransactions.length})</h4>
+                      <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-[#1a1a1a]">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Date</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Side</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Currency</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Quantity</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Price</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Fees</th>
+                                <th className="px-4 py-3 text-left text-[#b3b3b3]">Memo</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {preview.forexTransactions.slice(0, 10).map((transaction, index) => (
+                                <tr key={index} className="border-t border-[#2d2d2d]">
+                                  <td className="px-4 py-3 text-white">{formatDate(transaction.timestamp)}</td>
+                                  <td className="px-4 py-3">
+                                    <span className={`px-2 py-1 rounded text-xs ${
+                                      transaction.side === 'BUY' 
+                                        ? 'bg-green-500/20 text-green-400' 
+                                        : 'bg-red-500/20 text-red-400'
+                                    }`}>
+                                      {transaction.side}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-white">{transaction.currency}</td>
+                                  <td className="px-4 py-3 text-white">{transaction.qty}</td>
+                                  <td className="px-4 py-3 text-white">{transaction.price?.format() || '-'}</td>
+                                  <td className="px-4 py-3 text-white">{transaction.fees.format()}</td>
+                                  <td className="px-4 py-3 text-white text-xs max-w-xs truncate">{transaction.memo}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {preview.forexTransactions.length > 10 && (
+                            <div className="px-4 py-3 text-center text-[#b3b3b3] text-sm">
+                              ... and {preview.forexTransactions.length - 10} more forex transactions
                             </div>
                           )}
                         </div>
