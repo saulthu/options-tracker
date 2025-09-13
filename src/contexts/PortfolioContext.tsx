@@ -202,12 +202,15 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   // Recalculate portfolio when transactions change
   useEffect(() => {
+    console.log('Portfolio recalculation triggered, transaction count:', transactions.length);
     if (transactions.length > 0) {
       const tickerLookup = createTickerLookup(transactions);
       const openingBalances = new Map<string, number>(); // No opening balances for now
       const newPortfolio = buildPortfolioView(transactions, tickerLookup, openingBalances);
+      console.log('Portfolio rebuilt with', newPortfolio.episodes.length, 'episodes');
       setPortfolio(newPortfolio);
     } else {
+      console.log('No transactions, setting portfolio to null');
       setPortfolio(null);
     }
   }, [transactions]);

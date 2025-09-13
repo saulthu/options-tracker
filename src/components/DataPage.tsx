@@ -164,8 +164,11 @@ export default function DataPage({}: DataPageProps) {
     if (!confirmed) return;
 
     try {
+      console.log(`Deleting all transactions for account: ${account.name} (${accountId})`);
       await deleteAllTransactionsForAccount(accountId);
+      console.log('Transactions deleted, refreshing portfolio...');
       await refreshPortfolio();
+      console.log('Portfolio refreshed successfully');
       showAlert('Delete Successful', `All transactions for "${account.name}" have been deleted.`, 'success');
     } catch (error) {
       console.error('Error deleting transactions:', error);
