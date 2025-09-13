@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Upload, Download, TrendingUp, Building2, Trash2 } from 'lucide-react';
+import { Upload, Download, TrendingUp, Building2, Trash2, Hash } from 'lucide-react';
 import { Account } from '@/types/database';
 
 interface AccountTileProps {
@@ -70,7 +70,7 @@ export default function AccountTile({
             
             {/* Transaction Count */}
             <div className="flex items-center gap-2">
-              <Download className="h-4 w-4 text-blue-400" />
+              <Hash className="h-4 w-4 text-blue-400" />
               <span className="text-sm text-[#b3b3b3]">Transactions:</span>
               <span className="text-lg font-semibold text-white">
                 {transactionCount.toLocaleString()}
