@@ -165,14 +165,15 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
   const [showPreview, setShowPreview] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const processFile = useCallback(async () => {
-    if (!file) return;
+  const processFile = useCallback(async (fileToProcess?: File) => {
+    const fileToUse = fileToProcess || file;
+    if (!fileToUse) return;
 
     setIsProcessing(true);
     setError(null);
 
     try {
-      const content = await file.text();
+      const content = await fileToUse.text();
       const parser = new IBKRCSVParser(content);
       const result = parser.parse();
 
@@ -282,10 +283,8 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
     setPreview(null);
     
     // Automatically process the file after validation
-    // Small delay to ensure state is updated
-    setTimeout(() => {
-      processFile();
-    }, 100);
+    // Pass the file directly to avoid state timing issues
+    processFile(selectedFile);
   }, [processFile]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
