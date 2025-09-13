@@ -36,8 +36,11 @@ CREATE TABLE public.accounts (
 -- 3) Ticker table (financial instruments)
 CREATE TABLE public.tickers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT UNIQUE NOT NULL,
-  icon TEXT -- path/URL to cached icon file
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  icon TEXT, -- path/URL to cached icon file
+  -- Ensure ticker names are unique per user
+  UNIQUE(user_id, name)
 );
 
 -- 4) Transaction table (immutable source of truth)
@@ -62,6 +65,7 @@ CREATE TABLE public.transactions (
   qty DECIMAL(15,6) NOT NULL, -- CASH: signed cash movement; others: shares/contracts
   price DECIMAL(10,2), -- per share/contract; not used for CASH
   fees DECIMAL(10,2) DEFAULT 0, -- ≥ 0, all-in for the txn (commission + exchange)
+  currency TEXT NOT NULL DEFAULT 'USD' CHECK (LENGTH(currency) = 3), -- 3-letter currency code (ISO 4217)
   memo TEXT -- free text notes
 );
 
@@ -94,18 +98,18 @@ CREATE POLICY "Users can update own accounts" ON public.accounts
 CREATE POLICY "Users can delete own accounts" ON public.accounts
   FOR DELETE USING (auth.uid() = user_id);
 
--- RLS Policies for tickers table (public read, authenticated write)
-CREATE POLICY "Anyone can view tickers" ON public.tickers
-  FOR SELECT USING (true);
+-- RLS Policies for tickers table (user-specific)
+CREATE POLICY "Users can view own tickers" ON public.tickers
+  FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Authenticated users can insert tickers" ON public.tickers
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can insert own tickers" ON public.tickers
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Authenticated users can update tickers" ON public.tickers
-  FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Users can update own tickers" ON public.tickers
+  FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Authenticated users can delete tickers" ON public.tickers
-  FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Users can delete own tickers" ON public.tickers
+  FOR DELETE USING (auth.uid() = user_id);
 
 -- RLS Policies for transactions table
 CREATE POLICY "Users can view own transactions" ON public.transactions
@@ -123,6 +127,7 @@ CREATE POLICY "Users can delete own transactions" ON public.transactions
 -- Create indexes for performance
 CREATE INDEX idx_users_email ON public.users(email);
 CREATE INDEX idx_accounts_user_id ON public.accounts(user_id);
+CREATE INDEX idx_tickers_user_id ON public.tickers(user_id);
 CREATE INDEX idx_tickers_name ON public.tickers(name);
 CREATE INDEX idx_transactions_user_id ON public.transactions(user_id);
 CREATE INDEX idx_transactions_account_id ON public.transactions(account_id);
@@ -151,8 +156,7 @@ GRANT ALL ON public.accounts TO authenticated;
 GRANT ALL ON public.tickers TO authenticated;
 GRANT ALL ON public.transactions TO authenticated;
 
--- Grant read access to tickers for anonymous users (public data)
-GRANT SELECT ON public.tickers TO anon;
+-- Note: Tickers are now user-specific, so no anonymous access
 
 -- Verify the setup
 SELECT 'Database created successfully!' as status;

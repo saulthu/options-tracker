@@ -300,7 +300,7 @@ describe('Episode Portfolio Calculator', () => {
       // Add ticker data to transactions for this test
       const transactionsWithTickers = transactions.map(txn => ({
         ...txn,
-        tickers: txn.ticker_id ? { id: txn.ticker_id, name: 'AAPL' } : undefined
+        tickers: txn.ticker_id ? { id: txn.ticker_id, user_id: 'user-1', name: 'AAPL' } : undefined
       }));
       
       const lookup = createTickerLookup(transactionsWithTickers);

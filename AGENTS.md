@@ -570,4 +570,49 @@ Common authentication issues and their solutions:
 5. **Update sample data** in `insert-sample-data.sql`
 6. **Test and build** to ensure everything works
 
+### **User-Specific Data Pattern** ⭐ **NEW**
+
+**Purpose**: Ensure all data is properly scoped to individual users for multi-tenant security and data isolation.
+
+**Problem**: Some database tables (like tickers) were shared across all users, which could lead to data leakage and security issues in a multi-tenant application.
+
+**Solution**: 
+1. **Add user_id to all tables** that should be user-specific
+2. **Update RLS policies** to enforce user-based access control
+3. **Update TypeScript interfaces** to include user_id fields
+4. **Update sample data** to include user_id references
+5. **Update unit tests** to handle user_id in test data
+
+**Implementation**:
+- **Database Schema**: Add `user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE` to user-specific tables
+- **RLS Policies**: Change from public access to user-specific access (e.g., `auth.uid() = user_id`)
+- **TypeScript Interfaces**: Add `user_id: string` to relevant interfaces
+- **Sample Data**: Use `(SELECT id FROM public.users LIMIT 1)` for user_id references
+- **Unit Tests**: Include user_id in test data structures
+
+**Benefits**:
+- **Security**: Proper data isolation between users
+- **Multi-tenancy**: Support for multiple users without data conflicts
+- **Data Integrity**: Foreign key constraints ensure data consistency
+- **Scalability**: Each user's data is independently manageable
+
+**Example**: Adding user_id to tickers table:
+```sql
+-- Before: Shared tickers
+CREATE TABLE public.tickers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT UNIQUE NOT NULL,
+  icon TEXT
+);
+
+-- After: User-specific tickers
+CREATE TABLE public.tickers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  icon TEXT,
+  UNIQUE(user_id, name)
+);
+```
+
 Remember: This is a **trading application** - accuracy in calculations, proper date handling, and consistent data presentation are critical for user trust and financial accuracy. **The episode-based portfolio calculator is the foundation of all data integrity.**

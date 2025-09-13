@@ -1007,6 +1007,7 @@ export function convertIBKRTradesToTransactions(
         qty: Math.abs(trade.quantity),
         price: trade.tPrice,
         fees: Math.abs(trade.commFee),
+        currency: trade.currency,
         memo: `${trade.assetCategory} - ${trade.symbol} (${trade.code || 'N/A'})`
       };
     } catch (error) {
@@ -1049,6 +1050,7 @@ export function convertIBKRCashToTransactions(
         qty: Math.abs(transaction.amount),
         price: 1, // Cash transactions have price of 1
         fees: 0,
+        currency: transaction.currency,
         memo: `${transaction.description} (${transaction.currency})`
       };
     } catch (error) {
@@ -1084,6 +1086,7 @@ export function convertIBKRFeesToTransactions(
         qty: Math.abs(fee.amount),
         price: 1,
         fees: 0,
+        currency: fee.currency,
         memo: `${fee.subtitle}: ${fee.description} (${fee.currency})`
       };
     } catch (error) {
@@ -1119,6 +1122,7 @@ export function convertIBKRInterestToTransactions(
         qty: Math.abs(interestItem.amount),
         price: 1,
         fees: 0,
+        currency: interestItem.currency,
         memo: `${interestItem.description} (${interestItem.currency})`
       };
     } catch (error) {
@@ -1159,6 +1163,7 @@ export function convertIBKRDividendsToTransactions(
         qty: Math.abs(dividend.amount),
         price: 1,
         fees: 0,
+        currency: dividend.currency,
         memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.currency})`
       };
     } catch (error) {
@@ -1199,6 +1204,7 @@ export function convertIBKRWithholdingTaxToTransactions(
         qty: Math.abs(tax.amount),
         price: 1,
         fees: 0,
+        currency: tax.currency,
         memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.currency})`
       };
     } catch (error) {
@@ -1242,6 +1248,7 @@ export function convertIBKRCorporateActionsToTransactions(
         qty: Math.abs(action.amount),
         price: 1,
         fees: 0,
+        currency: action.currency,
         memo: `Corporate Action: ${action.description}${action.symbol ? ` (${action.symbol})` : ''} (${action.currency})`
       };
     } catch (error) {

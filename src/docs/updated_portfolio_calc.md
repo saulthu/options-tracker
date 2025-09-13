@@ -78,13 +78,16 @@ transactions:
   qty: number                   # CASH: signed cash movement; others: shares/contracts
   price?: number                # per share/contract (not used for CASH)
   fees: number                  # ≥ 0, all-in for the txn (commission + exchange)
+  currency: string              # 3-letter currency code (ISO 4217), e.g. "USD", "EUR", "GBP"
   memo?: string                 # free text notes
 ```
 
 **Conventions**
 
-* **USD only** (no FX). Conversions are modeled as separate CASH deposit/withdrawal rows.
+* **Multi-currency support** - each transaction specifies its currency. Balances are tracked per currency per account.
 * **Options multiplier** = **100** (implicit; not stored).
+* **Currency codes** follow ISO 4217 standard (3-letter codes like USD, EUR, GBP, JPY).
+* **Default currency** is USD for backward compatibility.
 * Economic immutability: do not rewrite history; corrections update `updated_at` for audit.
 
 ---

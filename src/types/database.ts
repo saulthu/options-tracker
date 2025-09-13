@@ -1,6 +1,7 @@
 
 export interface Ticker {
   id: string
+  user_id: string
   name: string
   icon?: string // Path/URL to cached Google S2 ticker icon file
 }
@@ -27,11 +28,6 @@ export interface Account {
 
 export type AccountFormData = Omit<Account, 'id' | 'user_id' | 'created_at'>;
 
-export interface Ticker {
-  id: string
-  name: string
-  icon?: string
-}
 
 export interface Transaction {
   id: string
@@ -48,10 +44,12 @@ export interface Transaction {
   qty: number
   price?: number
   fees: number
+  currency: string // 3-letter currency code (ISO 4217) - kept for database compatibility
   memo?: string
   // Joined data from PortfolioContext
   tickers?: {
     id: string
+    user_id: string
     name: string
     icon?: string
   }

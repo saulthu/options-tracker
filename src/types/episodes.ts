@@ -1,6 +1,8 @@
 // TypeScript interfaces for the new episode-based portfolio calculation system
 // Based on updated_portfolio_calc.md specification
 
+import { CurrencyAmount } from '../lib/currency-amount';
+
 export type InstrumentKind = 'CASH' | 'SHARES' | 'CALL' | 'PUT';
 export type KindGroup = 'CASH' | 'SHARES' | 'OPTION';
 
@@ -117,10 +119,47 @@ export interface RawTransaction {
   qty: number;
   price?: number;
   fees: number;
+  currency: string; // 3-letter currency code (ISO 4217) - kept for database compatibility
   memo?: string;
   // Joined data from PortfolioContext
   tickers?: {
     id: string;
+    user_id: string;
+    name: string;
+    icon?: string;
+  };
+  accounts?: {
+    id: string;
+    name: string;
+    type: string;
+    institution: string;
+  };
+}
+
+/**
+ * Processed transaction with CurrencyAmount for business logic
+ */
+export interface ProcessedTransaction {
+  id: string;
+  user_id: string;
+  account_id: string;
+  timestamp: string;
+  created_at: string;
+  updated_at: string;
+  instrument_kind: InstrumentKind;
+  ticker_id?: string;
+  expiry?: string;
+  strike?: number;
+  side?: 'BUY' | 'SELL';
+  qty: number;
+  price?: CurrencyAmount;
+  fees: CurrencyAmount;
+  totalValue: CurrencyAmount; // qty * price + fees (for shares/options) or qty (for cash)
+  memo?: string;
+  // Joined data from PortfolioContext
+  tickers?: {
+    id: string;
+    user_id: string;
     name: string;
     icon?: string;
   };
