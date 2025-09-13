@@ -43,7 +43,7 @@ export default function AccountTile({
   };
 
   return (
-    <Card className="bg-[#1a1a1a] border-[#2d2d2d] hover:border-blue-400/50 transition-colors">
+    <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           {/* Left side - Account Info */}
