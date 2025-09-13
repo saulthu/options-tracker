@@ -633,7 +633,7 @@ Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-27, 11:12:29",-25000,0.64942,,16235
       expect(transactions).toHaveLength(6);
       
       // Step 3: Verify transaction structure
-      transactions.forEach((txn, index) => {
+      transactions.forEach((txn) => {
         expect(txn.user_id).toBe('test-user-456');
         expect(txn.account_id).toBe('test-account-123');
         expect(txn.instrument_kind).toBe('CASH');
@@ -665,7 +665,7 @@ Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-27, 11:12:29",-25000,0.64942,,16235
       // Step 5: Verify database format
       expect(dbTransactions).toHaveLength(6);
       
-      dbTransactions.forEach((txn, index) => {
+      dbTransactions.forEach((txn) => {
         // Check required fields
         expect(txn.user_id).toBe('test-user-456');
         expect(txn.account_id).toBe('test-account-123');
