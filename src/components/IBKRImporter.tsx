@@ -165,59 +165,6 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
   const [showPreview, setShowPreview] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const validateAndSetFile = useCallback(async (selectedFile: File) => {
-    if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
-      setError('Please select a valid CSV file');
-      return;
-    }
-    setFile(selectedFile);
-    setError(null);
-    setPreview(null);
-    
-    // Automatically process the file after validation
-    // Small delay to ensure state is updated
-    setTimeout(() => {
-      processFile();
-    }, 100);
-  }, [processFile]);
-
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      validateAndSetFile(selectedFile);
-    }
-  }, [validateAndSetFile]);
-
-  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(false);
-  }, []);
-
-  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(false);
-
-    const files = event.dataTransfer.files;
-    if (files && files.length > 0) {
-      const droppedFile = files[0];
-      validateAndSetFile(droppedFile);
-    }
-  }, [validateAndSetFile]);
-
   const processFile = useCallback(async () => {
     if (!file) return;
 
@@ -324,6 +271,59 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
       setIsProcessing(false);
     }
   }, [file, accountId, userId, ensureTickersExist]);
+
+  const validateAndSetFile = useCallback(async (selectedFile: File) => {
+    if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
+      setError('Please select a valid CSV file');
+      return;
+    }
+    setFile(selectedFile);
+    setError(null);
+    setPreview(null);
+    
+    // Automatically process the file after validation
+    // Small delay to ensure state is updated
+    setTimeout(() => {
+      processFile();
+    }, 100);
+  }, [processFile]);
+
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      validateAndSetFile(selectedFile);
+    }
+  }, [validateAndSetFile]);
+
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(false);
+
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0) {
+      const droppedFile = files[0];
+      validateAndSetFile(droppedFile);
+    }
+  }, [validateAndSetFile]);
 
   const handleImport = useCallback(async () => {
     if (!preview) return;
