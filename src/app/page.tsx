@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, Settings as SettingsIcon, Calendar, List } from "lucide-react";
+import { TrendingUp, Settings as SettingsIcon, Calendar, List, Upload } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import LoginForm from "@/components/LoginForm";
 import Settings from "@/components/Settings";
@@ -11,6 +11,7 @@ import ReportPage from "@/components/ReportPage";
 import OptionsPage from "@/components/OptionsPage";
 import PositionsPage from "@/components/PositionsPage";
 import TransactionsPage from "@/components/TransactionsPage";
+import DataPage from "@/components/DataPage";
 
 import DebugSupabase from "@/components/DebugSupabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,6 +69,12 @@ export default function Home() {
           title: "Report",
           icon: Calendar,
           description: "Performance and analytics for the selected time period."
+        };
+      case 'data':
+        return {
+          title: "Data Management",
+          icon: Upload,
+          description: "Import and export your trading data."
         };
       case 'overview':
       default:
@@ -145,6 +152,8 @@ export default function Home() {
         return <TransactionsPage selectedRange={selectedRange} />;
       case 'weekly-report':
         return <ReportPage selectedRange={selectedRange} />;
+      case 'data':
+        return <DataPage selectedRange={selectedRange} />;
       case 'overview':
       default:
         return <OverviewPage />;
