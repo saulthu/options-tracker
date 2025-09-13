@@ -169,6 +169,7 @@ function buildLedger(
       const newBalance = currentBalance + cashDelta;
       balances.set(accountId, newBalance);
 
+
       ledger.push({
         txnId: t.id,
         userId,
@@ -354,7 +355,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
         price: undefined,
         fees: 0,
         cashDelta: lr.cashDelta,
-        realizedPnLDelta: 0
+        realizedPnLDelta: 0,
+        note: lr.memo
       }]
     };
     episodes.push(episode);
@@ -431,9 +433,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       fees: lr.fees,
       cashDelta: lr.cashDelta,
       realizedPnLDelta: round2(realizedPnL),
-      note,
+      note: note || lr.memo,
       actionTerm
     });
+
 
     // Check if position is closed
     if (episode.qty === 0) {
@@ -473,7 +476,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       txns: []
     };
 
-    applyTradeToEpisode(episode, lr, note);
+    applyTradeToEpisode(episode, lr, note || lr.memo);
     activeEpisodes.set(`${lr.userId}|${lr.accountId}|${episodeKeyStr}`, episode);
     episodes.push(episode);
     return episode;
@@ -550,10 +553,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       }
       
       // Start new episode
-      episode = startNewEpisode(lr);
+      episode = startNewEpisode(lr, lr.memo);
     } else {
       // Apply trade to existing episode
-      applyTradeToEpisode(episode, lr);
+      applyTradeToEpisode(episode, lr, lr.memo);
       
       // Check if episode is now closed
       if (episode.qty === 0) {

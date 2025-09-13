@@ -957,4 +957,72 @@ describe('Episode Portfolio Calculator', () => {
       expect(episode.realizedPnLTotal).toBeCloseTo(123, 0); // (3.75 - 2.51) * 100 - 1, accounting for floating point precision
     });
   });
+
+  describe('Memo Field Preservation', () => {
+    it('should preserve memo field in EpisodeTxn for cash transactions', () => {
+      const transaction = createTestTransaction({
+        instrument_kind: 'CASH',
+        memo: 'Test cash memo'
+      });
+      
+      const result = buildPortfolioView([transaction], tickerLookup);
+      const cashEpisode = result.episodes.find(e => e.kindGroup === 'CASH');
+      
+      expect(cashEpisode).toBeDefined();
+      expect(cashEpisode!.txns).toHaveLength(1);
+      expect(cashEpisode!.txns[0].note).toBe('Test cash memo');
+    });
+
+    it('should preserve memo field in EpisodeTxn for share transactions', () => {
+      const transaction = createTestTransaction({
+        instrument_kind: 'SHARES',
+        ticker_id: 'ticker-1',
+        side: 'BUY',
+        qty: 100,
+        price: 150.00,
+        memo: 'Test share memo'
+      });
+      
+      const result = buildPortfolioView([transaction], tickerLookup);
+      const shareEpisode = result.episodes.find(e => e.kindGroup === 'SHARES');
+      
+      expect(shareEpisode).toBeDefined();
+      expect(shareEpisode!.txns).toHaveLength(1);
+      expect(shareEpisode!.txns[0].note).toBe('Test share memo');
+    });
+
+    it('should preserve memo field in EpisodeTxn for option transactions', () => {
+      const transaction = createTestTransaction({
+        instrument_kind: 'CALL',
+        ticker_id: 'ticker-1',
+        side: 'SELL',
+        qty: 1,
+        price: 5.00,
+        strike: 150,
+        expiry: '2025-12-19',
+        memo: 'Test option memo'
+      });
+      
+      const result = buildPortfolioView([transaction], tickerLookup);
+      const optionEpisode = result.episodes.find(e => e.kindGroup === 'OPTION');
+      
+      expect(optionEpisode).toBeDefined();
+      expect(optionEpisode!.txns).toHaveLength(1);
+      expect(optionEpisode!.txns[0].note).toBe('Test option memo');
+    });
+
+    it('should handle undefined memo fields gracefully', () => {
+      const transaction = createTestTransaction({
+        instrument_kind: 'CASH',
+        memo: undefined
+      });
+      
+      const result = buildPortfolioView([transaction], tickerLookup);
+      const cashEpisode = result.episodes.find(e => e.kindGroup === 'CASH');
+      
+      expect(cashEpisode).toBeDefined();
+      expect(cashEpisode!.txns).toHaveLength(1);
+      expect(cashEpisode!.txns[0].note).toBeUndefined();
+    });
+  });
 });

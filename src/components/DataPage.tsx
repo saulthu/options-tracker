@@ -23,7 +23,6 @@ export default function DataPage({}: DataPageProps) {
     transactions, 
     getBalance, 
     getTotalPnL, 
-    addTransaction, 
     addTransactions,
     ensureTickersExist, 
     refreshPortfolio,

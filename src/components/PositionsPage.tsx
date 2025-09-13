@@ -22,6 +22,9 @@ type SortDirection = 'asc' | 'desc';
 const BADGE_STYLES = {
   default: 'text-xs bg-gray-800 text-gray-200 border-gray-700 !font-mono',
   open: 'text-xs bg-gray-300 text-gray-800 border-gray-400 !font-mono font-bold',
+  cash: 'text-xs bg-slate-600 text-slate-100 border-slate-500 !font-mono',
+  shares: 'text-xs bg-emerald-600 text-emerald-100 border-emerald-500 !font-mono',
+  options: 'text-xs bg-indigo-700 text-indigo-100 border-indigo-600 !font-mono',
 } as const;
 
 export default function PositionsPage({ selectedRange }: PositionsPageProps) {
@@ -196,6 +199,20 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     );
   };
 
+  // Helper function to get badge style based on position type
+  const getBadgeStyle = (kindGroup: string) => {
+    if (kindGroup === 'CASH') {
+      return BADGE_STYLES.cash;
+    }
+    if (kindGroup === 'SHARES') {
+      return BADGE_STYLES.shares;
+    }
+    if (kindGroup === 'OPTION') {
+      return BADGE_STYLES.options;
+    }
+    return BADGE_STYLES.default;
+  };
+
   const getPositionDisplay = (position: { kindGroup: string; episodeKey: string; qty: number; currentRight?: string; currentStrike?: number; currentExpiry?: string }) => {
     if (position.kindGroup === 'CASH') {
       return { ticker: 'Cash', details: '' };
@@ -223,7 +240,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     <div className="space-y-2">
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Type</span>
-        <Badge variant="outline" className={BADGE_STYLES.default}>
+        <Badge variant="outline" className={getBadgeStyle('CASH')}>
           Cash
         </Badge>
       </div>
@@ -242,6 +259,12 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           {position.cashTotal >= 0 ? 'Deposit' : 'Withdraw'}
         </Badge>
       </div>
+      {position.txns.length > 0 && position.txns[0].note && (
+        <div className="flex justify-between">
+          <span className="text-[#b3b3b3]">Note</span>
+          <span className="text-white text-sm text-right max-w-[200px]">{position.txns[0].note}</span>
+        </div>
+      )}
     </div>
   );
 
@@ -249,7 +272,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     <div className="space-y-2">
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Type</span>
-        <Badge variant="outline" className={BADGE_STYLES.default}>
+        <Badge variant="outline" className={getBadgeStyle('SHARES')}>
           Shares
         </Badge>
       </div>
@@ -308,7 +331,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           <div className="text-lg font-semibold text-white mb-1 flex justify-center items-center gap-2">
             <Badge 
               variant="outline" 
-              className={BADGE_STYLES.default}
+              className={getBadgeStyle('OPTION')}
             >
               {position.optionDirection === 'CALL' ? 'Call' :
                position.optionDirection === 'PUT' ? 'Put' :
@@ -368,7 +391,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           </div>
           {txn.note && (
             <div className="mt-2 text-center">
-              <span className="text-[#b3b3b3] text-xs">{txn.note}</span>
+              <span className="text-[#b3b3b3] text-xs">Note: {txn.note}</span>
             </div>
           )}
         </div>
@@ -450,7 +473,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             </div>
             {txn.note && (
               <div className="col-span-3 text-center">
-                <span className="text-[#b3b3b3] text-xs">{txn.note}</span>
+                <span className="text-[#b3b3b3] text-xs">Note: {txn.note}</span>
               </div>
             )}
           </div>
@@ -597,7 +620,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         <div className="flex items-center gap-2">
                           <Badge 
                             variant="outline" 
-                            className={`${BADGE_STYLES.default} w-16 text-center`}
+                            className={`${getBadgeStyle(position.kindGroup)} w-16 text-center`}
                           >
                             {position.kindGroup === 'OPTION' ? 
                               (position.optionDirection === 'CALL' ? 'Call' :
@@ -638,7 +661,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                           variant="outline" 
                           className={
                             position.kindGroup === 'CASH' 
-                              ? BADGE_STYLES.default
+                              ? getBadgeStyle('CASH')
                               : position.qty === 0 
                                 ? BADGE_STYLES.default
                                 : BADGE_STYLES.open
@@ -712,8 +735,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                 </div>
               </div>
             </div>
-
-
 
             {/* Transaction History - Not shown for cash positions */}
             {selectedPosition.kindGroup !== 'CASH' && (

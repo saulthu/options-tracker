@@ -8,7 +8,8 @@ import {
   convertIBKRCashToTransactions,
   convertIBKRDividendsToTransactions,
   convertIBKRWithholdingTaxToTransactions,
-  convertIBKRCorporateActionsToTransactions
+  convertIBKRCorporateActionsToTransactions,
+  extractTickerNamesFromIBKRData
 } from '../ibkr-csv-parser';
 
 // Sample IBKR CSV content for testing
@@ -31,6 +32,8 @@ Trades,Data,Exercise,Equity and Index Options,USD,MSFT 15MAR24 300 P,"2024-03-22
 Trades,Data,Order,Stocks,USD,TSLA,"2024-03-25, 11:00:00",50,200.00,200.00,-10000,-3,10003,0,0,O
 Trades,Data,Order,Stocks,USD,TSLA,"2024-03-25, 11:00:00",25,200.00,200.00,-5000,-2,5002,0,0,P
 Trades,Data,Order,Stocks,USD,TSLA,"2024-03-25, 11:05:00",25,201.00,201.00,-5025,-2,5027,0,0,P
+Trades,Data,Order,Forex,USD,EUR.USD,"2024-03-26, 09:30:00",1000,1.0850,1.0850,-1085,-2,1087,0,0,O
+Trades,Data,Order,Forex,USD,GBP.USD,"2024-03-26, 10:15:00",500,1.2650,1.2650,-632.50,-1,633.50,0,0,O
 Deposits & Withdrawals,Header,Currency,Settle Date,Description,Amount
 Deposits & Withdrawals,Data,USD,2024-01-15,Electronic Fund Transfer,50000
 Deposits & Withdrawals,Data,USD,2024-12-15,Wire Transfer Out,-10000
@@ -88,7 +91,7 @@ describe('IBKRCSVParser', () => {
     it('should parse trades correctly', () => {
       const result = parser.parse();
 
-      expect(result.trades).toHaveLength(9);
+      expect(result.trades).toHaveLength(11); // 9 original + 2 Forex trades
       
       const stockTrade = result.trades[0];
       expect(stockTrade.symbol).toBe('AAPL');
@@ -235,7 +238,7 @@ describe('IBKRCSVParser', () => {
     it('should handle various trade codes correctly', () => {
       const result = parser.parse();
 
-      expect(result.trades).toHaveLength(9);
+      expect(result.trades).toHaveLength(11); // 9 original + 2 Forex trades
       
       // Check for different trade types
       const openingTrade = result.trades.find(t => t.code === 'O');
@@ -257,6 +260,28 @@ describe('IBKRCSVParser', () => {
       const partialTrade = result.trades.find(t => t.code === 'P');
       expect(partialTrade).toBeDefined();
       expect(partialTrade?.dataDiscriminator).toBe('Order');
+    });
+
+    it('should identify Forex trades correctly', () => {
+      const result = parser.parse();
+
+      const forexTrades = result.trades.filter(trade => 
+        trade.assetCategory?.toLowerCase().includes('forex')
+      );
+      
+      expect(forexTrades).toHaveLength(2);
+      
+      const eurUsdTrade = forexTrades.find(t => t.symbol === 'EUR.USD');
+      expect(eurUsdTrade).toBeDefined();
+      expect(eurUsdTrade?.assetCategory).toBe('Forex');
+      expect(eurUsdTrade?.quantity).toBe(1000);
+      expect(eurUsdTrade?.tPrice).toBe(1.0850);
+
+      const gbpUsdTrade = forexTrades.find(t => t.symbol === 'GBP.USD');
+      expect(gbpUsdTrade).toBeDefined();
+      expect(gbpUsdTrade?.assetCategory).toBe('Forex');
+      expect(gbpUsdTrade?.quantity).toBe(500);
+      expect(gbpUsdTrade?.tPrice).toBe(1.2650);
     });
   });
 
@@ -366,6 +391,37 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(() => {
       convertIBKRTradesToTransactions(mockTrades, 'account-123', '', 'EST', {});
     }).toThrow('Account ID and User ID are required for transaction conversion');
+  });
+
+  it('should ignore Forex transactions', () => {
+    const tradesWithForex = [
+      ...mockTrades,
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'EUR.USD',
+        dateTime: '2024-03-15, 10:30:00',
+        quantity: 1000,
+        tPrice: 1.0850,
+        cPrice: 1.0850,
+        proceeds: -1085,
+        commFee: -2,
+        basis: 1087,
+        realizedPL: 0,
+        mtmPL: 0,
+        code: 'O'
+      }
+    ];
+
+    const transactions = convertIBKRTradesToTransactions(tradesWithForex, 'account-123', 'user-456', 'EST', {});
+    
+    // Should only have the original 2 transactions, Forex should be filtered out
+    expect(transactions).toHaveLength(2);
+    
+    // Verify no Forex transactions are present
+    const forexTransactions = transactions.filter(t => t.memo?.includes('Forex'));
+    expect(forexTransactions).toHaveLength(0);
   });
 });
 
@@ -531,5 +587,195 @@ describe('convertIBKRCorporateActionsToTransactions', () => {
     const action3 = transactions[2];
     expect(action3.side).toBe('SELL'); // Negative amount
     expect(action3.qty).toBe(1000);
+  });
+});
+
+describe('extractTickerNamesFromIBKRData', () => {
+  it('should extract ticker names from trades and ignore Forex transactions', () => {
+    const trades = [
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Stocks',
+        currency: 'USD',
+        symbol: 'AAPL',
+        dateTime: '2024-03-15, 10:30:00',
+        quantity: 100,
+        tPrice: 150.00,
+        cPrice: 150.00,
+        proceeds: -15000,
+        commFee: -5,
+        basis: 15005,
+        realizedPL: 0,
+        mtmPL: 0,
+        code: 'O'
+      },
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'EUR.USD',
+        dateTime: '2024-03-15, 10:30:00',
+        quantity: 1000,
+        tPrice: 1.0850,
+        cPrice: 1.0850,
+        proceeds: -1085,
+        commFee: -2,
+        basis: 1087,
+        realizedPL: 0,
+        mtmPL: 0,
+        code: 'O'
+      }
+    ];
+
+    const dividends = [
+      {
+        currency: 'USD',
+        date: '2024-03-15',
+        description: 'AAPL Dividend',
+        amount: 150,
+        symbol: 'AAPL'
+      }
+    ];
+
+    const tickerNames = extractTickerNamesFromIBKRData(trades, [], [], [], dividends, [], []);
+
+    // Should only include AAPL (from stocks and dividends), not EUR.USD from Forex
+    expect(tickerNames).toEqual(['AAPL']);
+    expect(tickerNames).not.toContain('EUR.USD');
+  });
+});
+
+describe('Trade vs Transaction Count Consistency', () => {
+  it('should maintain consistent counts between raw trades and converted transactions', () => {
+    // Use the sample CSV data which includes Forex trades
+    const parser = new IBKRCSVParser(sampleIBKRCSV);
+    const result = parser.parse();
+    
+    // Count raw trades (including Forex)
+    const totalRawTrades = result.trades.length;
+    expect(totalRawTrades).toBe(11); // 9 original + 2 Forex
+    
+    // Count non-Forex trades
+    const nonForexTrades = result.trades.filter(trade => 
+      !trade.assetCategory?.toLowerCase().includes('forex')
+    );
+    expect(nonForexTrades).toHaveLength(9);
+    
+    // Convert trades to transactions (should filter out Forex)
+    const tickerIdMap = { 'AAPL': 'ticker-1', 'MSFT': 'ticker-2', 'TSLA': 'ticker-3' };
+    const tradeTransactions = convertIBKRTradesToTransactions(
+      result.trades,
+      'account-123',
+      'user-456',
+      'EST',
+      tickerIdMap
+    );
+    
+    // Count converted transactions (should exclude Forex)
+    expect(tradeTransactions).toHaveLength(9);
+    
+    // Verify the counts are consistent
+    expect(tradeTransactions.length).toBe(nonForexTrades.length);
+    expect(tradeTransactions.length).toBeLessThan(totalRawTrades);
+    
+    // Verify no Forex transactions were converted
+    const forexTransactions = tradeTransactions.filter(t => 
+      t.memo?.includes('Forex')
+    );
+    expect(forexTransactions).toHaveLength(0);
+  });
+
+  it('should handle mixed asset categories correctly', () => {
+    const mixedTrades = [
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Stocks',
+        currency: 'USD',
+        symbol: 'AAPL',
+        dateTime: '2024-03-15, 10:30:00',
+        quantity: 100,
+        tPrice: 150.00,
+        cPrice: 150.00,
+        proceeds: -15000,
+        commFee: -5,
+        basis: 15005,
+        realizedPL: 0,
+        mtmPL: 0,
+        code: 'O'
+      },
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Equity and Index Options',
+        currency: 'USD',
+        symbol: 'AAPL 15MAR24 150 C',
+        dateTime: '2024-03-15, 10:35:00',
+        quantity: 1,
+        tPrice: 5.00,
+        cPrice: 5.00,
+        proceeds: -500,
+        commFee: -2,
+        basis: 502,
+        realizedPL: 0,
+        mtmPL: 0,
+        code: 'O'
+      },
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'EUR.USD',
+        dateTime: '2024-03-15, 10:30:00',
+        quantity: 1000,
+        tPrice: 1.0850,
+        cPrice: 1.0850,
+        proceeds: -1085,
+        commFee: -2,
+        basis: 1087,
+        realizedPL: 0,
+        mtmPL: 0,
+        code: 'O'
+      },
+      {
+        dataDiscriminator: 'Order',
+        assetCategory: 'Forex',
+        currency: 'USD',
+        symbol: 'GBP.USD',
+        dateTime: '2024-03-15, 10:30:00',
+        quantity: 500,
+        tPrice: 1.2650,
+        cPrice: 1.2650,
+        proceeds: -632.50,
+        commFee: -1,
+        basis: 633.50,
+        realizedPL: 0,
+        mtmPL: 0,
+        code: 'O'
+      }
+    ];
+
+    const tickerIdMap = { 'AAPL': 'ticker-1' };
+    const transactions = convertIBKRTradesToTransactions(
+      mixedTrades,
+      'account-123',
+      'user-456',
+      'EST',
+      tickerIdMap
+    );
+
+    // Should have 2 transactions (stocks + options), not 4 (excluding 2 Forex)
+    expect(transactions).toHaveLength(2);
+    
+    // Verify we have the expected transaction types
+    const stockTransaction = transactions.find(t => t.instrument_kind === 'SHARES');
+    const optionTransaction = transactions.find(t => t.instrument_kind === 'CALL');
+    
+    expect(stockTransaction).toBeDefined();
+    expect(optionTransaction).toBeDefined();
+    
+    // Verify no Forex transactions
+    const forexTransactions = transactions.filter(t => 
+      t.memo?.includes('Forex')
+    );
+    expect(forexTransactions).toHaveLength(0);
   });
 });

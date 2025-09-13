@@ -883,16 +883,18 @@ export function extractTickerNamesFromIBKRData(
 ): string[] {
   const tickerNames = new Set<string>();
 
-  // Extract from trades
-  trades.forEach(trade => {
-    if (trade.symbol) {
-      // For options, extract the underlying symbol
-      const underlyingSymbol = trade.symbol.split(' ')[0];
-      if (underlyingSymbol) {
-        tickerNames.add(underlyingSymbol);
+  // Extract from trades (skip Forex transactions)
+  trades
+    .filter(trade => !trade.assetCategory?.toLowerCase().includes('forex'))
+    .forEach(trade => {
+      if (trade.symbol) {
+        // For options, extract the underlying symbol
+        const underlyingSymbol = trade.symbol.split(' ')[0];
+        if (underlyingSymbol) {
+          tickerNames.add(underlyingSymbol);
+        }
       }
-    }
-  });
+    });
 
   // Extract from dividends
   dividends.forEach(dividend => {
@@ -929,23 +931,26 @@ export function convertIBKRTradesToTransactions(
     throw new Error('Account ID and User ID are required for transaction conversion');
   }
 
-  return trades.map((trade, index) => {
-    try {
-      // Determine instrument kind based on asset category
-      let instrumentKind: Transaction['instrument_kind'] = 'SHARES';
-      
-      if (trade.assetCategory?.toLowerCase().includes('option')) {
-        // Parse option symbol to determine if it's a call or put
-        const optionMatch = trade.symbol.match(/(\w+)\s+(\d{2}[A-Z]{3}\d{2})\s+(\d+(?:\.\d+)?)\s+([CP])/);
-        if (optionMatch) {
-          instrumentKind = optionMatch[4] === 'C' ? 'CALL' : 'PUT';
-        } else {
-          // Fallback: check if symbol contains 'C' or 'P'
-          instrumentKind = trade.symbol.includes(' C') ? 'CALL' : 'PUT';
+  return trades
+    .filter(trade => {
+      // Skip Forex transactions entirely
+      return !trade.assetCategory?.toLowerCase().includes('forex');
+    })
+    .map((trade, index) => {
+      try {
+        // Determine instrument kind based on asset category
+        let instrumentKind: Transaction['instrument_kind'] = 'SHARES';
+        
+        if (trade.assetCategory?.toLowerCase().includes('option')) {
+          // Parse option symbol to determine if it's a call or put
+          const optionMatch = trade.symbol.match(/(\w+)\s+(\d{2}[A-Z]{3}\d{2})\s+(\d+(?:\.\d+)?)\s+([CP])/);
+          if (optionMatch) {
+            instrumentKind = optionMatch[4] === 'C' ? 'CALL' : 'PUT';
+          } else {
+            // Fallback: check if symbol contains 'C' or 'P'
+            instrumentKind = trade.symbol.includes(' C') ? 'CALL' : 'PUT';
+          }
         }
-      } else if (trade.assetCategory?.toLowerCase().includes('forex')) {
-        instrumentKind = 'CASH';
-      }
 
       // Parse expiry date from option symbol
       let expiry: string | undefined;

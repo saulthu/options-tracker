@@ -253,7 +253,7 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
       ];
 
       setPreview({
-        trades: result.trades,
+        trades: result.trades.filter(trade => !trade.assetCategory?.toLowerCase().includes('forex')),
         cashTransactions: result.cashTransactions,
         fees: result.fees,
         interest: result.interest,
