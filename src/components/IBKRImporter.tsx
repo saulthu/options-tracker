@@ -6,6 +6,7 @@ import { ThemeButton, CancelButton } from '@/components/ui/theme-button';
 import { Upload, FileText, CheckCircle, AlertCircle, X, Eye, EyeOff } from 'lucide-react';
 import { 
   IBKRCSVParser, 
+  extractTickerNamesFromIBKRData,
   convertIBKRTradesToTransactions, 
   convertIBKRCashToTransactions,
   convertIBKRFeesToTransactions,
@@ -62,9 +63,7 @@ function validateTransactions(transactions: Omit<Transaction, 'id' | 'created_at
 
     // Validate options-specific fields
     if (transaction.instrument_kind === 'CALL' || transaction.instrument_kind === 'PUT') {
-      if (!transaction.ticker_id) {
-        errors.push(`Transaction ${index + 1}: Missing ticker_id for options transaction`);
-      }
+      // Note: ticker_id is optional and will be implemented later
       if (!transaction.expiry) {
         errors.push(`Transaction ${index + 1}: Missing expiry for options transaction`);
       }
@@ -82,6 +81,7 @@ interface IBKRImporterProps {
   onCancel: () => void;
   accountId: string;
   userId: string;
+  ensureTickersExist: (tickerNames: string[]) => Promise<{ [tickerName: string]: string }>;
 }
 
 interface ImportPreview {
@@ -151,9 +151,10 @@ interface ImportPreview {
     title: string;
   };
   totalTransactions: number;
+  tickerIdMap: { [tickerName: string]: string };
 }
 
-export default function IBKRImporter({ onImport, onCancel, accountId, userId }: IBKRImporterProps) {
+export default function IBKRImporter({ onImport, onCancel, accountId, userId, ensureTickersExist }: IBKRImporterProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -219,48 +220,72 @@ export default function IBKRImporter({ onImport, onCancel, accountId, userId }: 
       const parser = new IBKRCSVParser(content);
       const result = parser.parse();
 
-      // Convert to our transaction format
+      // Extract all unique ticker names from the IBKR data
+      const tickerNames = extractTickerNamesFromIBKRData(
+        result.trades,
+        result.cashTransactions,
+        result.fees,
+        result.interest,
+        result.dividends,
+        result.withholdingTax,
+        result.corporateActions
+      );
+
+      console.log('Extracted ticker names:', tickerNames);
+
+      // Ensure all tickers exist in the database
+      const tickerIdMap = await ensureTickersExist(tickerNames);
+      console.log('Ticker ID mapping:', tickerIdMap);
+
+      // Convert to our transaction format with ticker IDs
       const tradeTransactions = convertIBKRTradesToTransactions(
         result.trades,
         accountId,
         userId,
-        result.metadata.timezone
+        result.metadata.timezone,
+        tickerIdMap
       );
 
       const cashTransactions = convertIBKRCashToTransactions(
         result.cashTransactions,
         accountId,
-        userId
+        userId,
+        tickerIdMap
       );
 
       const feeTransactions = convertIBKRFeesToTransactions(
         result.fees,
         accountId,
-        userId
+        userId,
+        tickerIdMap
       );
 
       const interestTransactions = convertIBKRInterestToTransactions(
         result.interest,
         accountId,
-        userId
+        userId,
+        tickerIdMap
       );
 
       const dividendTransactions = convertIBKRDividendsToTransactions(
         result.dividends,
         accountId,
-        userId
+        userId,
+        tickerIdMap
       );
 
       const withholdingTaxTransactions = convertIBKRWithholdingTaxToTransactions(
         result.withholdingTax,
         accountId,
-        userId
+        userId,
+        tickerIdMap
       );
 
       const corporateActionTransactions = convertIBKRCorporateActionsToTransactions(
         result.corporateActions,
         accountId,
-        userId
+        userId,
+        tickerIdMap
       );
 
       const allTransactions = [
@@ -282,7 +307,8 @@ export default function IBKRImporter({ onImport, onCancel, accountId, userId }: 
         withholdingTax: result.withholdingTax,
         corporateActions: result.corporateActions,
         metadata: result.metadata,
-        totalTransactions: allTransactions.length
+        totalTransactions: allTransactions.length,
+        tickerIdMap
       });
 
     } catch (err) {
@@ -291,7 +317,7 @@ export default function IBKRImporter({ onImport, onCancel, accountId, userId }: 
     } finally {
       setIsProcessing(false);
     }
-  }, [file, accountId, userId]);
+  }, [file, accountId, userId, ensureTickersExist]);
 
   const handleImport = useCallback(async () => {
     if (!preview) return;
@@ -300,48 +326,55 @@ export default function IBKRImporter({ onImport, onCancel, accountId, userId }: 
       setIsProcessing(true);
       setError(null);
 
-      // Convert preview data to transactions
+      // Convert preview data to transactions using the stored ticker ID map
       const tradeTransactions = convertIBKRTradesToTransactions(
         preview.trades,
         accountId,
         userId,
-        preview.metadata.timezone
+        preview.metadata.timezone,
+        preview.tickerIdMap
       );
 
       const cashTransactions = convertIBKRCashToTransactions(
         preview.cashTransactions,
         accountId,
-        userId
+        userId,
+        preview.tickerIdMap
       );
 
       const feeTransactions = convertIBKRFeesToTransactions(
         preview.fees,
         accountId,
-        userId
+        userId,
+        preview.tickerIdMap
       );
 
       const interestTransactions = convertIBKRInterestToTransactions(
         preview.interest,
         accountId,
-        userId
+        userId,
+        preview.tickerIdMap
       );
 
       const dividendTransactions = convertIBKRDividendsToTransactions(
         preview.dividends,
         accountId,
-        userId
+        userId,
+        preview.tickerIdMap
       );
 
       const withholdingTaxTransactions = convertIBKRWithholdingTaxToTransactions(
         preview.withholdingTax,
         accountId,
-        userId
+        userId,
+        preview.tickerIdMap
       );
 
       const corporateActionTransactions = convertIBKRCorporateActionsToTransactions(
         preview.corporateActions,
         accountId,
-        userId
+        userId,
+        preview.tickerIdMap
       );
 
       const allTransactions = [

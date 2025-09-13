@@ -7,6 +7,7 @@ import { usePortfolio } from '@/contexts/PortfolioContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Download } from 'lucide-react';
 import IBKRImporter from '@/components/IBKRImporter';
+import AccountSelector from '@/components/AccountSelector';
 import AlertModal from '@/components/ui/alert-modal';
 import { Transaction } from '@/types/database';
 
@@ -16,7 +17,8 @@ interface DataPageProps {
 
 export default function DataPage({ selectedRange: _selectedRange }: DataPageProps) {
   const { user } = useAuth();
-  const { accounts, addTransaction } = usePortfolio();
+  const { accounts, addTransaction, ensureTickersExist, refreshPortfolio } = usePortfolio();
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showIBKRImporter, setShowIBKRImporter] = useState(false);
   const [alertModal, setAlertModal] = useState<{
     isOpen: boolean;
@@ -57,20 +59,30 @@ export default function DataPage({ selectedRange: _selectedRange }: DataPageProp
 
   const handleIBKRImport = async (transactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]) => {
     try {
-      // Add each transaction to the database
+      console.log('Starting IBKR import with', transactions.length, 'transactions');
+      console.log('First transaction sample:', transactions[0]);
+      
+      // Add each transaction to the database (without refreshing portfolio)
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
 
       for (const transaction of transactions) {
         try {
+          console.log('Adding transaction:', transaction);
           await addTransaction(transaction);
           successCount++;
         } catch (error) {
+          console.error('Transaction import error:', error);
           errorCount++;
           errors.push(`Failed to import transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
+
+      // Refresh the portfolio only once at the end of the bulk import
+      console.log('Bulk import completed. Refreshing portfolio...');
+      await refreshPortfolio();
+      console.log('Portfolio refreshed successfully');
 
       setShowIBKRImporter(false);
       
@@ -90,12 +102,33 @@ export default function DataPage({ selectedRange: _selectedRange }: DataPageProp
     }
   };
 
+  const handleAccountSelect = (accountId: string) => {
+    setSelectedAccountId(accountId);
+  };
+
   const handleShowIBKRImporter = () => {
     if (accounts.length === 0) {
       showAlert('Account Required', 'Please create an account first before importing data. Go to Settings to add an account.', 'warning');
       return;
     }
+    if (!selectedAccountId) {
+      showAlert('Account Selection Required', 'Please select a target account before importing data.', 'warning');
+      return;
+    }
     setShowIBKRImporter(true);
+  };
+
+  const handleShowExport = () => {
+    if (accounts.length === 0) {
+      showAlert('Account Required', 'Please create an account first before exporting data. Go to Settings to add an account.', 'warning');
+      return;
+    }
+    if (!selectedAccountId) {
+      showAlert('Account Selection Required', 'Please select a target account before exporting data.', 'warning');
+      return;
+    }
+    // TODO: Implement export functionality
+    showAlert('Export Coming Soon', 'Export functionality will be available soon.', 'info');
   };
 
   return (
@@ -106,86 +139,138 @@ export default function DataPage({ selectedRange: _selectedRange }: DataPageProp
         <p className="text-[#b3b3b3]">Import and export your trading data</p>
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Import Card */}
-        <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Upload className="h-5 w-5" />
-              Import Data
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Interactive Brokers Import */}
-              <div 
-                className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-blue-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
-                onClick={handleShowIBKRImporter}
-              >
-                <Image 
-                  src="/ibkr.svg" 
-                  alt="Interactive Brokers" 
-                  width={32}
-                  height={32}
-                />
-                <div className="flex-1">
-                  <div className="text-white font-medium">Interactive Brokers</div>
-                  <div className="text-sm text-[#b3b3b3]">Import from IBKR CSV file</div>
-                </div>
-                <div className="text-[#666] group-hover:text-blue-400 transition-colors">
-                  →
-                </div>
-              </div>
+      {/* Account Selection - First Step */}
+      <AccountSelector
+        accounts={accounts}
+        selectedAccountId={selectedAccountId}
+        onAccountSelect={handleAccountSelect}
+      />
 
-              {/* Generic CSV Import */}
-              <div 
-                className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-green-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
-                onClick={() => {
-                  // TODO: Implement generic CSV import
-                  console.log('Generic CSV import clicked');
-                }}
-              >
-                <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
-                  <Upload className="h-5 w-5 text-green-400" />
+      {/* Main Content - Only show when account is selected */}
+      {selectedAccountId && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Import Card */}
+          <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Upload className="h-5 w-5" />
+                Import Data
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Interactive Brokers Import */}
+                <div 
+                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-blue-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
+                  onClick={handleShowIBKRImporter}
+                >
+                  <Image 
+                    src="/ibkr.svg" 
+                    alt="Interactive Brokers" 
+                    width={32}
+                    height={32}
+                  />
+                  <div className="flex-1">
+                    <div className="text-white font-medium">Interactive Brokers</div>
+                    <div className="text-sm text-[#b3b3b3]">Import from IBKR CSV file</div>
+                  </div>
+                  <div className="text-[#666] group-hover:text-blue-400 transition-colors">
+                    →
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <div className="text-white font-medium">Generic CSV</div>
-                  <div className="text-sm text-[#b3b3b3]">Import from any CSV format</div>
-                </div>
-                <div className="text-[#666] group-hover:text-green-400 transition-colors">
-                  →
+
+                {/* Generic CSV Import */}
+                <div 
+                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-green-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
+                  onClick={() => {
+                    // TODO: Implement generic CSV import
+                    console.log('Generic CSV import clicked');
+                  }}
+                >
+                  <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
+                    <Upload className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">Generic CSV</div>
+                    <div className="text-sm text-[#b3b3b3]">Import from any CSV format</div>
+                  </div>
+                  <div className="text-[#666] group-hover:text-green-400 transition-colors">
+                    →
+                  </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Export Card */}
+          <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Download className="h-5 w-5" />
+                Export Data
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* CSV Export */}
+                <div 
+                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-blue-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
+                  onClick={handleShowExport}
+                >
+                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
+                    <Download className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">Export to CSV</div>
+                    <div className="text-sm text-[#b3b3b3]">Download transactions for selected account</div>
+                  </div>
+                  <div className="text-[#666] group-hover:text-blue-400 transition-colors">
+                    →
+                  </div>
+                </div>
+
+                {/* JSON Export */}
+                <div 
+                  className="flex items-center gap-3 p-4 bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg hover:border-green-400/50 hover:bg-[#1a1a1a] transition-colors cursor-pointer group"
+                  onClick={handleShowExport}
+                >
+                  <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
+                    <Download className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white font-medium">Export to JSON</div>
+                    <div className="text-sm text-[#b3b3b3]">Download complete data structure</div>
+                  </div>
+                  <div className="text-[#666] group-hover:text-green-400 transition-colors">
+                    →
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* No Account Selected Message */}
+      {!selectedAccountId && accounts.length > 0 && (
+        <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
+          <CardContent className="py-12">
+            <div className="text-center">
+              <div className="text-[#b3b3b3] text-lg mb-2">Select an account to continue</div>
+              <div className="text-sm text-[#666]">Choose a target account above to import or export data</div>
             </div>
           </CardContent>
         </Card>
-
-        {/* Export Card */}
-        <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Download className="h-5 w-5" />
-              Export Data
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-12">
-              <Download className="h-16 w-16 text-[#666] mx-auto mb-4" />
-              <div className="text-[#b3b3b3] mb-2">Export your trading data</div>
-              <div className="text-sm text-[#666]">Coming soon</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       {/* IBKR Importer Modal */}
-      {showIBKRImporter && (
+      {showIBKRImporter && selectedAccountId && (
         <IBKRImporter
           onImport={handleIBKRImport}
           onCancel={() => setShowIBKRImporter(false)}
-          accountId={accounts[0]?.id || ''}
+          accountId={selectedAccountId}
           userId={user.id}
+          ensureTickersExist={ensureTickersExist}
         />
       )}
 

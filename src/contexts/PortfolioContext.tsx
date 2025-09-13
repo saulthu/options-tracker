@@ -59,6 +59,10 @@ interface PortfolioContextType {
   updateAccount: (accountId: string, accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>) => Promise<{ data?: Account; error?: string }>;
   deleteAccount: (accountId: string) => Promise<{ error?: string }>;
   refreshAccounts: () => Promise<void>;
+  
+  // Ticker management
+  ensureTickersExist: (tickerNames: string[]) => Promise<{ [tickerName: string]: string }>; // Returns ticker name to ID mapping
+  getTickerId: (tickerName: string) => Promise<string | null>;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -305,23 +309,35 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const addTransaction = useCallback(async (transaction: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { error: insertError } = await supabase
+      console.log('Attempting to insert transaction:', JSON.stringify(transaction, null, 2));
+      
+      const { data, error: insertError } = await supabase
         .from('transactions')
         .insert([transaction])
         .select()
         .single();
 
       if (insertError) {
+        console.error('Supabase insert error details:', {
+          error: insertError,
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint
+        });
         throw insertError;
       }
 
-      // Refresh the portfolio
-      await refreshPortfolio();
+      console.log('Transaction inserted successfully:', data);
+      
+      // Note: Portfolio refresh is now explicit - caller decides when to refresh
     } catch (err) {
       console.error('Error adding transaction:', err);
       setError(err instanceof Error ? err.message : 'Failed to add transaction');
+      // Re-throw the error so calling code can handle it
+      throw err;
     }
-  }, [refreshPortfolio]);
+  }, []);
 
   const updateTransaction = useCallback(async (id: string, updates: Partial<RawTransaction>) => {
     try {
@@ -334,13 +350,14 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         throw updateError;
       }
 
-      // Refresh the portfolio
-      await refreshPortfolio();
+      // Note: Portfolio refresh is now explicit - caller decides when to refresh
     } catch (err) {
       console.error('Error updating transaction:', err);
       setError(err instanceof Error ? err.message : 'Failed to update transaction');
+      // Re-throw the error so calling code can handle it
+      throw err;
     }
-  }, [refreshPortfolio]);
+  }, []);
 
   const deleteTransaction = useCallback(async (id: string) => {
     try {
@@ -353,13 +370,14 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         throw deleteError;
       }
 
-      // Refresh the portfolio
-      await refreshPortfolio();
+      // Note: Portfolio refresh is now explicit - caller decides when to refresh
     } catch (err) {
       console.error('Error deleting transaction:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete transaction');
+      // Re-throw the error so calling code can handle it
+      throw err;
     }
-  }, [refreshPortfolio]);
+  }, []);
 
   // Account management functions
   const createAccount = useCallback(async (accountData: Omit<Account, 'id' | 'user_id' | 'created_at'>): Promise<{ data?: Account; error?: string }> => {
@@ -473,6 +491,87 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, [user]);
 
+  // Ticker management methods
+  const ensureTickersExist = useCallback(async (tickerNames: string[]): Promise<{ [tickerName: string]: string }> => {
+    if (!tickerNames.length) return {};
+
+    try {
+      console.log('Ensuring tickers exist:', tickerNames);
+      
+      // First, check which tickers already exist
+      const { data: existingTickers, error: fetchError } = await supabase
+        .from('tickers')
+        .select('id, name')
+        .in('name', tickerNames);
+
+      if (fetchError) {
+        console.error('Error fetching existing tickers:', fetchError);
+        throw fetchError;
+      }
+
+      const existingTickerMap: { [name: string]: string } = {};
+      const existingNames = new Set<string>();
+
+      if (existingTickers) {
+        existingTickers.forEach(ticker => {
+          existingTickerMap[ticker.name] = ticker.id;
+          existingNames.add(ticker.name);
+        });
+      }
+
+      // Find tickers that need to be created
+      const tickersToCreate = tickerNames.filter(name => !existingNames.has(name));
+      
+      if (tickersToCreate.length > 0) {
+        console.log('Creating new tickers:', tickersToCreate);
+        
+        // Create missing tickers
+        const { data: newTickers, error: createError } = await supabase
+          .from('tickers')
+          .insert(tickersToCreate.map(name => ({ name })))
+          .select('id, name');
+
+        if (createError) {
+          console.error('Error creating tickers:', createError);
+          throw createError;
+        }
+
+        // Add new tickers to the map
+        if (newTickers) {
+          newTickers.forEach(ticker => {
+            existingTickerMap[ticker.name] = ticker.id;
+          });
+        }
+      }
+
+      console.log('Ticker mapping created:', existingTickerMap);
+      return existingTickerMap;
+    } catch (err) {
+      console.error('Error ensuring tickers exist:', err);
+      throw err;
+    }
+  }, []);
+
+  const getTickerId = useCallback(async (tickerName: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('tickers')
+        .select('id')
+        .eq('name', tickerName)
+        .single();
+
+      if (error) {
+        console.error('Error fetching ticker ID:', error);
+        return null;
+      }
+
+      return data?.id || null;
+    } catch (err) {
+      console.error('Error getting ticker ID:', err);
+      return null;
+    }
+  }, []);
+
   const value: PortfolioContextType = {
     transactions,
     accounts,
@@ -497,6 +596,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     updateAccount,
     deleteAccount,
     refreshAccounts,
+    ensureTickersExist,
+    getTickerId,
   };
 
   return (

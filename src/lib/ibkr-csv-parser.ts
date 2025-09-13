@@ -872,11 +872,58 @@ export class IBKRCSVParser {
 /**
  * Convert IBKR trades to our transaction format
  */
+export function extractTickerNamesFromIBKRData(
+  trades: IBKRTrade[],
+  cashTransactions: IBKRCashTransaction[],
+  fees: IBKRFee[],
+  interest: IBKRInterest[],
+  dividends: IBKRDividend[],
+  withholdingTax: IBKRWithholdingTax[],
+  corporateActions: IBKRCorporateAction[]
+): string[] {
+  const tickerNames = new Set<string>();
+
+  // Extract from trades
+  trades.forEach(trade => {
+    if (trade.symbol) {
+      // For options, extract the underlying symbol
+      const underlyingSymbol = trade.symbol.split(' ')[0];
+      if (underlyingSymbol) {
+        tickerNames.add(underlyingSymbol);
+      }
+    }
+  });
+
+  // Extract from dividends
+  dividends.forEach(dividend => {
+    if (dividend.symbol) {
+      tickerNames.add(dividend.symbol);
+    }
+  });
+
+  // Extract from withholding tax
+  withholdingTax.forEach(tax => {
+    if (tax.symbol) {
+      tickerNames.add(tax.symbol);
+    }
+  });
+
+  // Extract from corporate actions
+  corporateActions.forEach(action => {
+    if (action.symbol) {
+      tickerNames.add(action.symbol);
+    }
+  });
+
+  return Array.from(tickerNames);
+}
+
 export function convertIBKRTradesToTransactions(
   trades: IBKRTrade[],
   accountId: string,
   userId: string,
-  timezone: string = 'AEST'
+  timezone: string = 'AEST',
+  tickerIdMap: { [tickerName: string]: string } = {}
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -939,12 +986,16 @@ export function convertIBKRTradesToTransactions(
       // Determine side based on quantity
       const side = trade.quantity > 0 ? 'BUY' : 'SELL';
 
+      // Get ticker ID for the underlying symbol
+      const underlyingSymbol = trade.symbol.split(' ')[0];
+      const tickerId = tickerIdMap[underlyingSymbol];
+
       return {
         user_id: userId,
         account_id: accountId,
         timestamp: utcDateTime,
         instrument_kind: instrumentKind,
-        ticker_id: trade.symbol.split(' ')[0], // Extract underlying symbol
+        ticker_id: tickerId,
         expiry,
         strike,
         side,
@@ -966,7 +1017,8 @@ export function convertIBKRTradesToTransactions(
 export function convertIBKRCashToTransactions(
   cashTransactions: IBKRCashTransaction[],
   accountId: string,
-  userId: string
+  userId: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1008,7 +1060,8 @@ export function convertIBKRCashToTransactions(
 export function convertIBKRFeesToTransactions(
   fees: IBKRFee[],
   accountId: string,
-  userId: string
+  userId: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1043,7 +1096,8 @@ export function convertIBKRFeesToTransactions(
 export function convertIBKRInterestToTransactions(
   interest: IBKRInterest[],
   accountId: string,
-  userId: string
+  userId: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1078,7 +1132,8 @@ export function convertIBKRInterestToTransactions(
 export function convertIBKRDividendsToTransactions(
   dividends: IBKRDividend[],
   accountId: string,
-  userId: string
+  userId: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1089,11 +1144,15 @@ export function convertIBKRDividendsToTransactions(
       const dividendDate = new Date(dividend.date);
       const timestamp = dividendDate.toISOString();
 
+      // Get ticker ID if symbol exists
+      const tickerId = dividend.symbol ? tickerIdMap[dividend.symbol] : undefined;
+
       return {
         user_id: userId,
         account_id: accountId,
         timestamp,
         instrument_kind: 'CASH',
+        ticker_id: tickerId,
         side: 'BUY', // Dividends are always inflows
         qty: Math.abs(dividend.amount),
         price: 1,
@@ -1113,7 +1172,8 @@ export function convertIBKRDividendsToTransactions(
 export function convertIBKRWithholdingTaxToTransactions(
   withholdingTax: IBKRWithholdingTax[],
   accountId: string,
-  userId: string
+  userId: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1124,11 +1184,15 @@ export function convertIBKRWithholdingTaxToTransactions(
       const taxDate = new Date(tax.date);
       const timestamp = taxDate.toISOString();
 
+      // Get ticker ID if symbol exists
+      const tickerId = tax.symbol ? tickerIdMap[tax.symbol] : undefined;
+
       return {
         user_id: userId,
         account_id: accountId,
         timestamp,
         instrument_kind: 'CASH',
+        ticker_id: tickerId,
         side: 'SELL', // Withholding tax is always an outflow
         qty: Math.abs(tax.amount),
         price: 1,
@@ -1148,7 +1212,8 @@ export function convertIBKRWithholdingTaxToTransactions(
 export function convertIBKRCorporateActionsToTransactions(
   corporateActions: IBKRCorporateAction[],
   accountId: string,
-  userId: string
+  userId: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1159,6 +1224,9 @@ export function convertIBKRCorporateActionsToTransactions(
       const actionDate = new Date(action.date);
       const timestamp = actionDate.toISOString();
 
+      // Get ticker ID if symbol exists
+      const tickerId = action.symbol ? tickerIdMap[action.symbol] : undefined;
+
       // Determine side based on amount (positive = inflow, negative = outflow)
       const side = action.amount >= 0 ? 'BUY' : 'SELL';
 
@@ -1167,6 +1235,7 @@ export function convertIBKRCorporateActionsToTransactions(
         account_id: accountId,
         timestamp,
         instrument_kind: 'CASH',
+        ticker_id: tickerId,
         side,
         qty: Math.abs(action.amount),
         price: 1,
