@@ -782,14 +782,10 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedPositions.map((position, index) => (
+                  {sortedPositions.map((position) => (
                     <tr
                       key={position.episodeId}
-                      className={`border-b border-[#2d2d2d] hover:bg-[#0f0f0f] cursor-pointer font-mono transition-colors duration-150 ${
-                        position.qty === 0 
-                          ? (index % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#252525]')
-                          : (index % 2 === 0 ? 'bg-[#1f1f1f]' : 'bg-[#2a2a2a]')
-                      }`}
+                      className="border-b border-[#2a2a2a] hover:bg-[#0f0f0f] cursor-pointer font-mono transition-colors duration-150 bg-[#1a1a1a]"
                       onClick={() => handlePositionClick(position)}
                       style={{ position: 'relative', zIndex: 1 }}
                     >

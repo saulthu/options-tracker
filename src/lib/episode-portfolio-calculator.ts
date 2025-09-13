@@ -354,10 +354,10 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       openTimestamp: lr.timestamp,
       closeTimestamp: lr.timestamp, // Cash episodes close immediately
       rolled: false,
-      qty: lr.qty,
+      qty: 0, // Cash episodes are always closed positions
       avgPrice: CurrencyAmount.zero(lr.cashDelta.currency),
       totalFees: CurrencyAmount.zero(lr.cashDelta.currency),
-      cashTotal: lr.cashDelta,
+      cashTotal: lr.cashDelta, // The actual cash value is stored here
       realizedPnLTotal: CurrencyAmount.zero(lr.cashDelta.currency),
       txns: [{
         txnId: lr.txnId,

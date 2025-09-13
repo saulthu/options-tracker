@@ -806,7 +806,7 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(stockTransaction.ticker_id).toBe('ticker-uuid-123');
     expect(stockTransaction.side).toBe('BUY');
     expect(stockTransaction.qty).toBe(100);
-    expect(stockTransaction.price.amount).toBe(150.00);
+    expect(stockTransaction.price?.amount).toBe(150.00);
     expect(stockTransaction.fees.amount).toBe(5);
     expect(stockTransaction.user_id).toBe('user-456');
     expect(stockTransaction.account_id).toBe('account-123');
@@ -823,7 +823,7 @@ describe('convertIBKRTradesToTransactions', () => {
     expect(optionTransaction.strike?.amount).toBe(150);
     expect(optionTransaction.side).toBe('BUY');
     expect(optionTransaction.qty).toBe(1);
-    expect(optionTransaction.price.amount).toBe(5.00);
+    expect(optionTransaction.price?.amount).toBe(5.00);
     expect(optionTransaction.fees.amount).toBe(2);
   });
 
@@ -1108,7 +1108,7 @@ describe('convertIBKRCashToTransactions', () => {
     expect(deposit.instrument_kind).toBe('CASH');
     expect(deposit.side).toBe('BUY');
     expect(deposit.qty).toBe(50000);
-    expect(deposit.price.amount).toBe(1);
+    expect(deposit.price?.amount).toBe(1);
     expect(deposit.fees.amount).toBe(0);
     expect(deposit.memo).toContain('Electronic Fund Transfer');
     
@@ -1166,7 +1166,7 @@ describe('convertIBKRDividendsToTransactions', () => {
     expect(dividend1.instrument_kind).toBe('CASH');
     expect(dividend1.side).toBe('BUY');
     expect(dividend1.qty).toBe(150);
-    expect(dividend1.price.amount).toBe(1);
+    expect(dividend1.price?.amount).toBe(1);
     expect(dividend1.fees.amount).toBe(0);
     expect(dividend1.memo).toContain('Dividend: AAPL Dividend (AAPL)');
     
@@ -1224,7 +1224,7 @@ describe('convertIBKRWithholdingTaxToTransactions', () => {
     expect(tax.instrument_kind).toBe('CASH');
     expect(tax.side).toBe('SELL'); // Withholding tax is always an outflow
     expect(tax.qty).toBe(22.50);
-    expect(tax.price.amount).toBe(1);
+    expect(tax.price?.amount).toBe(1);
     expect(tax.fees.amount).toBe(0);
     expect(tax.memo).toContain('Withholding Tax: AAPL Dividend Tax (AAPL)');
   });
@@ -1332,7 +1332,7 @@ describe('extractTickerNamesFromIBKRData', () => {
         currency: 'USD',
         date: '2024-03-15',
         description: 'AAPL Dividend',
-        amount: 150,
+        amount: new CurrencyAmount(150, 'USD'),
         symbol: 'AAPL'
       }
     ];

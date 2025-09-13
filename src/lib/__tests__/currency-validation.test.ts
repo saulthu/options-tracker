@@ -77,7 +77,7 @@ describe('CurrencyAmount Validation', () => {
 
       invalidAmounts.forEach(amount => {
         expect(() => {
-          new CurrencyAmount(amount, 'USD');
+          new CurrencyAmount(amount as number, 'USD');
         }).toThrow(`Invalid amount: ${amount}`);
       });
     });

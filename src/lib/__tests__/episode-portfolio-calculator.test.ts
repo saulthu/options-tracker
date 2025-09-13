@@ -49,7 +49,9 @@ describe('Episode Portfolio Calculator', () => {
     ]);
     openingBalances = new Map([
       ['account-1', new CurrencyAmount(0, 'USD')],
-      ['account-2', new CurrencyAmount(1000, 'USD')]
+      ['account-2', new CurrencyAmount(1000, 'USD')],
+      ['account-eur', new CurrencyAmount(0, 'EUR')],
+      ['account-aud', new CurrencyAmount(0, 'AUD')]
     ]);
   });
 
@@ -72,7 +74,8 @@ describe('Episode Portfolio Calculator', () => {
 
       expect(result.episodes).toHaveLength(1);
       expect(result.episodes[0].kindGroup).toBe('CASH');
-      expect(result.episodes[0].qty).toBe(1000);
+      expect(result.episodes[0].qty).toBe(0); // Cash episodes are always closed positions
+      expect(result.episodes[0].cashTotal.amount).toBe(1000); // Cash value is in cashTotal
       expect(result.episodes[0].closeTimestamp).toBe('2025-09-01T10:00:00Z'); // Cash episodes close immediately
     });
 
@@ -277,14 +280,16 @@ describe('Episode Portfolio Calculator', () => {
 
     it('should get open episodes', () => {
       const openEpisodes = getOpenEpisodes(result.episodes);
-      expect(openEpisodes).toHaveLength(2); // Cash episode (qty=1000) and remaining shares (qty=50)
+      expect(openEpisodes).toHaveLength(1); // Only remaining shares (qty=50), cash episode is closed (qty=0)
       const shareEpisode = openEpisodes.find(e => e.kindGroup === 'SHARES');
       expect(shareEpisode?.qty).toBe(50);
     });
 
     it('should get closed episodes', () => {
       const closedEpisodes = getClosedEpisodes(result.episodes);
-      expect(closedEpisodes).toHaveLength(0); // No episodes are closed (qty=0)
+      expect(closedEpisodes).toHaveLength(1); // Cash episode is closed (qty=0)
+      const cashEpisode = closedEpisodes.find(e => e.kindGroup === 'CASH');
+      expect(cashEpisode?.qty).toBe(0);
     });
 
     it('should get episodes by kind', () => {
@@ -311,7 +316,8 @@ describe('Episode Portfolio Calculator', () => {
 
     it('should format episode for display', () => {
       const shareEpisode = result.episodes.find((e: { kindGroup: string }) => e.kindGroup === 'SHARES');
-      const formatted = formatEpisodeForDisplay(shareEpisode);
+      expect(shareEpisode).toBeDefined();
+      const formatted = formatEpisodeForDisplay(shareEpisode!);
       expect(formatted).toContain('AAPL OPEN: 50 shares');
     });
   });
@@ -682,6 +688,7 @@ describe('Episode Portfolio Calculator', () => {
       const transactions = [
         createTestTransaction({
           id: 'usd-cash-1',
+          account_id: 'account-1',
           instrument_kind: 'CASH',
           qty: 1000,
           price: new CurrencyAmount(1, 'USD'),
@@ -691,6 +698,7 @@ describe('Episode Portfolio Calculator', () => {
         }),
         createTestTransaction({
           id: 'eur-cash-1',
+          account_id: 'account-eur',
           instrument_kind: 'CASH',
           qty: 500,
           price: new CurrencyAmount(1, 'EUR'),
@@ -700,6 +708,7 @@ describe('Episode Portfolio Calculator', () => {
         }),
         createTestTransaction({
           id: 'aud-cash-1',
+          account_id: 'account-aud',
           instrument_kind: 'CASH',
           qty: 2000,
           price: new CurrencyAmount(1, 'AUD'),
@@ -713,8 +722,8 @@ describe('Episode Portfolio Calculator', () => {
 
       // Should have separate balances for each currency
       expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(1000);
-      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(500);
-      expect(result.balances.get('account-1')?.get('AUD')?.amount).toBe(2000);
+      expect(result.balances.get('account-eur')?.get('EUR')?.amount).toBe(500);
+      expect(result.balances.get('account-aud')?.get('AUD')?.amount).toBe(2000);
 
       // Should have 3 cash episodes (one per currency)
       const cashEpisodes = result.episodes.filter(ep => ep.kindGroup === 'CASH');
@@ -738,6 +747,7 @@ describe('Episode Portfolio Calculator', () => {
         // EUR share purchase
         createTestTransaction({
           id: 'eur-shares-1',
+          account_id: 'account-eur',
           instrument_kind: 'SHARES',
           ticker_id: 'ticker-2',
           side: 'BUY',
@@ -753,7 +763,7 @@ describe('Episode Portfolio Calculator', () => {
 
       // Should have separate balances for each currency
       expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(-15005); // -(100 * 150) - 5
-      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(-10003); // -(50 * 200) - 3
+      expect(result.balances.get('account-eur')?.get('EUR')?.amount).toBe(-10003); // -(50 * 200) - 3
 
       // Should have 2 share episodes
       const shareEpisodes = result.episodes.filter(ep => ep.kindGroup === 'SHARES');
@@ -779,6 +789,7 @@ describe('Episode Portfolio Calculator', () => {
         // EUR put option
         createTestTransaction({
           id: 'eur-put-1',
+          account_id: 'account-eur',
           instrument_kind: 'PUT',
           ticker_id: 'ticker-2',
           side: 'BUY',
@@ -796,7 +807,7 @@ describe('Episode Portfolio Calculator', () => {
 
       // Should have separate balances for each currency
       expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(499.5); // +(1 * 5 * 100) - 0.5
-      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(-601); // -(2 * 3 * 100) - 1
+      expect(result.balances.get('account-eur')?.get('EUR')?.amount).toBe(-601); // -(2 * 3 * 100) - 1
 
       // Should have 2 option episodes
       const optionEpisodes = result.episodes.filter(ep => ep.kindGroup === 'OPTION');
@@ -815,6 +826,7 @@ describe('Episode Portfolio Calculator', () => {
         }),
         createTestTransaction({
           id: 'eur-txn-1',
+          account_id: 'account-eur',
           instrument_kind: 'CASH',
           qty: 500,
           price: new CurrencyAmount(1, 'EUR'),
@@ -826,11 +838,12 @@ describe('Episode Portfolio Calculator', () => {
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
       // Balances should be separate by currency
-      const accountBalances = result.balances.get('account-1');
-      expect(accountBalances?.get('USD')?.amount).toBe(1000);
-      expect(accountBalances?.get('EUR')?.amount).toBe(500);
-      expect(accountBalances?.get('USD')?.currency).toBe('USD');
-      expect(accountBalances?.get('EUR')?.currency).toBe('EUR');
+      const usdBalances = result.balances.get('account-1');
+      const eurBalances = result.balances.get('account-eur');
+      expect(usdBalances?.get('USD')?.amount).toBe(1000);
+      expect(eurBalances?.get('EUR')?.amount).toBe(500);
+      expect(usdBalances?.get('USD')?.currency).toBe('USD');
+      expect(eurBalances?.get('EUR')?.currency).toBe('EUR');
     });
 
     it('should calculate total P&L correctly for multiple currencies', () => {
@@ -859,6 +872,7 @@ describe('Episode Portfolio Calculator', () => {
         // EUR transactions
         createTestTransaction({
           id: 'eur-buy-1',
+          account_id: 'account-eur',
           instrument_kind: 'SHARES',
           ticker_id: 'ticker-2',
           side: 'BUY',
@@ -869,6 +883,7 @@ describe('Episode Portfolio Calculator', () => {
         }),
         createTestTransaction({
           id: 'eur-sell-1',
+          account_id: 'account-eur',
           instrument_kind: 'SHARES',
           ticker_id: 'ticker-2',
           side: 'SELL',
@@ -901,10 +916,10 @@ describe('Episode Portfolio Calculator', () => {
           fees: new CurrencyAmount(0, 'USD'),
           currency: 'USD'
         }),
-        // Account 1 - EUR
+        // Account EUR - EUR
         createTestTransaction({
           id: 'acc1-eur-1',
-          account_id: 'account-1',
+          account_id: 'account-eur',
           instrument_kind: 'CASH',
           qty: 500,
           price: new CurrencyAmount(1, 'EUR'),
@@ -921,10 +936,10 @@ describe('Episode Portfolio Calculator', () => {
           fees: new CurrencyAmount(0, 'USD'),
           currency: 'USD'
         }),
-        // Account 2 - AUD
+        // Account AUD - AUD
         createTestTransaction({
           id: 'acc2-aud-1',
-          account_id: 'account-2',
+          account_id: 'account-aud',
           instrument_kind: 'CASH',
           qty: 3000,
           price: new CurrencyAmount(1, 'AUD'),
@@ -935,13 +950,17 @@ describe('Episode Portfolio Calculator', () => {
 
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
-      // Account 1 should have USD and EUR balances
+      // Account 1 should have USD balance
       expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(1000);
-      expect(result.balances.get('account-1')?.get('EUR')?.amount).toBe(500);
+      
+      // Account EUR should have EUR balance
+      expect(result.balances.get('account-eur')?.get('EUR')?.amount).toBe(500);
 
-      // Account 2 should have USD and AUD balances
+      // Account 2 should have USD balance
       expect(result.balances.get('account-2')?.get('USD')?.amount).toBe(3000); // 1000 (opening) + 2000 (transaction)
-      expect(result.balances.get('account-2')?.get('AUD')?.amount).toBe(3000);
+      
+      // Account AUD should have AUD balance
+      expect(result.balances.get('account-aud')?.get('AUD')?.amount).toBe(3000);
     });
   });
 

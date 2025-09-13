@@ -82,6 +82,8 @@ export interface PositionEpisode {
 
   // Evolving economics
   qty: number; // SHARES ≥ 0; OPTIONS may be ±; 0 at closed
+  // NOTE: For CASH episodes, qty should be 0 since they are always closed positions.
+  // The actual cash value is stored in cashTotal (CurrencyAmount) which contains both amount and currency.
   avgPrice: CurrencyAmount; // per-unit entry average (fee-inclusive on opens/adds)
   totalFees: CurrencyAmount;
   cashTotal: CurrencyAmount; // sum of cashDelta across episode (or cash value for cash episode)

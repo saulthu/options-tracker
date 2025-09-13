@@ -204,7 +204,7 @@ describe('CurrencyAmount', () => {
 
     it('should format with default options', () => {
       expect(usd100.format()).toBe('$ 100.50');
-      expect(jpy1000.format()).toBe('¥ 1000');
+      expect(jpy1000.format()).toBe('¥ 1,000');
     });
 
     it('should format with custom options', () => {
@@ -221,9 +221,9 @@ describe('CurrencyAmount', () => {
     it('should format HKD amounts with correct symbol', () => {
       const hkdAmount = new CurrencyAmount(1234.56, 'HKD');
       
-      expect(hkdAmount.format()).toBe('HK$ 1234.56');
-      expect(hkdAmount.format({ showSymbol: false })).toBe('1234.56');
-      expect(hkdAmount.format({ showSymbol: true })).toBe('HK$ 1234.56');
+      expect(hkdAmount.format()).toBe('HK$ 1,234.56');
+      expect(hkdAmount.format({ showSymbol: false })).toBe('1,234.56');
+      expect(hkdAmount.format({ showSymbol: true })).toBe('HK$ 1,234.56');
     });
 
     it('should handle HKD edge cases', () => {
