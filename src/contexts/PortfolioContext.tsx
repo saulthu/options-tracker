@@ -11,6 +11,7 @@ import {
   getTotalRealizedPnL,
   getAccountRealizedPnL,
 } from '@/lib/episode-portfolio-calculator-v2';
+import { createTagManager, TagFilter as TagFilterType } from '@/lib/tag-manager';
 import { InstrumentKind } from '@/types/episodes';
 import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
 import { 
@@ -125,6 +126,12 @@ interface PortfolioContextType {
   getFilteredEpisodes: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredPositions: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredTransactions: (timeRange: TimeRange) => RawTransaction[];
+  
+  // Tag filtering
+  getAllTags: () => string[];
+  getTagStats: () => { tag: string; count: number }[];
+  getFilteredEpisodesByTags: (tagFilter: TagFilterType, timeRange: TimeRange, accountId?: string) => PositionEpisode[];
+  getFilteredTransactionsByTags: (tagFilter: TagFilterType, timeRange: TimeRange) => RawTransaction[];
   
   // Actions
   refreshPortfolio: () => Promise<void>;
@@ -798,6 +805,46 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, [user]);
 
+  // Tag filtering methods
+  const getAllTags = useCallback(() => {
+    if (!portfolio) return [];
+    const tagManager = createTagManager(transactions, portfolio.episodes);
+    return tagManager.getAllTags();
+  }, [transactions, portfolio]);
+
+  const getTagStats = useCallback(() => {
+    if (!portfolio) return [];
+    const tagManager = createTagManager(transactions, portfolio.episodes);
+    return tagManager.getTransactionTagStats();
+  }, [transactions, portfolio]);
+
+  const getFilteredEpisodesByTags = useCallback((
+    tagFilter: TagFilterType, 
+    timeRange: TimeRange, 
+    accountId?: string
+  ) => {
+    if (!portfolio) return [];
+    
+    // First filter by time range and account
+    const timeFilteredEpisodes = getFilteredEpisodes(timeRange, accountId);
+    
+    // Then filter by tags
+    const tagManager = createTagManager(transactions, timeFilteredEpisodes);
+    return tagManager.filterEpisodes(tagFilter);
+  }, [portfolio, transactions, getFilteredEpisodes]);
+
+  const getFilteredTransactionsByTags = useCallback((
+    tagFilter: TagFilterType, 
+    timeRange: TimeRange
+  ) => {
+    // First filter by time range
+    const timeFilteredTransactions = getFilteredTransactions(timeRange);
+    
+    // Then filter by tags
+    const tagManager = createTagManager(timeFilteredTransactions, []);
+    return tagManager.filterTransactions(tagFilter);
+  }, [getFilteredTransactions]);
+
   const value: PortfolioContextType = {
     transactions,
     accounts,
@@ -814,6 +861,10 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     getFilteredEpisodes,
     getFilteredPositions,
     getFilteredTransactions,
+    getAllTags,
+    getTagStats,
+    getFilteredEpisodesByTags,
+    getFilteredTransactionsByTags,
     refreshPortfolio,
     refreshOnAccountChange,
     addTransaction,

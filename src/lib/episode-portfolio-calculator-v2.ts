@@ -13,6 +13,7 @@ import {
   KindGroup
 } from '../types/episodes';
 import { CurrencyAmount, CurrencyCode } from './currency-amount';
+import { parseMemo } from './memo-parser';
 
 // -----------------------------
 // Helper Functions
@@ -189,6 +190,7 @@ function buildLedger(
         price: price, // This will be CurrencyAmount(1.0, currency) for cash
         fees,
         memo: t.memo,
+        parsedMemo: parseMemo(t.memo),
         cashDelta,
         balanceAfter: newBalance,
         accepted: true
@@ -214,6 +216,7 @@ function buildLedger(
         price,
         fees,
         memo: t.memo,
+        parsedMemo: parseMemo(t.memo),
         cashDelta: CurrencyAmount.zero(fees.currency),
         balanceAfter: currentBalance,
         accepted: false,
@@ -247,6 +250,7 @@ function buildLedger(
         price,
         fees,
         memo: t.memo,
+        parsedMemo: parseMemo(t.memo),
         cashDelta: CurrencyAmount.zero(fees.currency),
         balanceAfter: currentBalance,
         accepted: false,
@@ -274,6 +278,7 @@ function buildLedger(
           price,
           fees,
           memo: t.memo,
+          parsedMemo: parseMemo(t.memo),
           cashDelta: CurrencyAmount.zero(fees.currency),
           balanceAfter: currentBalance,
           accepted: false,
@@ -311,6 +316,7 @@ function buildLedger(
       price,
       fees,
       memo: t.memo,
+      parsedMemo: parseMemo(t.memo),
       cashDelta,
       balanceAfter: newBalance,
       accepted: true
@@ -370,7 +376,9 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
         fees: lr.fees,
         cashDelta: lr.cashDelta,
         realizedPnLDelta: CurrencyAmount.zero(lr.cashDelta.currency),
-        note: lr.memo
+        note: lr.memo,
+        memo: lr.memo,
+        parsedMemo: lr.parsedMemo
       }]
     };
     episodes.push(episode);
@@ -460,6 +468,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       cashDelta: lr.cashDelta,
       realizedPnLDelta: realizedPnL,
       note: note || lr.memo,
+      memo: lr.memo,
+      parsedMemo: lr.parsedMemo,
       actionTerm
     });
 

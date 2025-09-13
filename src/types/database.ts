@@ -1,5 +1,6 @@
 
 import { CurrencyAmount } from '@/lib/currency-amount';
+import { ParsedMemo } from '@/lib/memo-parser';
 
 export interface Ticker {
   id: string
@@ -47,7 +48,12 @@ export interface Transaction {
   price?: CurrencyAmount
   fees: CurrencyAmount
   currency: string // 3-letter currency code (ISO 4217) - kept for database compatibility
-  memo?: string
+  memo?: string // Multi-line text field:
+  // - First line: Free text description of the transaction
+  // - Subsequent lines: One hashtag per line in format "#tagname"
+  // - Example: "Bought AAPL shares\n#tech\n#long-term\n#dividend"
+  // Parsed memo data (computed from memo field)
+  parsedMemo?: ParsedMemo
   // Joined data from PortfolioContext
   tickers?: {
     id: string

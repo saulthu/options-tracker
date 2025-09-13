@@ -2,6 +2,7 @@
 // Based on updated_portfolio_calc.md specification
 
 import { CurrencyAmount, CurrencyCode } from '../lib/currency-amount';
+import { ParsedMemo } from '../lib/memo-parser';
 
 export type InstrumentKind = 'CASH' | 'SHARES' | 'CALL' | 'PUT';
 export type KindGroup = 'CASH' | 'SHARES' | 'OPTION';
@@ -24,6 +25,7 @@ export interface LedgerRow {
   price?: CurrencyAmount; // per share/contract (not used for CASH)
   fees: CurrencyAmount;
   memo?: string;
+  parsedMemo?: ParsedMemo; // Parsed description and tags from memo
 
   // Calculated fields
   cashDelta: CurrencyAmount; // +/- cash effect of this txn
@@ -50,6 +52,8 @@ export interface EpisodeTxn {
   cashDelta: CurrencyAmount;
   realizedPnLDelta: CurrencyAmount; // P&L realized in this specific transaction
   note?: string; // "ROLL-CLOSE", "ROLL-OPEN", etc.
+  memo?: string; // Original memo from transaction
+  parsedMemo?: ParsedMemo; // Parsed description and tags from memo
   
   // Options trading terminology
   actionTerm?: 'BTO' | 'STO' | 'BTC' | 'STC' | 'BUY' | 'SELL'; // BTO/STO/BTC/STC for options, BUY/SELL for others
