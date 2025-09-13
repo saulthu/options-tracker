@@ -298,6 +298,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   // Actions
   const refreshPortfolio = useCallback(async () => {
+    // Reset fetch flag to allow re-fetch
+    hasFetchedRef.current = false;
     await fetchTransactions();
   }, [fetchTransactions]);
 
