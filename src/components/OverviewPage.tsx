@@ -143,7 +143,9 @@ export default function OverviewPage() {
                     }`} />
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {transaction.instrument_kind} {transaction.side || 'CASH'}
+                        {transaction.instrument_kind === 'CASH' && transaction.memo?.includes('Forex')
+                          ? `${transaction.side || 'TRADE'} ${transaction.currency}`
+                          : `${transaction.instrument_kind} ${transaction.side || 'CASH'}`}
                         {transaction.tickers?.name && ` ${transaction.tickers.name}`}
                       </p>
                       <p className="text-xs text-[#b3b3b3]">

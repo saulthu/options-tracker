@@ -100,6 +100,10 @@ export default function TransactionsPage({ selectedRange }: TransactionsPageProp
     const ticker = transaction.tickers?.name || 'Unknown';
     
     if (transaction.instrument_kind === 'CASH') {
+      // For forex transactions, show the currency and action
+      if (transaction.memo?.includes('Forex')) {
+        return `${action} ${transaction.currency}`;
+      }
       return 'Cash';
     }
     

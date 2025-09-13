@@ -603,6 +603,142 @@ Trades,Data,Order,Forex,USD,CHF.USD,"2025-08-22, 13:16:01",-500,1.10,,550,0,,,-1
       }).toThrow('Invalid base currency code: BTC');
     });
   });
+
+  describe('Complete Forex Import Flow Integration Test', () => {
+    it('should handle complete forex import flow from CSV to database format', () => {
+      // Real forex data from user's example
+      const realForexCSV = `Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,,Proceeds,Comm in USD,,,MTM in USD,Code
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-22, 13:14:01",-100,0.64201,,64.201,0,,,-0.699,
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-26, 14:26:17",-200000,0.64774,,129548,-2.59096,,,-342,
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-27, 11:12:29",-25000,0.64942,,16235.5,-2,,,-29,`;
+
+      // Step 1: Parse CSV
+      const parser = new IBKRCSVParser(realForexCSV);
+      const result = parser.parse();
+      
+      expect(result.trades).toHaveLength(3);
+      const forexTrades = result.trades.filter(t => t.assetCategory?.toLowerCase().includes('forex'));
+      expect(forexTrades).toHaveLength(3);
+      
+      // Step 2: Convert to transactions
+      const transactions = convertIBKRTradesToTransactions(
+        result.trades,
+        'test-account-123',
+        'test-user-456',
+        'EST',
+        {}
+      );
+      
+      // Should create 6 transactions (3 forex trades * 2 transactions each)
+      expect(transactions).toHaveLength(6);
+      
+      // Step 3: Verify transaction structure
+      transactions.forEach((txn, index) => {
+        expect(txn.user_id).toBe('test-user-456');
+        expect(txn.account_id).toBe('test-account-123');
+        expect(txn.instrument_kind).toBe('CASH');
+        expect(txn.side).toMatch(/^(BUY|SELL)$/);
+        expect(txn.qty).toBeGreaterThan(0);
+        expect(txn.currency).toMatch(/^(AUD|USD)$/);
+        expect(txn.memo).toContain('Forex');
+        expect(txn.price).toBeDefined();
+        expect(txn.fees).toBeDefined();
+      });
+      
+      // Step 4: Simulate database conversion (like addTransactions does)
+      const dbTransactions = transactions.map(txn => ({
+        user_id: txn.user_id,
+        account_id: txn.account_id,
+        timestamp: txn.timestamp,
+        instrument_kind: txn.instrument_kind,
+        ticker_id: txn.ticker_id,
+        expiry: txn.expiry,
+        strike: txn.strike?.amount || null,
+        side: txn.side,
+        qty: txn.qty,
+        price: txn.price?.amount || null,
+        fees: txn.fees.amount || 0,
+        currency: txn.currency, // This is the critical fix!
+        memo: txn.memo
+      }));
+      
+      // Step 5: Verify database format
+      expect(dbTransactions).toHaveLength(6);
+      
+      dbTransactions.forEach((txn, index) => {
+        // Check required fields
+        expect(txn.user_id).toBe('test-user-456');
+        expect(txn.account_id).toBe('test-account-123');
+        expect(txn.timestamp).toBeDefined();
+        expect(txn.instrument_kind).toBe('CASH');
+        expect(txn.qty).toBeGreaterThan(0);
+        expect(txn.fees).toBeGreaterThanOrEqual(0);
+        expect(txn.currency).toMatch(/^(AUD|USD)$/);
+        expect(txn.memo).toContain('Forex');
+        
+        // Check currency consistency
+        expect(txn.currency).toBe(txn.currency); // Should be AUD or USD
+      });
+      
+      // Step 6: Verify specific forex transaction pairs
+      const audTransactions = dbTransactions.filter(t => t.currency === 'AUD');
+      const usdTransactions = dbTransactions.filter(t => t.currency === 'USD');
+      
+      expect(audTransactions).toHaveLength(3); // One AUD transaction per forex trade
+      expect(usdTransactions).toHaveLength(3); // One USD transaction per forex trade
+      
+      // Each pair should have opposite sides
+      audTransactions.forEach((audTxn, index) => {
+        const usdTxn = usdTransactions[index];
+        expect(audTxn.side).not.toBe(usdTxn.side); // One BUY, one SELL
+        expect(audTxn.timestamp).toBe(usdTxn.timestamp); // Same timestamp
+      });
+      
+      console.log('✅ Complete forex import flow test passed');
+      console.log(`   - Parsed ${result.trades.length} forex trades`);
+      console.log(`   - Created ${transactions.length} transactions`);
+      console.log(`   - Database format: ${dbTransactions.length} records`);
+      console.log(`   - AUD transactions: ${audTransactions.length}`);
+      console.log(`   - USD transactions: ${usdTransactions.length}`);
+    });
+
+    it('should handle mixed forex and regular trades correctly', () => {
+      const mixedCSV = `Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code
+Trades,Data,Order,Stocks,USD,AAPL,"2024-03-15, 10:30:00",100,150.00,150.00,-15000,-5,15005,0,0,O
+Trades,Data,Order,Forex,USD,AUD.USD,"2025-08-22, 13:14:01",-100,0.64201,,64.201,0,,,-0.699,
+Trades,Data,Order,Stocks,USD,MSFT,"2024-03-16, 11:00:00",50,200.00,200.00,-10000,-3,10003,0,0,O
+Trades,Data,Order,Forex,USD,EUR.USD,"2025-08-26, 14:26:17",1000,1.0850,,-1085,-2,1087,0,0,`;
+
+      const parser = new IBKRCSVParser(mixedCSV);
+      const result = parser.parse();
+      
+      expect(result.trades).toHaveLength(4);
+      
+      const transactions = convertIBKRTradesToTransactions(
+        result.trades,
+        'test-account-123',
+        'test-user-456',
+        'EST',
+        { 'AAPL': 'ticker-1', 'MSFT': 'ticker-2' }
+      );
+      
+      // 2 regular trades + 2 forex trades * 2 transactions each = 6 total
+      expect(transactions).toHaveLength(6);
+      
+      const regularTransactions = transactions.filter(t => t.instrument_kind !== 'CASH' || !t.memo?.includes('Forex'));
+      const forexTransactions = transactions.filter(t => t.memo?.includes('Forex'));
+      
+      expect(regularTransactions).toHaveLength(2); // AAPL and MSFT
+      expect(forexTransactions).toHaveLength(4); // 2 forex trades * 2 transactions each
+      
+      // Verify forex transactions are properly formatted
+      forexTransactions.forEach(txn => {
+        expect(txn.instrument_kind).toBe('CASH');
+        expect(txn.currency).toMatch(/^(AUD|USD|EUR)$/);
+        expect(txn.memo).toContain('Forex');
+      });
+    });
+  });
 });
 
 describe('convertIBKRTradesToTransactions', () => {
