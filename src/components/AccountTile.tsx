@@ -82,30 +82,30 @@ export default function AccountTile({
           <div className="flex items-center gap-2">
             <button
               onClick={() => onImport(account.id)}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-colors group"
+              className="flex items-center gap-2 px-3 py-2 bg-[#2d2d2d] hover:bg-[#3d3d3d] border border-[#4d4d4d] hover:border-[#5d5d5d] rounded-lg transition-colors group"
             >
-              <Download className="h-4 w-4 text-blue-400 group-hover:text-blue-300" />
-              <span className="text-sm font-medium text-blue-400 group-hover:text-blue-300">
+              <Download className="h-4 w-4 text-[#b3b3b3] group-hover:text-white" />
+              <span className="text-sm font-medium text-[#b3b3b3] group-hover:text-white">
                 Import
               </span>
             </button>
             
             <button
               onClick={() => onExport()}
-              className="flex items-center gap-2 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg transition-colors group"
+              className="flex items-center gap-2 px-3 py-2 bg-[#2d2d2d] hover:bg-[#3d3d3d] border border-[#4d4d4d] hover:border-[#5d5d5d] rounded-lg transition-colors group"
             >
-              <Upload className="h-4 w-4 text-green-400 group-hover:text-green-300" />
-              <span className="text-sm font-medium text-green-400 group-hover:text-green-300">
+              <Upload className="h-4 w-4 text-[#b3b3b3] group-hover:text-white" />
+              <span className="text-sm font-medium text-[#b3b3b3] group-hover:text-white">
                 Export
               </span>
             </button>
 
             <button
               onClick={() => onDeleteAll(account.id)}
-              className="flex items-center gap-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 rounded-lg transition-colors group"
+              className="flex items-center gap-2 px-3 py-2 bg-[#2d2d2d] hover:bg-[#3d3d3d] border border-[#4d4d4d] hover:border-[#5d5d5d] rounded-lg transition-colors group"
             >
-              <Trash2 className="h-4 w-4 text-red-400 group-hover:text-red-300" />
-              <span className="text-sm font-medium text-red-400 group-hover:text-red-300">
+              <Trash2 className="h-4 w-4 text-[#b3b3b3] group-hover:text-white" />
+              <span className="text-sm font-medium text-[#b3b3b3] group-hover:text-white">
                 Delete All
               </span>
             </button>
