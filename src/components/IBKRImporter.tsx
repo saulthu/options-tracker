@@ -249,22 +249,19 @@ export default function IBKRImporter({ onImport, onCancel, accountId, userId, en
       const cashTransactions = convertIBKRCashToTransactions(
         result.cashTransactions,
         accountId,
-        userId,
-        tickerIdMap
+        userId
       );
 
       const feeTransactions = convertIBKRFeesToTransactions(
         result.fees,
         accountId,
-        userId,
-        tickerIdMap
+        userId
       );
 
       const interestTransactions = convertIBKRInterestToTransactions(
         result.interest,
         accountId,
-        userId,
-        tickerIdMap
+        userId
       );
 
       const dividendTransactions = convertIBKRDividendsToTransactions(
@@ -338,22 +335,19 @@ export default function IBKRImporter({ onImport, onCancel, accountId, userId, en
       const cashTransactions = convertIBKRCashToTransactions(
         preview.cashTransactions,
         accountId,
-        userId,
-        preview.tickerIdMap
+        userId
       );
 
       const feeTransactions = convertIBKRFeesToTransactions(
         preview.fees,
         accountId,
-        userId,
-        preview.tickerIdMap
+        userId
       );
 
       const interestTransactions = convertIBKRInterestToTransactions(
         preview.interest,
         accountId,
-        userId,
-        preview.tickerIdMap
+        userId
       );
 
       const dividendTransactions = convertIBKRDividendsToTransactions(

@@ -1017,8 +1017,7 @@ export function convertIBKRTradesToTransactions(
 export function convertIBKRCashToTransactions(
   cashTransactions: IBKRCashTransaction[],
   accountId: string,
-  userId: string,
-  tickerIdMap: { [tickerName: string]: string } = {}
+  userId: string
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1060,8 +1059,7 @@ export function convertIBKRCashToTransactions(
 export function convertIBKRFeesToTransactions(
   fees: IBKRFee[],
   accountId: string,
-  userId: string,
-  tickerIdMap: { [tickerName: string]: string } = {}
+  userId: string
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');
@@ -1096,8 +1094,7 @@ export function convertIBKRFeesToTransactions(
 export function convertIBKRInterestToTransactions(
   interest: IBKRInterest[],
   accountId: string,
-  userId: string,
-  tickerIdMap: { [tickerName: string]: string } = {}
+  userId: string
 ): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
   if (!accountId || !userId) {
     throw new Error('Account ID and User ID are required for transaction conversion');

@@ -316,13 +316,14 @@ describe('convertIBKRTradesToTransactions', () => {
   ];
 
   it('should convert stock trades correctly', () => {
-    const transactions = convertIBKRTradesToTransactions(mockTrades, 'account-123', 'user-456', 'EST');
+    const tickerIdMap = { 'AAPL': 'ticker-uuid-123' };
+    const transactions = convertIBKRTradesToTransactions(mockTrades, 'account-123', 'user-456', 'EST', tickerIdMap);
     
     expect(transactions).toHaveLength(2);
     
     const stockTransaction = transactions[0];
     expect(stockTransaction.instrument_kind).toBe('SHARES');
-    expect(stockTransaction.ticker_id).toBe('AAPL');
+    expect(stockTransaction.ticker_id).toBe('ticker-uuid-123');
     expect(stockTransaction.side).toBe('BUY');
     expect(stockTransaction.qty).toBe(100);
     expect(stockTransaction.price).toBe(150.00);
@@ -332,11 +333,12 @@ describe('convertIBKRTradesToTransactions', () => {
   });
 
   it('should convert option trades correctly', () => {
-    const transactions = convertIBKRTradesToTransactions(mockTrades, 'account-123', 'user-456', 'EST');
+    const tickerIdMap = { 'AAPL': 'ticker-uuid-123' };
+    const transactions = convertIBKRTradesToTransactions(mockTrades, 'account-123', 'user-456', 'EST', tickerIdMap);
     
     const optionTransaction = transactions[1];
     expect(optionTransaction.instrument_kind).toBe('CALL');
-    expect(optionTransaction.ticker_id).toBe('AAPL');
+    expect(optionTransaction.ticker_id).toBe('ticker-uuid-123');
     expect(optionTransaction.expiry).toBe('2024-03-15');
     expect(optionTransaction.strike).toBe(150);
     expect(optionTransaction.side).toBe('BUY');
@@ -346,7 +348,8 @@ describe('convertIBKRTradesToTransactions', () => {
   });
 
   it('should handle timezone conversion', () => {
-    const transactions = convertIBKRTradesToTransactions(mockTrades, 'account-123', 'user-456', 'EST');
+    const tickerIdMap = { 'AAPL': 'ticker-uuid-123' };
+    const transactions = convertIBKRTradesToTransactions(mockTrades, 'account-123', 'user-456', 'EST', tickerIdMap);
     
     const transaction = transactions[0];
     expect(transaction.timestamp).toBeDefined();
@@ -355,13 +358,13 @@ describe('convertIBKRTradesToTransactions', () => {
 
   it('should throw error for missing account ID', () => {
     expect(() => {
-      convertIBKRTradesToTransactions(mockTrades, '', 'user-456', 'EST');
+      convertIBKRTradesToTransactions(mockTrades, '', 'user-456', 'EST', {});
     }).toThrow('Account ID and User ID are required for transaction conversion');
   });
 
   it('should throw error for missing user ID', () => {
     expect(() => {
-      convertIBKRTradesToTransactions(mockTrades, 'account-123', '', 'EST');
+      convertIBKRTradesToTransactions(mockTrades, 'account-123', '', 'EST', {});
     }).toThrow('Account ID and User ID are required for transaction conversion');
   });
 });
@@ -427,7 +430,7 @@ describe('convertIBKRDividendsToTransactions', () => {
   ];
 
   it('should convert dividends correctly', () => {
-    const transactions = convertIBKRDividendsToTransactions(mockDividends, 'account-123', 'user-456');
+    const transactions = convertIBKRDividendsToTransactions(mockDividends, 'account-123', 'user-456', {});
     
     expect(transactions).toHaveLength(2);
     
@@ -453,7 +456,7 @@ describe('convertIBKRDividendsToTransactions', () => {
       amount: 100
     }];
 
-    const transactions = convertIBKRDividendsToTransactions(dividendsWithoutSymbol, 'account-123', 'user-456');
+    const transactions = convertIBKRDividendsToTransactions(dividendsWithoutSymbol, 'account-123', 'user-456', {});
     
     expect(transactions[0].memo).toContain('Dividend: General Dividend (USD)');
   });
@@ -471,7 +474,7 @@ describe('convertIBKRWithholdingTaxToTransactions', () => {
   ];
 
   it('should convert withholding tax correctly', () => {
-    const transactions = convertIBKRWithholdingTaxToTransactions(mockWithholdingTax, 'account-123', 'user-456');
+    const transactions = convertIBKRWithholdingTaxToTransactions(mockWithholdingTax, 'account-123', 'user-456', {});
     
     expect(transactions).toHaveLength(1);
     
@@ -511,7 +514,7 @@ describe('convertIBKRCorporateActionsToTransactions', () => {
   ];
 
   it('should convert corporate actions correctly', () => {
-    const transactions = convertIBKRCorporateActionsToTransactions(mockCorporateActions, 'account-123', 'user-456');
+    const transactions = convertIBKRCorporateActionsToTransactions(mockCorporateActions, 'account-123', 'user-456', {});
     
     expect(transactions).toHaveLength(3);
     

@@ -15,7 +15,7 @@ interface DataPageProps {
   selectedRange: unknown; // TimeRange type, but keeping it simple for now
 }
 
-export default function DataPage({ selectedRange: _selectedRange }: DataPageProps) {
+export default function DataPage({}: DataPageProps) {
   const { user } = useAuth();
   const { accounts, addTransaction, ensureTickersExist, refreshPortfolio } = usePortfolio();
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);

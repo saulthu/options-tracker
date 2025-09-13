@@ -2,7 +2,6 @@
 
 import { ReactNode, useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { ThemeButton } from "./theme-button";
 
 interface ModalProps {
   isOpen: boolean;
