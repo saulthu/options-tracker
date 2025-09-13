@@ -1035,7 +1035,7 @@ function convertForexTradeToCashTransactions(
       price: new CurrencyAmount(1, quoteCurrencyCode),
       fees: new CurrencyAmount(trade.commFee.amount, quoteCurrencyCode),
       currency: quoteCurrencyCode,
-      memo: `Forex: Sell ${quoteAmount} ${quoteCurrencyCode} to buy ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}`
+      memo: `Forex: Sell ${quoteAmount} ${quoteCurrencyCode} to buy ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}\n#Forex\n#Fees`
     });
 
     // 2. Buy base currency (inflow) - positive quantity
@@ -1049,7 +1049,7 @@ function convertForexTradeToCashTransactions(
       price: new CurrencyAmount(1, baseCurrencyCode),
       fees: new CurrencyAmount(0, baseCurrencyCode), // Fees already accounted for in quote currency
       currency: baseCurrencyCode,
-      memo: `Forex: Buy ${baseAmount} ${baseCurrencyCode} with ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}`
+      memo: `Forex: Buy ${baseAmount} ${baseCurrencyCode} with ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}\n#Forex`
     });
   } else {
     // Selling base currency for quote currency
@@ -1064,7 +1064,7 @@ function convertForexTradeToCashTransactions(
       price: new CurrencyAmount(1, baseCurrencyCode),
       fees: new CurrencyAmount(trade.commFee.amount, baseCurrencyCode),
       currency: baseCurrencyCode,
-      memo: `Forex: Sell ${baseAmount} ${baseCurrencyCode} to buy ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}`
+      memo: `Forex: Sell ${baseAmount} ${baseCurrencyCode} to buy ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}\n#Forex\n#Fees`
     });
 
     // 2. Buy quote currency (inflow) - positive quantity
@@ -1078,7 +1078,7 @@ function convertForexTradeToCashTransactions(
       price: new CurrencyAmount(1, quoteCurrencyCode),
       fees: new CurrencyAmount(0, quoteCurrencyCode), // Fees already accounted for in base currency
       currency: quoteCurrencyCode,
-      memo: `Forex: Buy ${quoteAmount} ${quoteCurrencyCode} with ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}`
+      memo: `Forex: Buy ${quoteAmount} ${quoteCurrencyCode} with ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}\n#Forex`
     });
   }
 
@@ -1208,7 +1208,7 @@ export function convertIBKRCashToTransactions(
         price: new CurrencyAmount(1, transaction.amount.currency), // Cash transactions have price of 1
         fees: new CurrencyAmount(0, transaction.amount.currency),
         currency: transaction.amount.currency,
-        memo: `${transaction.description} (${transaction.amount.currency})`
+        memo: `${transaction.description} (${transaction.amount.currency})\n#Cash`
       };
     } catch (error) {
       console.error(`Error converting cash transaction ${index + 1}:`, error, transaction);
@@ -1244,7 +1244,7 @@ export function convertIBKRFeesToTransactions(
         price: new CurrencyAmount(1, fee.amount.currency),
         fees: new CurrencyAmount(0, fee.amount.currency),
         currency: fee.amount.currency,
-        memo: `${fee.subtitle}: ${fee.description} (${fee.amount.currency})`
+        memo: `${fee.subtitle}: ${fee.description} (${fee.amount.currency})\n#Fees\n#Cash`
       };
     } catch (error) {
       console.error(`Error converting fee ${index + 1}:`, error, fee);
@@ -1280,7 +1280,7 @@ export function convertIBKRInterestToTransactions(
         price: new CurrencyAmount(1, interestItem.amount.currency),
         fees: new CurrencyAmount(0, interestItem.amount.currency),
         currency: interestItem.amount.currency,
-        memo: `${interestItem.description} (${interestItem.amount.currency})`
+        memo: `${interestItem.description} (${interestItem.amount.currency})\n#Interest\n#Cash`
       };
     } catch (error) {
       console.error(`Error converting interest ${index + 1}:`, error, interestItem);
@@ -1321,7 +1321,7 @@ export function convertIBKRDividendsToTransactions(
         price: new CurrencyAmount(1, dividend.amount.currency),
         fees: new CurrencyAmount(0, dividend.amount.currency),
         currency: dividend.amount.currency,
-        memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.amount.currency})`
+        memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.amount.currency})\n#Dividend\n#Cash`
       };
     } catch (error) {
       console.error(`Error converting dividend ${index + 1}:`, error, dividend);
@@ -1362,7 +1362,7 @@ export function convertIBKRWithholdingTaxToTransactions(
         price: new CurrencyAmount(1, tax.amount.currency),
         fees: new CurrencyAmount(0, tax.amount.currency),
         currency: tax.amount.currency,
-        memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.amount.currency})`
+        memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.amount.currency})\n#Tax\n#Cash`
       };
     } catch (error) {
       console.error(`Error converting withholding tax ${index + 1}:`, error, tax);
