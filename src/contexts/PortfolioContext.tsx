@@ -486,7 +486,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         qty: txn.qty,
         price: txn.price?.amount || null,
         fees: txn.fees.amount || 0, // Ensure fees is never null
-        currency: txn.fees.currency, // Use fees currency as the transaction currency
+        currency: txn.currency, // Use the transaction's own currency
         memo: txn.memo
       }));
       
