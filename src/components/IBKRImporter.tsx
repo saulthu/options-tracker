@@ -165,7 +165,7 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
   const [showPreview, setShowPreview] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const validateAndSetFile = useCallback((selectedFile: File) => {
+  const validateAndSetFile = useCallback(async (selectedFile: File) => {
     if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
       setError('Please select a valid CSV file');
       return;
@@ -173,7 +173,13 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
     setFile(selectedFile);
     setError(null);
     setPreview(null);
-  }, []);
+    
+    // Automatically process the file after validation
+    // Small delay to ensure state is updated
+    setTimeout(() => {
+      processFile();
+    }, 100);
+  }, [processFile]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -519,15 +525,14 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
               </label>
             </div>
 
-            {file && !preview && (
+            {file && !preview && isProcessing && (
               <div className="flex gap-3">
-                <ThemeButton
-                  onClick={processFile}
-                  disabled={isProcessing}
-                  className="flex-1"
-                >
-                  {isProcessing ? 'Processing...' : 'Process File'}
-                </ThemeButton>
+                <div className="flex-1 flex items-center justify-center py-3">
+                  <div className="flex items-center gap-2 text-[#b3b3b3]">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                    Processing file...
+                  </div>
+                </div>
                 <CancelButton onClick={onCancel}>
                   Cancel
                 </CancelButton>
