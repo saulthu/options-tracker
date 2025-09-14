@@ -152,8 +152,8 @@ export default function AccountPage({}: AccountPageProps) {
 
   const handleIBKRImport = async (transactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]) => {
     try {
-      console.log('Starting IBKR batch import with', transactions.length, 'transactions');
-      console.log('First transaction sample:', transactions[0]);
+      // console.log('Starting IBKR batch import with', transactions.length, 'transactions');
+      // console.log('First transaction sample:', transactions[0]);
       
       // Convert database transactions to RawTransaction format with CurrencyAmount
       const rawTransactions = transactions.map(convertDatabaseTransactionToRaw);
@@ -161,12 +161,12 @@ export default function AccountPage({}: AccountPageProps) {
       // Batch insert all transactions at once
       const result = await addTransactions(rawTransactions);
       
-      console.log('Batch import completed:', result);
+      // console.log('Batch import completed:', result);
 
       // Refresh the portfolio after successful batch import
-      console.log('Refreshing portfolio after batch import...');
+      // console.log('Refreshing portfolio after batch import...');
       await refreshPortfolio();
-      console.log('Portfolio refreshed successfully');
+      // console.log('Portfolio refreshed successfully');
 
       setShowIBKRImporter(false);
       setCurrentView('accounts');
@@ -254,14 +254,14 @@ export default function AccountPage({}: AccountPageProps) {
     try {
       if (transactionCount === 0) {
         // Delete the account itself
-        console.log(`Deleting account: ${account.name} (${safeDeleteModal.accountId})`);
+        // console.log(`Deleting account: ${account.name} (${safeDeleteModal.accountId})`);
         const result = await deleteAccount(safeDeleteModal.accountId);
         
         if (result.error) {
           throw new Error(result.error);
         }
         
-        console.log('Account deleted successfully');
+        // console.log('Account deleted successfully');
         
         // Close safe delete modal and show success alert
         setSafeDeleteModal({
@@ -276,11 +276,11 @@ export default function AccountPage({}: AccountPageProps) {
         showAlert('Delete Successful', `Account "${account.name}" has been deleted.`, 'success');
       } else {
         // Delete all transactions
-        console.log(`Deleting all transactions for account: ${account.name} (${safeDeleteModal.accountId})`);
+        // console.log(`Deleting all transactions for account: ${account.name} (${safeDeleteModal.accountId})`);
         await deleteAllTransactionsForAccount(safeDeleteModal.accountId);
-        console.log('Transactions deleted, refreshing portfolio...');
+        // console.log('Transactions deleted, refreshing portfolio...');
         await refreshPortfolio();
-        console.log('Portfolio refreshed successfully');
+        // console.log('Portfolio refreshed successfully');
         
         // Close safe delete modal and show success alert
         setSafeDeleteModal({

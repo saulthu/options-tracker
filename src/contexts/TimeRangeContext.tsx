@@ -22,7 +22,6 @@ export function TimeRangeProvider({ children }: TimeRangeProviderProps) {
   const [selectedRange, setSelectedRange] = useState<TimeRange | null>(getInitialTimeRange());
 
   const handleRangeChange = useCallback((range: TimeRange) => {
-    console.log('Time range changed to:', range);
     setSelectedRange(range);
   }, []);
 

@@ -226,7 +226,8 @@ function buildLedger(
     }
 
     const instrumentKeyStr = instrumentKey(kind, ticker, expiry, strike);
-    const positionKey = `${userId}|${accountId}|${instrumentKeyStr}`;
+    // Simplified: Since we process one account at a time, no need for userId|accountId prefix
+    const positionKey = instrumentKeyStr;
     const currentQty = positions.get(positionKey) || 0;
 
     const direction = side === 'BUY' ? 1 : -1;
@@ -341,7 +342,6 @@ function validateEpisodes(episodes: PositionEpisode[]): PositionEpisode[] {
     if (isValid) {
       validEpisodes.push(episode);
     } else {
-      console.warn(`Episode validation failed for ${episode.episodeKey}:`, validationErrors.join(', '));
       // Still include the episode but mark it as having validation issues
       // The episode construction succeeded, so the final state is valid
       validEpisodes.push(episode);
@@ -367,15 +367,15 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
   });
 
   const episodes: PositionEpisode[] = [];
-  const activeEpisodes = new Map<string, PositionEpisode>(); // (userId, accountId, episodeKey) -> episode
-  const closedOptionEpisodes = new Map<string, PositionEpisode>(); // (userId, accountId, ticker, right) -> episode
+  const activeEpisodes = new Map<string, PositionEpisode>(); // episodeKey -> episode (simplified for single account)
+  const closedOptionEpisodes = new Map<string, PositionEpisode>(); // ticker|right|strike|expiry -> episode (simplified)
 
   /**
    * Create a cash episode (single transaction)
    */
   function createCashEpisode(lr: LedgerRow): PositionEpisode {
     const episode: PositionEpisode = {
-      episodeId: `${lr.userId}|${lr.accountId}|CASH|${lr.txnId}`,
+      episodeId: `CASH|${lr.txnId}`, // Simplified: No need for userId|accountId since we process one account at a time
       userId: lr.userId,
       accountId: lr.accountId,
       episodeKey: 'CASH',
@@ -520,7 +520,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       : undefined;
     
     const episode: PositionEpisode = {
-      episodeId: `${lr.userId}|${lr.accountId}|${episodeKeyStr}|${lr.txnId}`,
+      episodeId: `${episodeKeyStr}|${lr.txnId}`, // Simplified: No need for userId|accountId since we process one account at a time
       userId: lr.userId,
       accountId: lr.accountId,
       episodeKey: episodeKeyStr,
@@ -538,7 +538,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     };
 
     applyTradeToEpisode(episode, lr, note || lr.memo);
-    activeEpisodes.set(`${lr.userId}|${lr.accountId}|${episodeKeyStr}`, episode);
+    // Simplified: Since we process one account at a time, use episode key directly
+    activeEpisodes.set(episodeKeyStr, episode);
     episodes.push(episode);
     return episode;
   }
@@ -549,13 +550,12 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
   function tryOptionRoll(lr: LedgerRow): PositionEpisode | null {
     if (!isOption(lr.instrumentKind) || !lr.ticker) return null;
 
-    const userId = lr.userId;
-    const accountId = lr.accountId;
     const ticker = lr.ticker;
     const right = lr.instrumentKind;
     const strike = lr.strike;
     const expiry = lr.expiry;
-    const rollKey = `${userId}|${accountId}|${ticker}|${right}|${strike?.amount || ''}|${expiry}`;
+    // Simplified: Since we process one account at a time, no need for userId|accountId prefix
+    const rollKey = `${ticker}|${right}|${strike?.amount || ''}|${expiry}`;
     
     const closedEpisode = closedOptionEpisodes.get(rollKey);
     if (!closedEpisode || !closedEpisode.closeTimestamp) return null;
@@ -589,7 +589,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     closedEpisode.avgPrice = CurrencyAmount.zero(lr.fees.currency); // Reset for new position in roll
     
     applyTradeToEpisode(closedEpisode, lr, 'ROLL-OPEN');
-    activeEpisodes.set(`${userId}|${accountId}|${episodeKey(right, ticker, lr.strike, lr.expiry)}`, closedEpisode);
+    // Simplified: Use episode key directly since we process one account at a time
+    activeEpisodes.set(episodeKey(right, ticker, lr.strike, lr.expiry), closedEpisode);
     closedOptionEpisodes.delete(rollKey);
     
     return closedEpisode;
@@ -604,7 +605,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
     }
 
     const episodeKeyStr = episodeKey(lr.instrumentKind, lr.ticker, lr.strike, lr.expiry);
-    const activeKey = `${lr.userId}|${lr.accountId}|${episodeKeyStr}`;
+    // Simplified: Since we process one account at a time, use episode key directly
+    const activeKey = episodeKeyStr;
     let episode = activeEpisodes.get(activeKey);
 
     if (!episode) {
@@ -624,7 +626,8 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       if (episode.qty === 0) {
         if (isOption(lr.instrumentKind) && lr.ticker) {
           // Store closed option episode for potential roll
-          const rollKey = `${lr.userId}|${lr.accountId}|${lr.ticker}|${lr.instrumentKind}|${lr.strike?.amount || ''}|${lr.expiry}`;
+          // Simplified: Since we process one account at a time, no need for userId|accountId prefix
+          const rollKey = `${lr.ticker}|${lr.instrumentKind}|${lr.strike?.amount || ''}|${lr.expiry}`;
           closedOptionEpisodes.set(rollKey, episode);
         }
         activeEpisodes.delete(activeKey);

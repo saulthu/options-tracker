@@ -140,6 +140,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     getEpisodeTags
   } = usePortfolio();
 
+// DEBUG: Toggle this to enable/disable debug logging
+
   // Sorting state
   const [sortField, setSortField] = useState<SortField>('openTimestamp');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -179,6 +181,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   // Get filtered positions for the selected time range
   const baseFilteredPositions = useMemo(() => {
     if (!portfolio) return [];
+    
+    // Get filtered positions
     return getFilteredPositions(selectedRange, undefined, positionFilter);
   }, [portfolio, selectedRange, positionFilter, getFilteredPositions]);
 

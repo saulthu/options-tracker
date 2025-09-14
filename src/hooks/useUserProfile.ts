@@ -24,7 +24,6 @@ export function useUserProfile() {
       // Create user profile with default name
       const defaultName = user.email?.split('@')[0] || 'User';
       
-      console.log('🔍 Creating profile for user:', user.id, 'with name:', defaultName);
       
       const { data: profileData, error: profileError } = await supabase
         .from('users')
@@ -36,17 +35,9 @@ export function useUserProfile() {
         .select()
         .single();
 
-      console.log('📊 Profile creation response:', { 
-        data: profileData, 
-        error: profileError,
-        errorType: typeof profileError,
-        errorKeys: profileError ? Object.keys(profileError) : 'no error',
-        errorStringified: JSON.stringify(profileError)
-      });
 
       // Check if we have data despite an error (sometimes Supabase returns both)
       if (profileData) {
-        console.log('✅ Profile created successfully despite error:', profileData);
         setProfile(profileData);
         return;
       }
@@ -67,8 +58,6 @@ export function useUserProfile() {
         // Check for unique constraint violation first (most common case)
         if (profileError.code === '23505') {
           // Unique constraint violation - profile already exists
-          console.log('Profile already exists (race condition), code:', profileError.code);
-          console.log('Profile already exists, this is likely a race condition');
           // Don't set error state for this case, just return
           return;
         } else if (profileError.message) {
@@ -79,10 +68,8 @@ export function useUserProfile() {
           errorMessage = profileError.hint;
         } else if (typeof profileError === 'object' && Object.keys(profileError).length === 0) {
           errorMessage = 'Empty error object - possible race condition or duplicate key';
-          console.log('Empty error object detected, this might be a Supabase client issue');
           
           // Try to fetch the profile anyway in case it was actually created
-          console.log('🔄 Attempting to fetch profile despite empty error...');
           try {
             const { data: fallbackData, error: fallbackError } = await supabase
               .from('users')
@@ -91,14 +78,14 @@ export function useUserProfile() {
               .single();
             
             if (fallbackData && !fallbackError) {
-              console.log('✅ Profile found despite empty error:', fallbackData);
+              // console.log('✅ Profile found despite empty error:', fallbackData);
               setProfile(fallbackData);
               return;
             } else {
-              console.log('❌ Fallback fetch also failed:', fallbackError);
+              // console.log('❌ Fallback fetch also failed:', fallbackError);
             }
-          } catch (fallbackErr) {
-            console.log('❌ Fallback fetch threw error:', fallbackErr);
+          } catch {
+            // Fallback fetch failed, continue with error handling
           }
         } else {
           // Log the full error object for debugging
@@ -132,7 +119,7 @@ export function useUserProfile() {
         setLoading(true);
         setError(null);
 
-        console.log('🔍 Fetching profile for user:', user.id);
+        // console.log('🔍 Fetching profile for user:', user.id);
         
         const { data, error: fetchError } = await supabase
           .from('users')
@@ -140,7 +127,7 @@ export function useUserProfile() {
           .eq('id', user.id)
           .single();
 
-        console.log('📊 Profile fetch response:', { data, error: fetchError });
+        // console.log('📊 Profile fetch response:', { data, error: fetchError });
 
         if (fetchError) {
           if (fetchError.code === 'PGRST116') {
@@ -179,14 +166,14 @@ export function useUserProfile() {
 
   // Debug: Log profile changes
   useEffect(() => {
-    console.log('🔄 Profile state changed:', profile);
+    // console.log('🔄 Profile state changed:', profile);
   }, [profile]);
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user || !profile) return { error: 'No user or profile found' };
 
     try {
-      console.log('🔍 Updating profile with:', updates);
+      // console.log('🔍 Updating profile with:', updates);
       
       const { data, error: updateError } = await supabase
         .from('users')
@@ -200,8 +187,8 @@ export function useUserProfile() {
         return { error: updateError.message };
       }
 
-      console.log('📊 Profile update response:', { data, error: updateError });
-      console.log('🔄 Setting profile to:', data);
+      // console.log('📊 Profile update response:', { data, error: updateError });
+      // console.log('🔄 Setting profile to:', data);
       
       setProfile(data);
       return { data };

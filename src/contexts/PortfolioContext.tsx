@@ -156,6 +156,8 @@ interface PortfolioContextType {
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
+// DEBUG: Toggle this to enable/disable debug logging
+
 interface PortfolioProviderProps {
   children: ReactNode;
 }
@@ -183,84 +185,82 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
       // User creation is handled by useUserProfile hook
       // Skip checking users table to avoid permission issues
-      console.log('Skipping users table check - user creation handled by useUserProfile');
 
-      // First, let's test if the transactions table exists at all
-      const { data: tableTest, error: tableError } = await supabase
+      // Test if the transactions table exists (for error handling)
+      await supabase
         .from('transactions')
         .select('count')
         .limit(1);
       
-      console.log('Table existence test:', { tableTest, tableError });
 
       // Try to fetch transactions directly
-      const { data, error: fetchError } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          tickers: ticker_id (
-            id,
-            name,
-            icon
-          ),
-          accounts: account_id (
-            id,
-            name,
-            type,
-            institution
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('timestamp', { ascending: true });
+      // Fetch ALL transactions using pagination to avoid 1000 row limit
+      const allTransactions: unknown[] = [];
+      let hasMore = true;
+      let offset = 0;
+      const batchSize = 1000;
+      
+      
+      while (hasMore) {
+        
+        const { data: batchData, error: fetchError } = await supabase
+          .from('transactions')
+          .select(`
+            *,
+            tickers: ticker_id (
+              id,
+              name,
+              icon
+            ),
+            accounts: account_id (
+              id,
+              name,
+              type,
+              institution
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('timestamp', { ascending: true })
+          .range(offset, offset + batchSize - 1);
 
-      console.log('Database query result:', { 
-        data: data?.length || 0, 
-        error: fetchError ? 'Error present' : 'No error',
-        user_id: user.id,
-        hasData: !!data
-      });
+        if (fetchError) {
+          console.error('Supabase pagination error:', {
+            code: fetchError.code,
+            message: fetchError.message,
+            offset,
+            batchSize
+          });
+          throw fetchError;
+        }
 
-      if (fetchError) {
-        console.error('Supabase error details:', {
-          code: fetchError.code,
-          message: fetchError.message,
-          details: fetchError.details,
-          hint: fetchError.hint,
-          rawError: JSON.stringify(fetchError)
-        });
-        
-        // Handle specific error cases
-        if (fetchError.code === 'PGRST116' || 
-            fetchError.message?.includes('relation "public.transactions" does not exist') ||
-            fetchError.message?.includes('relation does not exist') ||
-            fetchError.message?.includes('does not exist')) {
-          console.warn('Transactions table does not exist yet. Please run the database schema first.');
-          setError('Database not initialized. Please run the database setup first.');
-          setTransactions([]); // Set empty array instead of throwing
-          return;
+        if (!batchData || batchData.length === 0) {
+          hasMore = false;
+        } else {
+          allTransactions.push(...batchData);
+          
+          // If we got less than the batch size, we've reached the end
+          if (batchData.length < batchSize) {
+            hasMore = false;
+          } else {
+            offset += batchSize;
+          }
         }
-        
-        // Handle permission errors
-        if (fetchError.code === '42501' || 
-            fetchError.message?.includes('permission denied') ||
-            fetchError.message?.includes('insufficient_privilege') ||
-            fetchError.message?.includes('new row violates row-level security policy')) {
-          console.warn('Permission denied - user may not be properly authenticated or RLS policies may be blocking access');
-          setError('Permission denied. Please ensure you are logged in and have proper access.');
-          setTransactions([]);
-          return;
-        }
-        
-        
-        // If we can't determine the specific error, show a generic message
-        const errorMessage = fetchError.message || 'Unknown database error';
-        setError(`Database error: ${errorMessage}`);
+      }
+      
+      const data = allTransactions;
+
+
+      // If no data was returned from pagination, set empty array
+      if (!data || data.length === 0) {
         setTransactions([]);
+        setAccounts([]);
         return;
       }
 
+      // Continue with processing the fetched data
+
       // Convert raw database transactions to RawTransaction with CurrencyAmount
-      const convertedTransactions = (data || []).map(convertToRawTransaction);
+      const convertedTransactions = (data || []).map(convertToRawTransaction as (value: unknown) => RawTransaction);
       setTransactions(convertedTransactions);
 
       // Also fetch accounts for the debug page
@@ -290,17 +290,56 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, [user]);
 
-  // Recalculate portfolio when transactions change
+  // Recalculate portfolio when transactions change - PER ACCOUNT APPROACH
   useEffect(() => {
-    console.log('Portfolio recalculation triggered, transaction count:', transactions.length);
     if (transactions.length > 0) {
-      const tickerLookup = createTickerLookup(transactions);
-      const openingBalances = new Map<string, CurrencyAmount>(); // No opening balances for now
-      const newPortfolio = buildPortfolioView(transactions, tickerLookup, openingBalances);
-      console.log('Portfolio rebuilt with', newPortfolio.episodes.length, 'episodes');
-      setPortfolio(newPortfolio);
+      
+      
+      // Step 1: Extract unique account IDs
+      const accountIds = Array.from(new Set(transactions.map(txn => txn.account_id)));
+      
+      // Step 2: Process each account independently
+      const allEpisodes: PositionEpisode[] = [];
+      const allBalances = new Map<string, Map<CurrencyCode, CurrencyAmount>>();
+      const allLedger: PortfolioResult['ledger'] = [];
+      
+      accountIds.forEach(accountId => {
+        // Filter transactions for this account only
+        const accountTransactions = transactions.filter(txn => txn.account_id === accountId);
+        
+        
+        
+        // Create ticker lookup for this account's transactions
+        const accountTickerLookup = createTickerLookup(accountTransactions);
+        const accountOpeningBalances = new Map<string, CurrencyAmount>();
+        
+        // Run portfolio calculator on this account ONLY
+        const accountPortfolio = buildPortfolioView(accountTransactions, accountTickerLookup, accountOpeningBalances);
+        
+        
+        
+        // Accumulate results from this account
+        allEpisodes.push(...accountPortfolio.episodes);
+        allLedger.push(...accountPortfolio.ledger);
+        
+        // Accumulate balances from this account
+        accountPortfolio.balances.forEach((balanceMap, accountId) => {
+          allBalances.set(accountId, balanceMap);
+        });
+      });
+      
+      // Step 3: Create unified portfolio result
+      const unifiedPortfolio: PortfolioResult = {
+        episodes: allEpisodes,
+        balances: allBalances,
+        ledger: allLedger
+      };
+      
+      
+      
+      
+      setPortfolio(unifiedPortfolio);
     } else {
-      console.log('No transactions, setting portfolio to null');
       setPortfolio(null);
     }
   }, [transactions]);
@@ -434,9 +473,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const addTransaction = useCallback(async (transaction: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      console.log('Attempting to insert transaction:', JSON.stringify(transaction, null, 2));
       
-      const { data, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('transactions')
         .insert([transaction])
         .select()
@@ -453,7 +491,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         throw insertError;
       }
 
-      console.log('Transaction inserted successfully:', data);
       
       // Note: Portfolio refresh is now explicit - caller decides when to refresh
     } catch (err) {
@@ -466,8 +503,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const addTransactions = useCallback(async (transactions: Omit<RawTransaction, 'id' | 'created_at' | 'updated_at'>[]) => {
     try {
-      console.log(`Attempting to batch insert ${transactions.length} transactions`);
-      console.log('Sample transaction before conversion:', transactions[0]);
       
       // Convert CurrencyAmount instances to primitive types for Supabase
       const dbTransactions = transactions.map(txn => ({
@@ -486,7 +521,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         memo: txn.memo
       }));
       
-      console.log('Sample transaction after conversion:', dbTransactions[0]);
       
       // Validate required fields
       const validationErrors: string[] = [];
@@ -523,7 +557,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         throw insertError;
       }
 
-      console.log(`Successfully batch inserted ${data?.length || 0} transactions`);
       
       return {
         successCount: data?.length || 0,
@@ -594,7 +627,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         throw deleteError;
       }
 
-      console.log(`All transactions for account ${accountId} deleted successfully`);
     } catch (err) {
       console.error('Error deleting transactions for account:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete transactions');
@@ -723,7 +755,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
 
     try {
-      console.log('Ensuring tickers exist:', tickerNames);
       
       // First, check which tickers already exist for this user
       const { data: existingTickers, error: fetchError } = await supabase
@@ -751,7 +782,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
       const tickersToCreate = tickerNames.filter(name => !existingNames.has(name));
       
       if (tickersToCreate.length > 0) {
-        console.log('Creating new tickers:', tickersToCreate);
         
         // Create missing tickers with user_id
         const { data: newTickers, error: createError } = await supabase
@@ -772,7 +802,6 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         }
       }
 
-      console.log('Ticker mapping created:', existingTickerMap);
       return existingTickerMap;
     } catch (err) {
       console.error('Error ensuring tickers exist:', err);

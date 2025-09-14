@@ -148,11 +148,9 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
         result.corporateActions
       );
 
-      console.log('Extracted ticker names:', tickerNames);
 
       // Ensure all tickers exist in the database
       const tickerIdMap = await ensureTickersExist(tickerNames);
-      console.log('Ticker ID mapping:', tickerIdMap);
 
       // Convert to our transaction format with ticker IDs
       const tradeTransactions = convertIBKRTradesToTransactions(
