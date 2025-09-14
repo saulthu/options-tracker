@@ -420,14 +420,17 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   };
 
   // Position-specific summary components
-  const renderCashPositionSummary = (position: PositionEpisode) => (
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Type</span>
-        <Badge variant="outline" className={BADGE_STYLES.cash}>
-          Cash
-        </Badge>
-      </div>
+  const renderCashPositionSummary = (position: PositionEpisode) => {
+    const forexInfo = detectForexTransaction(position);
+    
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between">
+          <span className="text-[#b3b3b3]">Type</span>
+          <Badge variant="outline" className={forexInfo.isForex ? BADGE_STYLES.forex : BADGE_STYLES.cash}>
+            {forexInfo.isForex ? 'Forex' : 'Cash'}
+          </Badge>
+        </div>
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Amount</span>
         <span className={`text-white font-semibold ${position.cashTotal.isPositive() ? 'text-green-400' : 'text-red-400'}`}>
@@ -450,7 +453,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const renderSharesPositionSummary = (position: PositionEpisode) => (
     <div className="space-y-2">
