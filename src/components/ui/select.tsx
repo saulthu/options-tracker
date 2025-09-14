@@ -59,7 +59,7 @@ export default function Select({
       </button>
       
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-[#1a1a1a] border border-[#2d2d2d] rounded-md shadow-lg">
+        <div className="absolute z-50 w-full mt-1 bg-[#1a1a1a] border border-[#2d2d2d] rounded-md shadow-lg max-h-60 overflow-y-auto">
           {options.map((option) => (
             <button
               key={option.value}
