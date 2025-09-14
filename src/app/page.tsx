@@ -10,10 +10,8 @@ import OverviewPage from "@/components/OverviewPage";
 import ReportPage from "@/components/ReportPage";
 import OptionsPage from "@/components/OptionsPage";
 import PositionsPage from "@/components/PositionsPage";
-import TransactionsPage from "@/components/TransactionsPage";
 import AccountPage from "@/components/AccountPage";
 
-import DebugSupabase from "@/components/DebugSupabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { usePortfolio } from "@/contexts/PortfolioContext";
@@ -59,12 +57,6 @@ export default function Home() {
           icon: List,
           description: "View your trading positions grouped by episodes and strategies."
         };
-      case 'transactions-debug':
-        return {
-          title: "Transactions Debug",
-          icon: List,
-          description: "Debug view of all transactions for development purposes."
-        };
       case 'weekly-report':
         return {
           title: "Report",
@@ -106,9 +98,6 @@ export default function Home() {
                 <li>Insert sample data: <code className="bg-gray-800 px-2 py-1 rounded">insert-sample-data.sql</code></li>
                 <li>Refresh the page</li>
               </ol>
-              <div className="mt-4">
-                <DebugSupabase />
-              </div>
             </div>
           ) : (
             <div className="text-[#b3b3b3] text-sm">
@@ -149,8 +138,6 @@ export default function Home() {
         return <OptionsPage selectedRange={selectedRange} />;
       case 'transactions':
         return <PositionsPage selectedRange={selectedRange} />;
-      case 'transactions-debug':
-        return <TransactionsPage selectedRange={selectedRange} />;
       case 'weekly-report':
         return <ReportPage selectedRange={selectedRange} />;
       case 'data':
