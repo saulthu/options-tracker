@@ -13,7 +13,6 @@ import {
   convertIBKRInterestToTransactions,
   convertIBKRDividendsToTransactions,
   convertIBKRWithholdingTaxToTransactions,
-  convertIBKRCorporateActionsToTransactions,
   IBKRTrade,
   IBKRCashTransaction,
   IBKRFee,
@@ -195,21 +194,13 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
         tickerIdMap
       );
 
-      const corporateActionTransactions = convertIBKRCorporateActionsToTransactions(
-        result.corporateActions,
-        accountId,
-        userId,
-        tickerIdMap
-      );
-
       const allTransactions = [
         ...tradeTransactions, 
         ...cashTransactions, 
         ...feeTransactions, 
         ...interestTransactions,
         ...dividendTransactions,
-        ...withholdingTaxTransactions,
-        ...corporateActionTransactions
+        ...withholdingTaxTransactions
       ];
 
       // Separate forex trades from regular trades for preview
@@ -351,21 +342,13 @@ export default function IBKRImporter({ onImport, onCancel, accountId, accountNam
         preview.tickerIdMap
       );
 
-      const corporateActionTransactions = convertIBKRCorporateActionsToTransactions(
-        preview.corporateActions,
-        accountId,
-        userId,
-        preview.tickerIdMap
-      );
-
       const allTransactions = [
         ...tradeTransactions, 
         ...cashTransactions, 
         ...feeTransactions, 
         ...interestTransactions,
         ...dividendTransactions,
-        ...withholdingTaxTransactions,
-        ...corporateActionTransactions
+        ...withholdingTaxTransactions
       ];
 
       // Step 2: Validate transactions
