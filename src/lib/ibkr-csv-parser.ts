@@ -1491,9 +1491,9 @@ export function convertTickerChangeCorporateActionsToTransactions(
       
       if ((sellAction.quantity || 0) < 0 && (buyAction.quantity || 0) > 0) {
         try {
-          // Extract tickers from descriptions
-          const sellTicker = extractTickerFromDescription(sellAction.description);
-          const buyTicker = extractTickerFromDescription(buyAction.description);
+          // Extract tickers from descriptions based on action type
+          const sellTicker = extractTickerFromDescription(sellAction.description, 'SELL');
+          const buyTicker = extractTickerFromDescription(buyAction.description, 'BUY');
           
           if (sellTicker && buyTicker) {
             const timestamp = new Date(dateTime).toISOString();
@@ -1543,9 +1543,37 @@ export function convertTickerChangeCorporateActionsToTransactions(
 
 /**
  * Extract ticker symbol from corporate action description
- * Handles formats like "CLBR(KYG2283U1004)" and "(PEW, GRABAGUN DIGITAL HOLDINGS IN, US38387Q1058)"
+ * For ticker changes, we need to distinguish between source and destination tickers
+ * @param description The corporate action description
+ * @param actionType 'SELL' for source ticker (beginning), 'BUY' for destination ticker (end)
  */
-function extractTickerFromDescription(description: string): string | null {
+function extractTickerFromDescription(description: string, actionType: 'SELL' | 'BUY'): string | null {
+  // For CUSIP/ISIN changes, extract different tickers based on action type
+  if (description.includes('CUSIP/ISIN Change')) {
+    if (actionType === 'SELL') {
+      // For sell actions, extract the source ticker at the beginning
+      // Format: "CLBR(KYG2283U1004) CUSIP/ISIN Change to ..."
+      const beginningMatch = description.match(/^([A-Z]+(?:\.[A-Z]+)?)\(/);
+      if (beginningMatch) {
+        return beginningMatch[1];
+      }
+    } else if (actionType === 'BUY') {
+      // For buy actions, extract the destination ticker from the final parentheses
+      // Format: "... (PEW, GRABAGUN DIGITAL HOLDINGS IN, US38387Q1058)"
+      const finalParenMatch = description.match(/\(([A-Z]+(?:\.[A-Z]+)?),\s*[^,]+,\s*[A-Z0-9]+\)$/);
+      if (finalParenMatch) {
+        return finalParenMatch[1];
+      }
+      
+      // Fallback: look for ticker in parentheses after "Change to"
+      const changeToMatch = description.match(/Change to[^(]*\(([A-Z]+)/);
+      if (changeToMatch) {
+        return changeToMatch[1];
+      }
+    }
+  }
+  
+  // For non-ticker-change descriptions, try the original patterns
   // Try to match ticker at the beginning: "CLBR(KYG2283U1004)"
   const beginningMatch = description.match(/^([A-Z]+)\(/);
   if (beginningMatch) {
