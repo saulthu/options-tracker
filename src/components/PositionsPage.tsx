@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { TimeRange } from '@/components/TimeRangeSelector';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/modal';
 import PositionFilterSelector from '@/components/PositionFilterSelector';

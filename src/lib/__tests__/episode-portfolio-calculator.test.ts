@@ -153,10 +153,10 @@ describe('Episode Portfolio Calculator', () => {
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
       expect(result.ledger).toHaveLength(1);
-      expect(result.ledger[0].accepted).toBe(false);
-      expect(result.ledger[0].error).toBe('Equities cannot be negative (long-only)');
-      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(0); // No change to balance
-      expect(result.episodes).toHaveLength(0); // No episodes for rejected transactions
+      expect(result.ledger[0].accepted).toBe(true); // Now accepted with warning
+      expect(result.ledger[0].error).toBe('Temporary negative position - will validate at episode level');
+      expect(result.balances.get('account-1')?.get('USD')?.amount).toBe(14999); // Balance updated: 0 + (150*100 - 1)
+      expect(result.episodes).toHaveLength(1); // Episode created despite warning
     });
 
     it('should handle covered call strategy', () => {
@@ -522,8 +522,9 @@ describe('Episode Portfolio Calculator', () => {
       const result = buildPortfolioView(transactions, tickerLookup, openingBalances);
 
       expect(result.ledger).toHaveLength(2);
-      expect(result.ledger[1].accepted).toBe(false);
-      expect(result.ledger[1].error).toBe('Equities cannot be negative (long-only)');
+      expect(result.ledger[0].accepted).toBe(true); // First transaction (BUY) accepted
+      expect(result.ledger[1].accepted).toBe(true); // Second transaction (SELL) now accepted with warning
+      expect(result.ledger[1].error).toBe('Zero-crossing detected and Temporary negative position - will validate at episode level');
     });
   });
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 interface SelectOption {
@@ -45,6 +45,13 @@ export default function Select({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const handleOptionClick = useCallback((optionValue: string) => {
+    onChange(optionValue);
+    setIsOpen(false);
+    setSearchTerm('');
+    setHighlightedIndex(-1);
+  }, [onChange]);
 
   // Handle keyboard navigation and search
   useEffect(() => {
@@ -111,7 +118,7 @@ export default function Select({
         document.removeEventListener('keydown', handleKeyDown);
       };
     }
-  }, [isOpen, highlightedIndex, options, searchTerm]);
+  }, [isOpen, highlightedIndex, options, searchTerm, handleOptionClick]);
 
   // Reset highlighted index when opening
   useEffect(() => {
@@ -136,13 +143,6 @@ export default function Select({
       }
     }
   }, [highlightedIndex, isOpen]);
-
-  const handleOptionClick = (optionValue: string) => {
-    onChange(optionValue);
-    setIsOpen(false);
-    setSearchTerm('');
-    setHighlightedIndex(-1);
-  };
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
