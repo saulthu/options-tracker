@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/modal';
 import PositionFilterSelector from '@/components/PositionFilterSelector';
-import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Target, FileText, Copy, Hash } from 'lucide-react';
+import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Target, FileText, Copy } from 'lucide-react';
 import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
 import { PositionFilterType } from '@/types/navigation';
 import { CurrencyAmount, CurrencyCode } from '@/lib/currency-amount';
@@ -909,7 +909,24 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={selectedPosition ? `Position Details` : ''}
+        title={selectedPosition ? (
+          <div className="flex items-center justify-between w-full">
+            <span>Position Details</span>
+            {getEpisodeTags(selectedPosition).length > 0 && (
+              <div className="flex flex-wrap gap-1 ml-4">
+                {getEpisodeTags(selectedPosition).map(tag => (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="text-xs bg-blue-900 text-blue-200 border-blue-700"
+                  >
+                    #{tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : ''}
         maxWidth="2xl"
         showCloseButton={true}
       >
@@ -980,26 +997,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
               </div>
             )}
 
-            {/* Tags Section - Only show if there are tags */}
-            {getEpisodeTags(selectedPosition).length > 0 && (
-              <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Hash className="h-5 w-5" />
-                  <h3 className="text-lg font-semibold">Tags</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {getEpisodeTags(selectedPosition).map(tag => (
-                    <Badge
-                      key={tag}
-                      variant="outline"
-                      className="text-xs bg-blue-900 text-blue-200 border-blue-700 hover:bg-blue-800"
-                    >
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </Modal>

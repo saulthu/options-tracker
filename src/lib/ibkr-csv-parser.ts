@@ -1208,7 +1208,7 @@ export function convertIBKRCashToTransactions(
         price: new CurrencyAmount(1, transaction.amount.currency), // Cash transactions have price of 1
         fees: new CurrencyAmount(0, transaction.amount.currency),
         currency: transaction.amount.currency,
-        memo: `${transaction.description} (${transaction.amount.currency})\n#Cash`
+        memo: `${transaction.description} (${transaction.amount.currency})`
       };
     } catch (error) {
       console.error(`Error converting cash transaction ${index + 1}:`, error, transaction);
@@ -1244,7 +1244,7 @@ export function convertIBKRFeesToTransactions(
         price: new CurrencyAmount(1, fee.amount.currency),
         fees: new CurrencyAmount(0, fee.amount.currency),
         currency: fee.amount.currency,
-        memo: `${fee.subtitle}: ${fee.description} (${fee.amount.currency})\n#Fees\n#Cash`
+        memo: `${fee.subtitle}: ${fee.description} (${fee.amount.currency})\n#Fees`
       };
     } catch (error) {
       console.error(`Error converting fee ${index + 1}:`, error, fee);
@@ -1280,7 +1280,7 @@ export function convertIBKRInterestToTransactions(
         price: new CurrencyAmount(1, interestItem.amount.currency),
         fees: new CurrencyAmount(0, interestItem.amount.currency),
         currency: interestItem.amount.currency,
-        memo: `${interestItem.description} (${interestItem.amount.currency})\n#Interest\n#Cash`
+        memo: `${interestItem.description} (${interestItem.amount.currency})\n#Interest`
       };
     } catch (error) {
       console.error(`Error converting interest ${index + 1}:`, error, interestItem);
@@ -1321,7 +1321,7 @@ export function convertIBKRDividendsToTransactions(
         price: new CurrencyAmount(1, dividend.amount.currency),
         fees: new CurrencyAmount(0, dividend.amount.currency),
         currency: dividend.amount.currency,
-        memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.amount.currency})\n#Dividend\n#Cash`
+        memo: `Dividend: ${dividend.description}${dividend.symbol ? ` (${dividend.symbol})` : ''} (${dividend.amount.currency})\n#Dividend`
       };
     } catch (error) {
       console.error(`Error converting dividend ${index + 1}:`, error, dividend);
@@ -1362,7 +1362,7 @@ export function convertIBKRWithholdingTaxToTransactions(
         price: new CurrencyAmount(1, tax.amount.currency),
         fees: new CurrencyAmount(0, tax.amount.currency),
         currency: tax.amount.currency,
-        memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.amount.currency})\n#Tax\n#Cash`
+        memo: `Withholding Tax: ${tax.description}${tax.symbol ? ` (${tax.symbol})` : ''} (${tax.amount.currency})\n#Tax`
       };
     } catch (error) {
       console.error(`Error converting withholding tax ${index + 1}:`, error, tax);
