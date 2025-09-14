@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/modal';
 import PositionFilterSelector from '@/components/PositionFilterSelector';
+import TickerFilter from '@/components/TickerFilter';
 import { TrendingUp, DollarSign, Activity, Building2, ChevronUp, ChevronDown, Target, FileText, Copy } from 'lucide-react';
 import { PositionEpisode, EpisodeTxn } from '@/types/episodes';
 import { PositionFilterType } from '@/types/navigation';
@@ -145,6 +146,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   
   // Filter state
   const [positionFilter, setPositionFilter] = useState<PositionFilterType>('overlap');
+  const [tickerFilter, setTickerFilter] = useState<string>('');
   
   // Modal state
   const [selectedPosition, setSelectedPosition] = useState<PositionEpisode | null>(null);
@@ -175,10 +177,41 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   };
 
   // Get filtered positions for the selected time range
-  const filteredPositions = useMemo(() => {
+  const baseFilteredPositions = useMemo(() => {
     if (!portfolio) return [];
     return getFilteredPositions(selectedRange, undefined, positionFilter);
   }, [portfolio, selectedRange, positionFilter, getFilteredPositions]);
+
+  // Extract available tickers from all positions
+  const availableTickers = useMemo(() => {
+    if (!baseFilteredPositions.length) return [];
+    
+    const tickers = new Set<string>();
+    baseFilteredPositions.forEach(position => {
+      // Extract ticker from episodeKey (e.g., "AAPL", "AAPL|CALL", "AAPL|PUT")
+      if (position.kindGroup !== 'CASH') {
+        const ticker = position.episodeKey.split('|')[0];
+        if (ticker) {
+          tickers.add(ticker);
+        }
+      }
+    });
+    
+    return Array.from(tickers).sort();
+  }, [baseFilteredPositions]);
+
+  // Apply ticker filter
+  const filteredPositions = useMemo(() => {
+    if (!tickerFilter.trim()) return baseFilteredPositions;
+    
+    const filterTerm = tickerFilter.trim().toLowerCase();
+    return baseFilteredPositions.filter(position => {
+      if (position.kindGroup === 'CASH') return false; // Cash positions don't have tickers
+      
+      const ticker = position.episodeKey.split('|')[0];
+      return ticker && ticker.toLowerCase().includes(filterTerm);
+    });
+  }, [baseFilteredPositions, tickerFilter]);
 
   // Sort filtered positions by selected field
   const sortedPositions = useMemo(() => {
@@ -825,16 +858,17 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                 <Building2 className="h-5 w-5" />
                 Positions Table
               </CardTitle>
-              <CardDescription>
-                Click on any position to view detailed information
-              </CardDescription>
             </div>
             <div className="flex items-center gap-4">
               <PositionFilterSelector
                 value={positionFilter}
                 onChange={setPositionFilter}
               />
-              {/* Future filters can be added here */}
+              <TickerFilter
+                value={tickerFilter}
+                onChange={setTickerFilter}
+                availableTickers={availableTickers}
+              />
             </div>
           </div>
         </CardHeader>
