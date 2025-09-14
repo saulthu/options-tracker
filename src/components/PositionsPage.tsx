@@ -37,18 +37,17 @@ const detectForexTransaction = (position: PositionEpisode): { isForex: boolean; 
     return { isForex: false };
   }
 
-  // Look for forex patterns in the memo field
-  const memo = position.txns[0]?.note || '';
+  // Check for #Forex hashtag in parsed memo
+  const hasForexTag = position.txns.some(txn => 
+    txn.parsedMemo?.tags?.includes('Forex')
+  );
   
-  // Check if this looks like a forex transaction
-  const isForexMemo = memo.includes('Forex:') || 
-                     memo.includes('to buy') || 
-                     memo.includes('with') ||
-                     memo.includes('Currency conversion');
-  
-  if (!isForexMemo) {
+  if (!hasForexTag) {
     return { isForex: false };
   }
+
+  // Look for forex patterns in the memo field for additional details
+  const memo = position.txns[0]?.note || '';
 
   // Parse forex information from memo field
   // The memo contains the forex conversion details
@@ -124,42 +123,11 @@ const detectForexTransaction = (position: PositionEpisode): { isForex: boolean; 
     }
   }
 
-  // If we detected forex but couldn't parse the pattern, try to extract currencies from memo
-  if (isForexMemo) {
-    // Look for any 3-letter currency codes in the memo
-    const currencyMatch = memo.match(/([A-Z]{3})/g);
-    if (currencyMatch && currencyMatch.length >= 2) {
-      // Try to determine canonical direction based on common forex pairs
-      const currencies = [...new Set(currencyMatch)]; // Remove duplicates
-      let fromCurrency = currencies[0];
-      let toCurrency = currencies[1];
-      
-      // If we see AUD and USD, make it AUD → USD (canonical direction)
-      if (currencies.includes('AUD') && currencies.includes('USD')) {
-        fromCurrency = 'AUD';
-        toCurrency = 'USD';
-      }
-      // Add other common pairs as needed
-      
-      return {
-        isForex: true,
-        fromCurrency,
-        toCurrency,
-        exchangeRate: undefined,
-        isOutflow: position.txns[0]?.side === 'SELL' || position.cashTotal.isNegative()
-      };
-    }
-    
-    return {
-      isForex: true,
-      fromCurrency: 'Unknown',
-      toCurrency: 'Unknown',
-      exchangeRate: undefined,
-      isOutflow: position.txns[0]?.side === 'SELL' || position.cashTotal.isNegative()
-    };
-  }
-
-  return { isForex: false };
+  // If we have the hashtag but no detailed pattern, return basic forex info
+  return {
+    isForex: true,
+    isOutflow: position.cashTotal.isNegative()
+  };
 };
 
 export default function PositionsPage({ selectedRange }: PositionsPageProps) {
@@ -408,7 +376,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
     if (position.kindGroup === 'OPTION') {
       const right = position.currentRight || 'UNKNOWN';
-      const strike = position.currentStrike ? position.currentStrike.format() : '';
+      // Format strike price to show short version (71.5 instead of 71.50, 40 instead of 40.00)
+      const strike = position.currentStrike ? 
+        (position.currentStrike.amount % 1 === 0 ? 
+          position.currentStrike.amount.toString() : 
+          position.currentStrike.amount.toString().replace(/\.?0+$/, '')) : '';
       const expiry = position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : '';
       const optionType = right === 'CALL' ? 'c' : right === 'PUT' ? 'p' : right.toLowerCase();
       const ticker = position.episodeKey.split('|')[0] || position.episodeKey;
@@ -419,17 +391,90 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     return { ticker: position.episodeKey, details: '' };
   };
 
+  // Reusable function to format position type display (same as table)
+  const getPositionTypeDisplay = (position: PositionEpisode) => {
+    const forexInfo = detectForexTransaction(position);
+    
+    if (forexInfo.isForex) {
+      return {
+        badge: 'Forex',
+        badgeStyle: BADGE_STYLES.forex,
+        details: forexInfo.fromCurrency && forexInfo.toCurrency ? (
+          <span className="text-white text-sm">
+            {forexInfo.isOutflow ? (
+              // Highlight source currency for sell transactions
+              <>
+                <span className="text-orange-400 font-semibold">{forexInfo.fromCurrency}</span>
+                <span>→{forexInfo.toCurrency}</span>
+              </>
+            ) : (
+              // Highlight destination currency for buy transactions
+              <>
+                <span>{forexInfo.fromCurrency}→</span>
+                <span className="text-orange-400 font-semibold">{forexInfo.toCurrency}</span>
+              </>
+            )}
+          </span>
+        ) : null
+      };
+    }
+    
+    if (position.kindGroup === 'CASH') {
+      // Determine cash type based on tags
+      const tags = getEpisodeTags(position);
+      let cashType = 'Cash';
+      let badgeStyle: string = BADGE_STYLES.cash;
+      
+      if (tags.includes('Forex')) {
+        cashType = 'Forex';
+        badgeStyle = BADGE_STYLES.forex;
+      } else if (tags.includes('Fees')) {
+        cashType = 'Fees';
+        badgeStyle = BADGE_STYLES.cash;
+      } else if (tags.includes('Interest')) {
+        cashType = 'Interest';
+        badgeStyle = BADGE_STYLES.cash;
+      } else if (tags.includes('Dividend')) {
+        cashType = 'Dividend';
+        badgeStyle = BADGE_STYLES.cash;
+      } else if (tags.includes('Tax')) {
+        cashType = 'Tax';
+        badgeStyle = BADGE_STYLES.cash;
+      } else if (tags.includes('Deposit')) {
+        cashType = 'Deposit';
+        badgeStyle = BADGE_STYLES.cash;
+      } else if (tags.includes('Withdrawal')) {
+        cashType = 'Withdrawal';
+        badgeStyle = BADGE_STYLES.cash;
+      }
+      
+      return {
+        badge: cashType,
+        badgeStyle,
+        details: null
+      };
+    }
+    
+    return {
+      badge: position.kindGroup,
+      badgeStyle: BADGE_STYLES.default,
+      details: null
+    };
+  };
+
   // Position-specific summary components
   const renderCashPositionSummary = (position: PositionEpisode) => {
-    const forexInfo = detectForexTransaction(position);
+    const typeDisplay = getPositionTypeDisplay(position);
     
     return (
       <div className="space-y-2">
-        <div className="flex justify-between">
-          <span className="text-[#b3b3b3]">Type</span>
-          <Badge variant="outline" className={forexInfo.isForex ? BADGE_STYLES.forex : BADGE_STYLES.cash}>
-            {forexInfo.isForex ? 'Forex' : 'Cash'}
-          </Badge>
+        <div className="flex justify-center items-center">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className={typeDisplay.badgeStyle}>
+              {typeDisplay.badge}
+            </Badge>
+            {typeDisplay.details}
+          </div>
         </div>
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Amount</span>
@@ -609,7 +654,12 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       if (txn.instrumentKind === 'CALL' || txn.instrumentKind === 'PUT') {
         const rightSuffix = txn.instrumentKind === 'PUT' ? 'p' : 'c';
         const expiry = txn.expiry ? new Date(txn.expiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : '';
-        return `${actionTerm} ${txn.ticker} ${txn.strike?.format() || ''}${rightSuffix} ${expiry} @ ${price}`.trim();
+        // Format strike price to show short version (71.5 instead of 71.50, 40 instead of 40.00)
+        const strike = txn.strike ? 
+          (txn.strike.amount % 1 === 0 ? 
+            txn.strike.amount.toString() : 
+            txn.strike.amount.toString().replace(/\.?0+$/, '')) : '';
+        return `${actionTerm} ${txn.ticker} ${strike}${rightSuffix} ${expiry} @ ${price}`.trim();
       }
       return `${actionTerm} ${txn.ticker} @ ${price}`;
     };
@@ -817,18 +867,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                             className={`${getBadgeStyle(position)} w-16 text-center`}
                           >
                             {(() => {
-                              const forexInfo = detectForexTransaction(position);
-                              if (forexInfo.isForex) {
-                                return 'Forex';
-                              }
+                              const typeDisplay = getPositionTypeDisplay(position);
                               if (position.kindGroup === 'OPTION') {
                                 return position.optionDirection === 'CALL' ? 'Call' :
                                        position.optionDirection === 'PUT' ? 'Put' :
                                        position.optionDirection || 'Option';
                               }
-                              if (position.kindGroup === 'CASH') return 'Cash';
-                              if (position.kindGroup === 'SHARES') return 'Shares';
-                              return position.kindGroup;
+                              return typeDisplay.badge;
                             })()}
                           </Badge>
                           {(() => {

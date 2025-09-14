@@ -1198,6 +1198,25 @@ export function convertIBKRCashToTransactions(
         side = 'SELL';
       }
 
+      // Determine appropriate tag based on description
+      let tag = '';
+      const desc = transaction.description.toLowerCase();
+      if (desc.includes('deposit') || desc.includes('transfer in')) {
+        tag = '\n#Deposit';
+      } else if (desc.includes('withdrawal') || desc.includes('transfer out')) {
+        tag = '\n#Withdrawal';
+      } else if (desc.includes('dividend')) {
+        tag = '\n#Dividend';
+      } else if (desc.includes('interest')) {
+        tag = '\n#Interest';
+      } else if (desc.includes('fee') || desc.includes('commission')) {
+        tag = '\n#Fees';
+      } else if (desc.includes('tax')) {
+        tag = '\n#Tax';
+      } else {
+        tag = '\n#Cash';
+      }
+
       return {
         user_id: userId,
         account_id: accountId,
@@ -1208,7 +1227,7 @@ export function convertIBKRCashToTransactions(
         price: new CurrencyAmount(1, transaction.amount.currency), // Cash transactions have price of 1
         fees: new CurrencyAmount(0, transaction.amount.currency),
         currency: transaction.amount.currency,
-        memo: `${transaction.description} (${transaction.amount.currency})`
+        memo: `${transaction.description} (${transaction.amount.currency})${tag}`
       };
     } catch (error) {
       console.error(`Error converting cash transaction ${index + 1}:`, error, transaction);
