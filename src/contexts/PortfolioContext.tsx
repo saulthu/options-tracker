@@ -10,7 +10,7 @@ import {
   getAccountEpisodes,
   getTotalRealizedPnL,
   getAccountRealizedPnL,
-} from '@/lib/episode-portfolio-calculator-v2';
+} from '@/lib/portfolio-calculator';
 import { createTagManager, TagFilter as TagFilterType } from '@/lib/tag-manager';
 import { InstrumentKind } from '@/types/episodes';
 import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';

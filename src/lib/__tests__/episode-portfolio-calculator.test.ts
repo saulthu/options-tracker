@@ -9,7 +9,7 @@ import {
   getTotalRealizedPnL,
   createTickerLookup,
   formatEpisodeForDisplay
-} from '../episode-portfolio-calculator-v2';
+} from '../portfolio-calculator';
 import { RawTransaction, TickerLookup, OpeningBalances, PortfolioResult } from '../../types/episodes';
 import { CurrencyAmount } from '../currency-amount';
 

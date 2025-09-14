@@ -1,4 +1,4 @@
-import { buildPortfolioView } from '../episode-portfolio-calculator-v2';
+import { buildPortfolioView } from '../portfolio-calculator';
 import { CurrencyAmount } from '../currency-amount';
 import { RawTransaction } from '../../types/episodes';
 

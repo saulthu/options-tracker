@@ -15,7 +15,7 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   collectCoverageFrom: [
-    'src/lib/episode-portfolio-calculator-v2.ts',
+    'src/lib/portfolio-calculator.ts',
     '!src/**/*.d.ts',
     '!src/**/*.stories.{js,jsx,ts,tsx}',
   ],
