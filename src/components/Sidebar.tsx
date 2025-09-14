@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Grid3X3, Calendar, Activity, TrendingUp, Brain, Settings, User, LogOut, LucideIcon, List, Bug, Upload } from "lucide-react";
+import { Plus, Grid3X3, Calendar, Activity, TrendingUp, Brain, Settings, User, LogOut, LucideIcon, List, Bug, Building2 } from "lucide-react";
 import Image from "next/image";
 import { ViewType } from "@/types/navigation";
 import { useTimeRange } from "@/contexts/TimeRangeContext";
@@ -142,7 +142,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
     { key: 'shares', icon: TrendingUp, text: 'Shares', hasAction: true },
     { key: 'options', icon: Activity, text: 'Options', hasAction: true },
     { key: 'transactions', icon: List, text: 'Positions', hasAction: true },
-    { key: 'data', icon: Upload, text: 'Data', hasAction: true },
+    { key: 'data', icon: Building2, text: 'Accounts', hasAction: true },
     { key: 'transactions-debug', icon: Bug, text: 'Debug Txns', hasAction: true },
     { key: 'ai-assistant', icon: Brain, text: 'AI Assistant' },
     { key: 'settings', icon: Settings, text: 'Settings', hasAction: true },

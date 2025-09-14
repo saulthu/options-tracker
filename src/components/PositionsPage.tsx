@@ -17,7 +17,7 @@ interface PositionsPageProps {
   selectedRange: TimeRange;
 }
 
-type SortField = 'openTimestamp' | 'episodeKey' | 'kindGroup' | 'qty' | 'avgPrice' | 'realizedPnLTotal' | 'cashTotal';
+type SortField = 'openTimestamp' | 'episodeKey' | 'kindGroup' | 'qty' | 'avgPrice' | 'closeTimestamp' | 'cashTotal';
 type SortDirection = 'asc' | 'desc';
 
 // Centralized badge styling
@@ -220,13 +220,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           aValue = a.avgPrice.amount;
           bValue = b.avgPrice.amount;
           break;
-        case 'realizedPnLTotal':
-          // Sort by amount, but maintain currency safety by comparing within same currency
-          if (a.realizedPnLTotal.currency !== b.realizedPnLTotal.currency) {
-            return a.realizedPnLTotal.currency.localeCompare(b.realizedPnLTotal.currency);
-          }
-          aValue = a.realizedPnLTotal.amount;
-          bValue = b.realizedPnLTotal.amount;
+        case 'closeTimestamp':
+          // Handle close timestamp - null values (open positions) should sort last
+          if (!a.closeTimestamp && !b.closeTimestamp) return 0;
+          if (!a.closeTimestamp) return 1;  // a is open, sort after b
+          if (!b.closeTimestamp) return -1; // b is open, sort after a
+          aValue = new Date(a.closeTimestamp).getTime();
+          bValue = new Date(b.closeTimestamp).getTime();
           break;
         case 'cashTotal':
           // Sort by amount, but maintain currency safety by comparing within same currency
@@ -335,12 +335,6 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
 
   // Helper function to get badge style based on position type
   const getBadgeStyle = (position: PositionEpisode) => {
-    // Check if this is a forex transaction (display only)
-    const forexInfo = detectForexTransaction(position);
-    if (forexInfo.isForex) {
-      return BADGE_STYLES.forex;
-    }
-    
     if (position.kindGroup === 'CASH') {
       return BADGE_STYLES.cash;
     }
@@ -398,7 +392,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     if (forexInfo.isForex) {
       return {
         badge: 'Forex',
-        badgeStyle: BADGE_STYLES.forex,
+        badgeStyle: BADGE_STYLES.cash,
         details: forexInfo.fromCurrency && forexInfo.toCurrency ? (
           <span className="text-white text-sm">
             {forexInfo.isOutflow ? (
@@ -427,7 +421,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       
       if (tags.includes('Forex')) {
         cashType = 'Forex';
-        badgeStyle = BADGE_STYLES.forex;
+        badgeStyle = BADGE_STYLES.cash;
       } else if (tags.includes('Fees')) {
         cashType = 'Fees';
         badgeStyle = BADGE_STYLES.cash;
@@ -809,11 +803,15 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
             <DollarSign className="h-4 w-4 text-[#b3b3b3]" />
           </CardHeader>
           <CardContent>
-            <MultiCurrencyBalanceInline 
-              balances={summaryStats.totalCashFlow} 
-              className="text-2xl font-bold"
-            />
-            <p className="text-xs text-[#b3b3b3]">Total cash flow</p>
+            <div className="space-y-1">
+              {Array.from(summaryStats.totalCashFlow.entries()).map(([currency, amount]) => (
+                <div key={currency} className="text-lg font-semibold">
+                  <span className={amount.isPositive() ? 'text-green-400' : 'text-red-400'}>
+                    {`${currency} ${amount.format()}`}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -856,7 +854,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     {renderSortableHeader('qty', 'Quantity', 'right')}
                     {renderSortableHeader('avgPrice', 'Avg Price', 'right')}
                     {renderSortableHeader('openTimestamp', 'Open Date')}
-                    {renderSortableHeader('realizedPnLTotal', 'Realized P&L', 'right')}
+                    {renderSortableHeader('closeTimestamp', 'Close Date')}
                     {renderSortableHeader('cashTotal', 'Cash Flow', 'right')}
                     <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Status</th>
                   </tr>
@@ -883,6 +881,24 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                             className={`${getBadgeStyle(position)} w-16 text-center`}
                           >
                             {(() => {
+                              if (position.kindGroup === 'CASH') {
+                                // Check for specific cash transaction types via hashtags
+                                const allTags = position.txns.flatMap(t => t.parsedMemo?.tags || []);
+                                if (allTags.includes('Forex')) {
+                                  return 'Forex';
+                                }
+                                if (allTags.includes('Fees')) {
+                                  return 'Fees';
+                                }
+                                if (allTags.includes('Interest')) {
+                                  return 'Interest';
+                                }
+                                if (allTags.includes('Dividend')) {
+                                  return 'Dividend';
+                                }
+                                // Fallback to deposit/withdraw for other cash transactions
+                                return position.cashTotal.isPositive() ? 'Deposit' : 'Withdraw';
+                              }
                               const typeDisplay = getPositionTypeDisplay(position);
                               if (position.kindGroup === 'OPTION') {
                                 return position.optionDirection === 'CALL' ? 'Call' :
@@ -933,42 +949,72 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         {position.kindGroup === 'CASH' ? '' : position.avgPrice.format()}
                       </td>
                       <td className="py-2 px-2 text-white text-xs">
-                        {new Date(position.openTimestamp).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
+                        <span 
+                          title={new Date(position.openTimestamp).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            timeZoneName: 'short'
+                          })}
+                          className="cursor-help"
+                        >
+                          {new Date(position.openTimestamp).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
                       </td>
-                      <td className="py-2 px-2 text-right">
-                        {position.kindGroup === 'CASH' ? (
-                          ''
-                        ) : (
-                          <span className={position.realizedPnLTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
-                            {position.realizedPnLTotal.format()}
+                      <td className="py-2 px-2 text-white text-xs">
+                        {position.closeTimestamp ? (
+                          <span 
+                            title={new Date(position.closeTimestamp).toLocaleString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                              timeZoneName: 'short'
+                            })}
+                            className="cursor-help"
+                          >
+                            {new Date(position.closeTimestamp).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
                           </span>
+                        ) : (
+                          <span className="text-[#666]">—</span>
                         )}
                       </td>
                       <td className="py-2 px-2 text-right">
                         <span className={position.cashTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
-                          {position.cashTotal.format()}
+                          {position.cashTotal.currency === 'USD' 
+                            ? position.cashTotal.format()
+                            : `${position.cashTotal.currency} ${position.cashTotal.format()}`
+                          }
                         </span>
                       </td>
                       <td className="py-2 px-2">
-                        <Badge 
-                          variant="outline" 
-                          className={
-                            position.kindGroup === 'CASH' || position.qty === 0 
-                              ? BADGE_STYLES.default
-                              : BADGE_STYLES.open
-                          }
-                        >
-                          {position.kindGroup === 'CASH' 
-                            ? (position.cashTotal.isPositive() ? 'Deposit' : 'Withdraw')
-                            : position.qty === 0 
-                              ? 'Closed' 
-                              : 'Open'
-                          }
-                        </Badge>
+                        {position.kindGroup === 'CASH' ? (
+                          <span></span>
+                        ) : (
+                          <Badge 
+                            variant="outline" 
+                            className={
+                              position.qty === 0 
+                                ? BADGE_STYLES.default
+                                : BADGE_STYLES.open
+                            }
+                          >
+                            {position.qty === 0 ? 'Closed' : 'Open'}
+                          </Badge>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1018,7 +1064,10 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                   <div className="flex justify-between">
                     <span className="text-[#b3b3b3]">Cash Flow</span>
                     <span className={selectedPosition.cashTotal.isPositive() ? 'text-green-400' : 'text-red-400'}>
-                      {selectedPosition.cashTotal.format()}
+                      {selectedPosition.cashTotal.currency === 'USD' 
+                        ? selectedPosition.cashTotal.format()
+                        : `${selectedPosition.cashTotal.currency} ${selectedPosition.cashTotal.format()}`
+                      }
                     </span>
                   </div>
                   {selectedPosition.kindGroup === 'OPTION' && selectedPosition.rolled && (
