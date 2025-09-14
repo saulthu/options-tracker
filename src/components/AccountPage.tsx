@@ -4,11 +4,9 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePortfolio } from '@/contexts/PortfolioContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { Settings, Plus, Building2, Hash, TrendingUp, Edit, Download, Upload, Trash2 } from 'lucide-react';
+import { Plus, Building2, Edit, Download, Upload, Trash2 } from 'lucide-react';
 import { ThemeButton } from '@/components/ui/theme-button';
 import IBKRImporter from '@/components/IBKRImporter';
-import AccountTile from '@/components/AccountTile';
-import MultiCurrencyBalanceInline from '@/components/MultiCurrencyBalance';
 import AccountForm from '@/components/AccountForm';
 import ImportTypeSelector from '@/components/ImportTypeSelector';
 import AlertModal from '@/components/ui/alert-modal';
@@ -386,7 +384,7 @@ export default function AccountPage({}: AccountPageProps) {
           {accountData.length > 0 ? (
             <Card className="bg-[#1a1a1a] border-[#2d2d2d]">
               <CardContent className="p-0">
-                {accountData.map(({ account, transactionCount, accountValues, balances, pnl }, index) => {
+                {accountData.map(({ account, transactionCount, accountValues }, index) => {
                   const isFirst = index === 0;
                   const isLast = index === accountData.length - 1;
                   return (
