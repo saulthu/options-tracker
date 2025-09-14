@@ -52,7 +52,7 @@ src/
 #### **Database Implementation Sync**
 - **ALWAYS keep database implementation in sync** with the episode-based portfolio calculation system
 - **Before making ANY database changes**, ensure they align with the episode-based architecture
-- **The episode-portfolio-calculator.ts is the single source of truth** for all business logic
+- **The episode-portfolio-calculator-v2.ts is the single source of truth** for all business logic
 - **Any schema changes must be reflected** in both the SQL files AND the TypeScript interfaces
 - **TypeScript interfaces must match** the episode-based data structures exactly
 - **Business logic must implement** the rules defined in the episode-based system
@@ -495,7 +495,7 @@ Common authentication issues and their solutions:
 
 **Key Principles**:
 - **Single Source of Truth**: Each business logic calculation should exist in exactly one place
-- **Module Responsibility**: Each module should have one clear purpose (e.g., episode-portfolio-calculator.ts for all portfolio calculations)
+- **Module Responsibility**: Each module should have one clear purpose (e.g., episode-portfolio-calculator-v2.ts for all portfolio calculations)
 - **No Duplication**: Never reimplement business logic that already exists in a specialized module
 - **Use Existing APIs**: Always use existing methods from specialized modules instead of reimplementing
 - **Centralized Logic**: Keep all related calculations in the same module for consistency
@@ -508,7 +508,7 @@ Common authentication issues and their solutions:
 - ❌ **Redundant data fetching** when data is already available in context
 
 **Examples of Correct Usage**:
-- ✅ **Portfolio Calculations**: Use `episode-portfolio-calculator.ts` for all P&L, balances, positions
+- ✅ **Portfolio Calculations**: Use `episode-portfolio-calculator-v2.ts` for all P&L, balances, positions
 - ✅ **Data Access**: Use `PortfolioContext` methods instead of direct Supabase queries
 - ✅ **Time Filtering**: Use `getFilteredPortfolio()` instead of manual date filtering
 - ✅ **State Management**: Use context hooks instead of local state for shared data
@@ -563,10 +563,10 @@ Common authentication issues and their solutions:
 - **Maintainable**: Centralized filtering logic in business layer
 
 ### **Database Implementation Update Pattern**
-1. **Update `src/lib/episode-portfolio-calculator.ts`** with new business logic requirements
+1. **Update `src/lib/episode-portfolio-calculator-v2.ts`** with new business logic requirements
 2. **Update `clean-database-schema.sql`** to match the episode-based system
 3. **Update TypeScript interfaces** in `src/types/episodes.ts` and `src/types/database.ts`
-4. **Update business logic** in `src/lib/episode-portfolio-calculator.ts`
+4. **Update business logic** in `src/lib/episode-portfolio-calculator-v2.ts`
 5. **Update sample data** in `insert-sample-data.sql`
 6. **Test and build** to ensure everything works
 

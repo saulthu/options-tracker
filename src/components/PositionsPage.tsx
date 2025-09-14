@@ -510,14 +510,22 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     );
   };
 
-  const renderSharesPositionSummary = (position: PositionEpisode) => (
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <span className="text-[#b3b3b3]">Type</span>
-        <Badge variant="outline" className={BADGE_STYLES.shares}>
-          Shares
-        </Badge>
-      </div>
+  const renderSharesPositionSummary = (position: PositionEpisode) => {
+    const ticker = position.txns.length > 0 ? position.txns[0].ticker : 'UNKNOWN';
+
+    return (
+      <div className="space-y-2">
+        <div className="text-center">
+          <div className="text-lg font-semibold text-white mb-1 flex justify-center items-center gap-2">
+            <Badge 
+              variant="outline" 
+              className={BADGE_STYLES.shares}
+            >
+              Shares
+            </Badge>
+            <span>{ticker}</span>
+          </div>
+        </div>
       <div className="flex justify-between">
         <span className="text-[#b3b3b3]">Quantity</span>
         <span className="text-white font-semibold">{position.qty} shares</span>
@@ -550,7 +558,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         </Badge>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderOptionsPositionSummary = (position: PositionEpisode) => {
     // Determine BUY/SELL direction based on transaction history
@@ -567,6 +576,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     const direction = getPositionDirection();
     const ticker = position.txns.length > 0 ? position.txns[0].ticker : 'UNKNOWN';
 
+    // Determine option right (call/put) for suffix regardless of source field availability
+    const optionRight: 'CALL' | 'PUT' | undefined =
+      position.optionDirection === 'CALL' || position.optionDirection === 'PUT'
+        ? position.optionDirection
+        : (position.txns.find((t) => t.instrumentKind === 'CALL' || t.instrumentKind === 'PUT')
+            ?.instrumentKind as 'CALL' | 'PUT' | undefined);
+
     return (
       <div className="space-y-2">
         <div className="text-center">
@@ -579,7 +595,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                position.optionDirection === 'PUT' ? 'Put' :
                position.optionDirection || direction}
             </Badge>
-            <span>{ticker} ${strike} {position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : ''}</span>
+            <span>{ticker} {strike}{optionRight === 'CALL' ? 'c' : optionRight === 'PUT' ? 'p' : ''} {position.currentExpiry ? new Date(position.currentExpiry).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }) : ''}</span>
           </div>
         </div>
         <div className="flex justify-between">
@@ -850,7 +866,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     <tr
                       key={position.episodeId}
                       className={`border-b border-[#2a2a2a] hover:bg-[#2a2a2a] cursor-pointer font-mono transition-colors duration-150 ${
-                        position.qty !== 0 ? 'bg-[#1a1a1a]' : 'bg-[#121212]'
+                        position.qty !== 0 ? 'bg-[#1c1c1c]' : 'bg-[#121212]'
                       }`}
                       onClick={() => handlePositionClick(position)}
                       style={{ position: 'relative', zIndex: 1 }}

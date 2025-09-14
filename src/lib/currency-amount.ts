@@ -231,7 +231,7 @@ export class CurrencyAmount {
     precision?: number;
   }): string {
     const {
-      showSymbol = true,
+      showSymbol = false,
       showCode = false,
       precision = this.currencyInfo.decimals
     } = options || {};
