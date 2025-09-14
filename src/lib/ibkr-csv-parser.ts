@@ -64,6 +64,10 @@ export interface IBKRCorporateAction {
   description: string;
   amount: CurrencyAmount;
   symbol?: string;
+  assetCategory?: string;
+  quantity?: number;
+  proceeds?: CurrencyAmount;
+  currency?: string;
 }
 
 export interface IBKRFinancialInstrument {
@@ -645,9 +649,12 @@ export class IBKRCSVParser {
     };
 
     const currency = getValue('Currency');
-    const date = getValue('Date');
+    const date = getValue('Date/Time') || getValue('Date');
     const description = getValue('Description');
     const symbol = getValue('Symbol') || undefined;
+    const assetCategory = getValue('Asset Category') || undefined;
+    const quantityStr = getValue('Quantity');
+    const proceedsStr = getValue('Proceeds');
 
     // Skip totals
     if (currency === 'Total' || currency === 'Total in USD') {
@@ -658,13 +665,19 @@ export class IBKRCSVParser {
       return null;
     }
 
-    const amount = this.createCurrencyAmount(getValue('Amount'), currency);
+    const amount = this.createCurrencyAmount(getValue('Amount') || getValue('Value'), currency);
+    const quantity = quantityStr ? this.cleanNumericValue(quantityStr) : undefined;
+    const proceeds = proceedsStr ? this.createCurrencyAmount(proceedsStr, currency) : undefined;
 
     return {
       date,
       description,
       amount,
-      symbol
+      symbol,
+      assetCategory,
+      quantity,
+      proceeds,
+      currency
     };
   }
 
@@ -1432,4 +1445,118 @@ export function convertIBKRCorporateActionsToTransactions(
       throw new Error(`Failed to convert corporate action ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
+}
+
+/**
+ * Convert ticker change corporate actions to buy/sell transactions
+ * Detects CUSIP/ISIN changes and creates corresponding sell/buy pairs
+ */
+export function convertTickerChangeCorporateActionsToTransactions(
+  corporateActions: IBKRCorporateAction[],
+  accountId: string,
+  userId: string,
+  tickerIdMap: { [tickerName: string]: string } = {}
+): Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] {
+  if (!accountId || !userId) {
+    throw new Error('Account ID and User ID are required for transaction conversion');
+  }
+
+  const transactions: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[] = [];
+  
+  // Group corporate actions by date/time to find ticker change pairs
+  const actionsByDateTime = new Map<string, IBKRCorporateAction[]>();
+  
+  corporateActions.forEach(action => {
+    // Only process stock ticker changes with CUSIP/ISIN changes
+    if (action.assetCategory === 'Stocks' && 
+        action.description.includes('CUSIP/ISIN Change') &&
+        action.quantity !== undefined) {
+      
+      const dateTime = action.date;
+      if (!actionsByDateTime.has(dateTime)) {
+        actionsByDateTime.set(dateTime, []);
+      }
+      actionsByDateTime.get(dateTime)!.push(action);
+    }
+  });
+
+  // Process each group of actions at the same date/time
+  actionsByDateTime.forEach((actions, dateTime) => {
+    if (actions.length === 2) {
+      // Sort by quantity: negative (sell) first, then positive (buy)
+      actions.sort((a, b) => (a.quantity || 0) - (b.quantity || 0));
+      
+      const sellAction = actions[0]; // Should have negative quantity
+      const buyAction = actions[1];  // Should have positive quantity
+      
+      if ((sellAction.quantity || 0) < 0 && (buyAction.quantity || 0) > 0) {
+        try {
+          // Extract tickers from descriptions
+          const sellTicker = extractTickerFromDescription(sellAction.description);
+          const buyTicker = extractTickerFromDescription(buyAction.description);
+          
+          if (sellTicker && buyTicker) {
+            const timestamp = new Date(dateTime).toISOString();
+            
+            const sellCurrency = (sellAction.currency || 'USD') as CurrencyCode;
+            const buyCurrency = (buyAction.currency || 'USD') as CurrencyCode;
+            
+            // Create sell transaction
+            transactions.push({
+              user_id: userId,
+              account_id: accountId,
+              timestamp,
+              instrument_kind: 'SHARES',
+              ticker_id: tickerIdMap[sellTicker],
+              side: 'SELL',
+              qty: Math.abs(sellAction.quantity || 0),
+              price: new CurrencyAmount(0, sellCurrency),
+              fees: new CurrencyAmount(0, sellCurrency),
+              currency: sellCurrency,
+              memo: `Ticker Change: ${sellAction.description}\n#TickerChange`
+            });
+            
+            // Create buy transaction
+            transactions.push({
+              user_id: userId,
+              account_id: accountId,
+              timestamp,
+              instrument_kind: 'SHARES',
+              ticker_id: tickerIdMap[buyTicker],
+              side: 'BUY',
+              qty: Math.abs(buyAction.quantity || 0),
+              price: new CurrencyAmount(0, buyCurrency),
+              fees: new CurrencyAmount(0, buyCurrency),
+              currency: buyCurrency,
+              memo: `Ticker Change: ${buyAction.description}\n#TickerChange`
+            });
+          }
+        } catch (error) {
+          console.error(`Error converting ticker change corporate actions:`, error, sellAction, buyAction);
+        }
+      }
+    }
+  });
+
+  return transactions;
+}
+
+/**
+ * Extract ticker symbol from corporate action description
+ * Handles formats like "CLBR(KYG2283U1004)" and "(PEW, GRABAGUN DIGITAL HOLDINGS IN, US38387Q1058)"
+ */
+function extractTickerFromDescription(description: string): string | null {
+  // Try to match ticker at the beginning: "CLBR(KYG2283U1004)"
+  const beginningMatch = description.match(/^([A-Z]+)\(/);
+  if (beginningMatch) {
+    return beginningMatch[1];
+  }
+  
+  // Try to match ticker in parentheses: "(PEW, COMPANY NAME, CUSIP)"
+  const parenthesesMatch = description.match(/\(([A-Z]+),/);
+  if (parenthesesMatch) {
+    return parenthesesMatch[1];
+  }
+  
+  return null;
 }
