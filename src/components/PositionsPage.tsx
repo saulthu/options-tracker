@@ -452,6 +452,15 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           <span className="text-white text-sm text-right max-w-[200px]">{position.txns[0].parsedMemo.description}</span>
         </div>
       )}
+      {getEpisodeTags(position).length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {getEpisodeTags(position).map(tag => (
+            <span key={tag} className="text-xs text-blue-400">
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
     );
   };
@@ -910,30 +919,13 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
       </Card>
 
       {/* Position Details Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={selectedPosition ? (
-          <div className="flex items-center justify-between w-full">
-            <span>Position Details</span>
-            {getEpisodeTags(selectedPosition).length > 0 && (
-              <div className="flex flex-wrap gap-1 ml-4">
-                {getEpisodeTags(selectedPosition).map(tag => (
-                  <Badge
-                    key={tag}
-                    variant="outline"
-                    className="text-xs bg-blue-900 text-blue-200 border-blue-700"
-                  >
-                    #{tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : ''}
-        maxWidth="2xl"
-        showCloseButton={true}
-      >
+              <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                title="Position Details"
+                maxWidth="2xl"
+                showCloseButton={true}
+              >
         {selectedPosition && (
           <div className="space-y-4">
             {/* Position Overview */}
