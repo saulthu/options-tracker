@@ -443,10 +443,10 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           {position.cashTotal.isPositive() ? 'Deposit' : 'Withdraw'}
         </Badge>
       </div>
-      {position.txns.length > 0 && position.txns[0].note && (
+      {position.txns.length > 0 && position.txns[0].parsedMemo?.description && (
         <div className="flex justify-between">
           <span className="text-[#b3b3b3]">Note</span>
-          <span className="text-white text-sm text-right max-w-[200px]">{position.txns[0].note}</span>
+          <span className="text-white text-sm text-right max-w-[200px]">{position.txns[0].parsedMemo.description}</span>
         </div>
       )}
     </div>
@@ -656,9 +656,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                 {txn.realizedPnLDelta.format()}
               </span>
             </div>
-            {txn.note && (
+            {txn.parsedMemo?.description && (
               <div className="col-span-3 text-center">
-                <span className="text-[#b3b3b3] text-xs">Note: {txn.note}</span>
+                <span className="text-[#b3b3b3] text-xs">Note: {txn.parsedMemo.description}</span>
               </div>
             )}
           </div>
