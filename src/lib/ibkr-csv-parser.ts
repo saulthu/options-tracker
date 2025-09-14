@@ -1035,7 +1035,7 @@ function convertForexTradeToCashTransactions(
       price: new CurrencyAmount(1, quoteCurrencyCode),
       fees: new CurrencyAmount(trade.commFee.amount, quoteCurrencyCode),
       currency: quoteCurrencyCode,
-      memo: `Forex: Sell ${quoteAmount} ${quoteCurrencyCode} to buy ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}\n#Forex\n#Fees`
+      memo: `Forex: Sell ${quoteAmount} ${quoteCurrencyCode} to buy ${baseAmount} ${baseCurrencyCode} @ ${trade.tPrice.amount}\n#Forex`
     });
 
     // 2. Buy base currency (inflow) - positive quantity
@@ -1064,7 +1064,7 @@ function convertForexTradeToCashTransactions(
       price: new CurrencyAmount(1, baseCurrencyCode),
       fees: new CurrencyAmount(trade.commFee.amount, baseCurrencyCode),
       currency: baseCurrencyCode,
-      memo: `Forex: Sell ${baseAmount} ${baseCurrencyCode} to buy ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}\n#Forex\n#Fees`
+      memo: `Forex: Sell ${baseAmount} ${baseCurrencyCode} to buy ${quoteAmount} ${quoteCurrencyCode} @ ${trade.tPrice.amount}\n#Forex`
     });
 
     // 2. Buy quote currency (inflow) - positive quantity
