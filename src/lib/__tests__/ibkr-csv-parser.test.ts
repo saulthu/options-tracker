@@ -1115,7 +1115,7 @@ describe('convertIBKRCashToTransactions', () => {
     
     const withdrawal = transactions[1];
     expect(withdrawal.side).toBe('SELL');
-    expect(withdrawal.qty).toBe(10000);
+    expect(withdrawal.qty).toBe(-10000);
   });
 
   it('should determine transaction side based on amount', () => {
@@ -1224,7 +1224,7 @@ describe('convertIBKRWithholdingTaxToTransactions', () => {
     const tax = transactions[0];
     expect(tax.instrument_kind).toBe('CASH');
     expect(tax.side).toBe('SELL'); // Withholding tax is always an outflow
-    expect(tax.qty).toBe(22.50);
+    expect(tax.qty).toBe(-22.50);
     expect(tax.price?.amount).toBe(1);
     expect(tax.fees.amount).toBe(0);
     expect(tax.memo).toContain('Withholding Tax: AAPL Dividend Tax (AAPL)');
@@ -1287,7 +1287,7 @@ describe('convertIBKRCorporateActionsToTransactions', () => {
     
     const action3 = transactions[2];
     expect(action3.side).toBe('SELL'); // Negative amount
-    expect(action3.qty).toBe(1000);
+    expect(action3.qty).toBe(-1000);
   });
 });
 

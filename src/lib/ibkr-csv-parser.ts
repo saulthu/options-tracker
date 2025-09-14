@@ -1223,7 +1223,7 @@ export function convertIBKRCashToTransactions(
         timestamp,
         instrument_kind: 'CASH',
         side,
-        qty: Math.abs(transaction.amount.amount),
+        qty: transaction.amount.amount,
         price: new CurrencyAmount(1, transaction.amount.currency), // Cash transactions have price of 1
         fees: new CurrencyAmount(0, transaction.amount.currency),
         currency: transaction.amount.currency,
@@ -1294,8 +1294,8 @@ export function convertIBKRInterestToTransactions(
         account_id: accountId,
         timestamp,
         instrument_kind: 'CASH',
-        side: 'BUY', // Interest is always an inflow
-        qty: Math.abs(interestItem.amount.amount),
+        side: interestItem.amount.amount >= 0 ? 'BUY' : 'SELL',
+        qty: interestItem.amount.amount,
         price: new CurrencyAmount(1, interestItem.amount.currency),
         fees: new CurrencyAmount(0, interestItem.amount.currency),
         currency: interestItem.amount.currency,
@@ -1335,8 +1335,8 @@ export function convertIBKRDividendsToTransactions(
         timestamp,
         instrument_kind: 'CASH',
         ticker_id: tickerId,
-        side: 'BUY', // Dividends are always inflows
-        qty: Math.abs(dividend.amount.amount),
+        side: dividend.amount.amount >= 0 ? 'BUY' : 'SELL',
+        qty: dividend.amount.amount,
         price: new CurrencyAmount(1, dividend.amount.currency),
         fees: new CurrencyAmount(0, dividend.amount.currency),
         currency: dividend.amount.currency,
@@ -1377,7 +1377,7 @@ export function convertIBKRWithholdingTaxToTransactions(
         instrument_kind: 'CASH',
         ticker_id: tickerId,
         side: 'SELL', // Withholding tax is always an outflow
-        qty: Math.abs(tax.amount.amount),
+        qty: tax.amount.amount,
         price: new CurrencyAmount(1, tax.amount.currency),
         fees: new CurrencyAmount(0, tax.amount.currency),
         currency: tax.amount.currency,
@@ -1421,7 +1421,7 @@ export function convertIBKRCorporateActionsToTransactions(
         instrument_kind: 'CASH',
         ticker_id: tickerId,
         side,
-        qty: Math.abs(action.amount.amount),
+        qty: action.amount.amount,
         price: new CurrencyAmount(1, action.amount.currency),
         fees: new CurrencyAmount(0, action.amount.currency),
         currency: action.amount.currency,
