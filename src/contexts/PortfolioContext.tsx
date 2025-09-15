@@ -19,7 +19,7 @@ import {
   PositionEpisode,
   RawTransaction
 } from '@/types/episodes';
-import { Account } from '@/types/database';
+import { Account, User } from '@/types/database';
 import { TimeRange } from '@/components/TimeRangeSelector';
 
 // Supabase client
@@ -112,6 +112,10 @@ interface PortfolioContextType {
   loading: boolean;
   error: string | null;
   
+  // Lookup maps for efficient name resolution
+  accountLookup: Map<string, Account>;
+  userLookup: Map<string, User>;
+  
   // Derived state
   portfolio: PortfolioResult | null;
   
@@ -126,6 +130,10 @@ interface PortfolioContextType {
   getFilteredEpisodes: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredPositions: (timeRange: TimeRange, accountId?: string, filterType?: 'overlap' | 'openedDuring' | 'closedDuring') => PositionEpisode[];
   getFilteredTransactions: (timeRange: TimeRange) => RawTransaction[];
+  
+  // Lookup helper functions
+  getAccountName: (accountId: string) => string;
+  getUserName: (userId: string) => string;
   
   // Tag filtering
   getAllTags: () => string[];
@@ -169,6 +177,10 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   const [portfolio, setPortfolio] = useState<PortfolioResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Lookup maps for efficient name resolution
+  const [accountLookup, setAccountLookup] = useState<Map<string, Account>>(new Map());
+  const [userLookup, setUserLookup] = useState<Map<string, User>>(new Map());
 
   // Fetch transactions from Supabase
   const fetchTransactions = useCallback(async () => {
@@ -272,9 +284,29 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
       if (accountsError) {
         console.warn('Error fetching accounts:', accountsError);
         setAccounts([]);
+        setAccountLookup(new Map());
       } else {
-        setAccounts(accountsData || []);
+        const accountsList = accountsData || [];
+        setAccounts(accountsList);
+        
+        // Build account lookup map
+        const accountMap = new Map<string, Account>();
+        accountsList.forEach(account => {
+          accountMap.set(account.id, account);
+        });
+        setAccountLookup(accountMap);
       }
+      
+      // Build user lookup map
+      const userMap = new Map<string, User>();
+      userMap.set(user.id, {
+        id: user.id,
+        email: user.email || '',
+        name: user.user_metadata?.name,
+        created_at: user.created_at || new Date().toISOString(),
+        updated_at: user.updated_at || new Date().toISOString()
+      });
+      setUserLookup(userMap);
     } catch (err) {
       console.error('Error fetching transactions:', err);
       console.error('Error details:', {
@@ -881,9 +913,22 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return tagManager.getEpisodeTags(episode);
   }, [transactions, portfolio]);
 
+  // Lookup helper functions
+  const getAccountName = useCallback((accountId: string): string => {
+    const account = accountLookup.get(accountId);
+    return account ? account.name : 'Unknown Account';
+  }, [accountLookup]);
+
+  const getUserName = useCallback((userId: string): string => {
+    const user = userLookup.get(userId);
+    return user ? (user.name || user.email || 'Unknown User') : 'Unknown User';
+  }, [userLookup]);
+
   const value: PortfolioContextType = {
     transactions,
     accounts,
+    accountLookup,
+    userLookup,
     loading: loading || authLoading,
     error: error || authError,
     portfolio,
@@ -897,6 +942,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     getFilteredEpisodes,
     getFilteredPositions,
     getFilteredTransactions,
+    getAccountName,
+    getUserName,
     getAllTags,
     getTagStats,
     getFilteredEpisodesByTags,

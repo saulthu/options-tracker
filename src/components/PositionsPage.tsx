@@ -18,7 +18,7 @@ interface PositionsPageProps {
   selectedRange: TimeRange;
 }
 
-type SortField = 'openTimestamp' | 'episodeKey' | 'kindGroup' | 'qty' | 'avgPrice' | 'closeTimestamp' | 'cashTotal';
+type SortField = 'openTimestamp' | 'episodeKey' | 'kindGroup' | 'qty' | 'avgPrice' | 'closeTimestamp' | 'cashTotal' | 'accountId' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 // Centralized badge styling
@@ -137,7 +137,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     loading, 
     error, 
     getFilteredPositions,
-    getEpisodeTags
+    getEpisodeTags,
+    getAccountName
   } = usePortfolio();
 
 // DEBUG: Toggle this to enable/disable debug logging
@@ -273,6 +274,24 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           aValue = a.cashTotal.amount;
           bValue = b.cashTotal.amount;
           break;
+        case 'accountId':
+          // Sort by account name, not ID
+          aValue = getAccountName(a.accountId);
+          bValue = getAccountName(b.accountId);
+          break;
+        case 'status':
+          // Sort by status: 'Cash', 'Open', 'Closed'
+          if (a.kindGroup === 'CASH') {
+            aValue = 'Cash';
+          } else {
+            aValue = a.qty === 0 ? 'Closed' : 'Open';
+          }
+          if (b.kindGroup === 'CASH') {
+            bValue = 'Cash';
+          } else {
+            bValue = b.qty === 0 ? 'Closed' : 'Open';
+          }
+          break;
         default:
           aValue = 0;
           bValue = 0;
@@ -303,7 +322,7 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
     });
 
     return sorted;
-  }, [filteredPositions, sortField, sortDirection]);
+  }, [filteredPositions, sortField, sortDirection, getAccountName]);
 
   // Memoize summary statistics
   const summaryStats = useMemo(() => {
@@ -583,9 +602,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         <span className="text-[#b3b3b3]">Status</span>
         <Badge 
           variant="outline" 
-          className={position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open}
+          className={position.kindGroup === 'CASH' ? BADGE_STYLES.cash : (position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open)}
         >
-          {position.qty === 0 ? 'Closed' : 'Open'}
+          {position.kindGroup === 'CASH' ? 'Cash' : (position.qty === 0 ? 'Closed' : 'Open')}
         </Badge>
       </div>
     </div>
@@ -655,9 +674,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           <span className="text-[#b3b3b3]">Status</span>
           <Badge 
             variant="outline" 
-            className={position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open}
+            className={position.kindGroup === 'CASH' ? BADGE_STYLES.cash : (position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open)}
           >
-            {position.qty === 0 ? 'Closed' : 'Open'}
+            {position.kindGroup === 'CASH' ? 'Cash' : (position.qty === 0 ? 'Closed' : 'Open')}
           </Badge>
         </div>
       </div>
@@ -891,10 +910,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                     {renderSortableHeader('kindGroup', 'Type')}
                     {renderSortableHeader('qty', 'Quantity', 'right')}
                     {renderSortableHeader('avgPrice', 'Avg Price', 'right')}
+                    {renderSortableHeader('accountId', 'Account')}
                     {renderSortableHeader('openTimestamp', 'Open Date')}
                     {renderSortableHeader('closeTimestamp', 'Close Date')}
                     {renderSortableHeader('cashTotal', 'Cash Flow', 'right')}
-                    <th className="text-left py-2 px-2 text-[#b3b3b3] font-medium">Status</th>
+                    {renderSortableHeader('status', 'Status')}
                   </tr>
                 </thead>
                 <tbody>
@@ -986,6 +1006,11 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       <td className="py-2 px-2 text-right text-white">
                         {position.kindGroup === 'CASH' ? '' : position.avgPrice.format()}
                       </td>
+                      <td className="py-2 px-2">
+                        <div className="text-white text-sm">
+                          {getAccountName(position.accountId)}
+                        </div>
+                      </td>
                       <td className="py-2 px-2 text-white text-xs">
                         <span 
                           title={new Date(position.openTimestamp).toLocaleString('en-US', {
@@ -1039,20 +1064,18 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         </span>
                       </td>
                       <td className="py-2 px-2">
-                        {position.kindGroup === 'CASH' ? (
-                          <span></span>
-                        ) : (
-                          <Badge 
-                            variant="outline" 
-                            className={
-                              position.qty === 0 
-                                ? BADGE_STYLES.default
-                                : BADGE_STYLES.open
-                            }
-                          >
-                            {position.qty === 0 ? 'Closed' : 'Open'}
-                          </Badge>
-                        )}
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            position.kindGroup === 'CASH' 
+                              ? BADGE_STYLES.cash
+                              : (position.qty === 0 
+                                  ? BADGE_STYLES.default
+                                  : BADGE_STYLES.open)
+                          }
+                        >
+                          {position.kindGroup === 'CASH' ? 'Cash' : (position.qty === 0 ? 'Closed' : 'Open')}
+                        </Badge>
                       </td>
                     </tr>
                   ))}
