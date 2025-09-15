@@ -380,6 +380,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       accountId: lr.accountId,
       episodeKey: 'CASH',
       kindGroup: 'CASH',
+      status: 'Cash', // Cash episodes are always 'Cash' status
       openTimestamp: lr.timestamp,
       closeTimestamp: lr.timestamp, // Cash episodes close immediately
       rolled: false,
@@ -503,6 +504,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       // Don't reset avgPrice to 0 - preserve historical context
       // The avgPrice represents the average entry price for the position
       episode.closeTimestamp = lr.timestamp;
+      episode.status = 'Closed'; // Update status when position closes
     }
   }
 
@@ -525,6 +527,7 @@ function buildEpisodes(ledger: LedgerRow[]): PositionEpisode[] {
       accountId: lr.accountId,
       episodeKey: episodeKeyStr,
       kindGroup,
+      status: 'Open', // New episodes start as 'Open'
       openTimestamp: lr.timestamp,
       closeTimestamp: undefined,
       rolled: false,
@@ -753,17 +756,17 @@ export function getAccountEpisodes(episodes: PositionEpisode[], accountId: strin
 }
 
 /**
- * Get open episodes (qty !== 0)
+ * Get open episodes (status === 'Open')
  */
 export function getOpenEpisodes(episodes: PositionEpisode[]): PositionEpisode[] {
-  return episodes.filter(episode => episode.qty !== 0);
+  return episodes.filter(episode => episode.status === 'Open');
 }
 
 /**
- * Get closed episodes (qty === 0)
+ * Get closed episodes (status === 'Closed')
  */
 export function getClosedEpisodes(episodes: PositionEpisode[]): PositionEpisode[] {
-  return episodes.filter(episode => episode.qty === 0);
+  return episodes.filter(episode => episode.status === 'Closed');
 }
 
 /**
@@ -842,7 +845,7 @@ export function createTickerLookup(transactions: RawTransaction[]): TickerLookup
  * Format episode for display
  */
 export function formatEpisodeForDisplay(episode: PositionEpisode): string {
-  const status = episode.qty === 0 ? 'CLOSED' : 'OPEN';
+  const status = episode.status.toUpperCase();
   const qty = episode.qty;
   const avgPrice = episode.avgPrice.format();
   const realizedPnL = episode.realizedPnLTotal.format();

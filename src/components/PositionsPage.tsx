@@ -281,16 +281,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           break;
         case 'status':
           // Sort by status: 'Cash', 'Open', 'Closed'
-          if (a.kindGroup === 'CASH') {
-            aValue = 'Cash';
-          } else {
-            aValue = a.qty === 0 ? 'Closed' : 'Open';
-          }
-          if (b.kindGroup === 'CASH') {
-            bValue = 'Cash';
-          } else {
-            bValue = b.qty === 0 ? 'Closed' : 'Open';
-          }
+          aValue = a.status;
+          bValue = b.status;
           break;
         default:
           aValue = 0;
@@ -327,8 +319,8 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
   // Memoize summary statistics
   const summaryStats = useMemo(() => {
     const totalPositions = filteredPositions.length;
-    const openPositions = filteredPositions.filter(pos => pos.qty !== 0).length;
-    const closedPositions = filteredPositions.filter(pos => pos.qty === 0).length;
+    const openPositions = filteredPositions.filter(pos => pos.status === 'Open').length;
+    const closedPositions = filteredPositions.filter(pos => pos.status === 'Closed').length;
     // Group by currency to avoid mixing currencies
     const realizedPnLByCurrency = new Map<CurrencyCode, CurrencyAmount>();
     const cashFlowByCurrency = new Map<CurrencyCode, CurrencyAmount>();
@@ -602,9 +594,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
         <span className="text-[#b3b3b3]">Status</span>
         <Badge 
           variant="outline" 
-          className={position.kindGroup === 'CASH' ? BADGE_STYLES.cash : (position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open)}
+          className={position.status === 'Cash' ? BADGE_STYLES.cash : (position.status === 'Closed' ? BADGE_STYLES.default : BADGE_STYLES.open)}
         >
-          {position.kindGroup === 'CASH' ? 'Cash' : (position.qty === 0 ? 'Closed' : 'Open')}
+          {position.status}
         </Badge>
       </div>
     </div>
@@ -674,9 +666,9 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
           <span className="text-[#b3b3b3]">Status</span>
           <Badge 
             variant="outline" 
-            className={position.kindGroup === 'CASH' ? BADGE_STYLES.cash : (position.qty === 0 ? BADGE_STYLES.default : BADGE_STYLES.open)}
+            className={position.status === 'Cash' ? BADGE_STYLES.cash : (position.status === 'Closed' ? BADGE_STYLES.default : BADGE_STYLES.open)}
           >
-            {position.kindGroup === 'CASH' ? 'Cash' : (position.qty === 0 ? 'Closed' : 'Open')}
+            {position.status}
           </Badge>
         </div>
       </div>
@@ -1001,10 +993,10 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                         </div>
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {position.kindGroup === 'CASH' ? '' : (position.qty === 0 ? '' : position.qty)}
+                        {position.status === 'Cash' ? '' : (position.status === 'Closed' ? '' : position.qty)}
                       </td>
                       <td className="py-2 px-2 text-right text-white">
-                        {position.kindGroup === 'CASH' ? '' : position.avgPrice.format()}
+                        {position.status === 'Cash' ? '' : position.avgPrice.format()}
                       </td>
                       <td className="py-2 px-2">
                         <div className="text-white text-sm">
@@ -1066,15 +1058,15 @@ export default function PositionsPage({ selectedRange }: PositionsPageProps) {
                       <td className="py-2 px-2">
                         <Badge 
                           variant="outline" 
-                          className={
-                            position.kindGroup === 'CASH' 
-                              ? BADGE_STYLES.cash
-                              : (position.qty === 0 
-                                  ? BADGE_STYLES.default
-                                  : BADGE_STYLES.open)
-                          }
+                            className={
+                              position.status === 'Cash' 
+                                ? BADGE_STYLES.cash
+                                : (position.status === 'Closed' 
+                                    ? BADGE_STYLES.default
+                                    : BADGE_STYLES.open)
+                            }
                         >
-                          {position.kindGroup === 'CASH' ? 'Cash' : (position.qty === 0 ? 'Closed' : 'Open')}
+                          {position.status}
                         </Badge>
                       </td>
                     </tr>

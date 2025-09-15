@@ -287,9 +287,16 @@ describe('Episode Portfolio Calculator', () => {
 
     it('should get closed episodes', () => {
       const closedEpisodes = getClosedEpisodes(result.episodes);
-      expect(closedEpisodes).toHaveLength(1); // Cash episode is closed (qty=0)
-      const cashEpisode = closedEpisodes.find(e => e.kindGroup === 'CASH');
-      expect(cashEpisode?.qty).toBe(0);
+      expect(closedEpisodes).toHaveLength(0); // No closed episodes in this test data
+      // Cash episodes have status 'Cash', not 'Closed'
+    });
+
+    it('should have correct status for episodes', () => {
+      const cashEpisode = result.episodes.find(e => e.kindGroup === 'CASH');
+      const shareEpisode = result.episodes.find(e => e.kindGroup === 'SHARES');
+      
+      expect(cashEpisode?.status).toBe('Cash');
+      expect(shareEpisode?.status).toBe('Open');
     });
 
     it('should get episodes by kind', () => {

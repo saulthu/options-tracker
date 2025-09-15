@@ -69,6 +69,7 @@ export interface PositionEpisode {
   accountId: string;
   episodeKey: string; // CASH | <TICKER> | <TICKER>|CALL | <TICKER>|PUT
   kindGroup: KindGroup;
+  status: 'Cash' | 'Open' | 'Closed'; // Computed status for consistent display
 
   // Current leg snapshot (for quick display)
   currentInstrumentKey?: string; // e.g. "TSLA|2025-12-19|200|PUT"
