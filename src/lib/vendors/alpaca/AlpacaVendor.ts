@@ -11,6 +11,7 @@ export interface AlpacaConfig {
   secretKey: string;
   baseUrl?: string; // Default: https://paper-api.alpaca.markets for paper trading
   dataUrl?: string; // Default: https://data.alpaca.markets
+  dataPlan: 'free' | 'pro';
 }
 
 export class AlpacaVendor implements MarketDataVendor {
@@ -21,6 +22,7 @@ export class AlpacaVendor implements MarketDataVendor {
   private secretKey: string;
   private dataUrl: string;
   private baseUrl: string;
+  private dataPlan: 'free' | 'pro';
   private lastError?: string;
   private lastErrorTime?: string;
   private startTime: number;
@@ -32,6 +34,7 @@ export class AlpacaVendor implements MarketDataVendor {
     this.secretKey = config.secretKey;
     this.dataUrl = config.dataUrl || 'https://data.alpaca.markets';
     this.baseUrl = config.baseUrl || 'https://paper-api.alpaca.markets';
+    this.dataPlan = config.dataPlan;
     this.startTime = Date.now();
   }
 
@@ -111,12 +114,13 @@ export class AlpacaVendor implements MarketDataVendor {
       // Convert our timeframe to Alpaca's format
       const alpacaTimeframe = this.convertTimeframe(timeframe);
       
-      // Calculate start date based on timeframe
-      // Use data from 6 months ago to ensure it's historical enough for free tier
+      // Request the last 200 days of candles
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - 6); // 6 months ago
-      
-      const startDate = this.calculateStartDate(timeframe);
+      endDate.setDate(endDate.getDate() - 1); // yesterday to avoid recent SIP restrictions
+      endDate.setHours(23, 59, 59, 999);
+
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 900); // ~3 years back to safely cover ≥200 trading days
 
       console.log(`[DEBUG] Alpaca API request for ${ticker}:`, {
         startDate: startDate.toISOString(),
@@ -131,7 +135,7 @@ export class AlpacaVendor implements MarketDataVendor {
       url.searchParams.set('start', startDate.toISOString().split('T')[0]); // Date only: YYYY-MM-DD
       url.searchParams.set('end', endDate.toISOString().split('T')[0]); // Date only: YYYY-MM-DD
       url.searchParams.set('timeframe', alpacaTimeframe);
-      url.searchParams.set('limit', '200');
+      url.searchParams.set('limit', '10000'); // fetch large range, we slice to 200 later
       // Remove feed parameter to use default feed (might work better than IEX)
 
       console.log(`[DEBUG] Alpaca API URL:`, url.toString());
@@ -256,6 +260,23 @@ export class AlpacaVendor implements MarketDataVendor {
     const startTime = Date.now();
     
     try {
+      // On free plan, return last daily close instead of latest quote to avoid recent SIP restrictions
+      if (this.dataPlan === 'free') {
+        try {
+          const candles = await this.fetchCandles(ticker, '1D');
+          const last = candles[candles.length - 1];
+          if (last && typeof last.c === 'number') {
+            this.lastRequestTime = Date.now() - startTime;
+            this.requestCount++;
+            this.clearError();
+            return last.c;
+          }
+        } catch (e) {
+          // Fallback to quote API below if candles fail
+          console.warn(`[AlpacaVendor] Free plan fallback to quotes for ${ticker}:`, e);
+        }
+      }
+
       // Use the correct Alpaca API endpoint for latest quotes
       const url = new URL('/v2/stocks/quotes/latest', this.dataUrl);
       url.searchParams.set('symbols', ticker);

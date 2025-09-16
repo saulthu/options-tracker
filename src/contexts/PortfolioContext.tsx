@@ -167,7 +167,7 @@ interface PortfolioContextType {
   
   // Market data
   primeMarketData: () => Promise<void>;
-  setupMarketDataVendors: (apiKey: string, secretKey: string) => Promise<void>;
+  setupMarketDataVendors: (apiKey: string, secretKey: string, dataPlan: 'free' | 'pro', errorLogger?: (message: string, type: 'info' | 'warning' | 'error') => void) => Promise<void>;
   getMarketCandles: (ticker: string, timeframe: '1D' | '1W', forceRefresh?: boolean) => Promise<Candle[] | StaleCandleData>;
   getMarketIndicator: (ticker: string, indicator: 'SMA' | 'EMA', params: { window: number }, timeframe: '1D' | '1W') => Promise<number[]>;
   getMarketOption: (ticker: string, key: { expiry: string; strike: number }, forceRefresh?: boolean) => Promise<OptionsEntry | null>;
@@ -941,11 +941,17 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   }, [userLookup]);
 
   // Market data methods
-  const setupMarketDataVendors = useCallback(async (apiKey: string, secretKey: string): Promise<void> => {
+  const setupMarketDataVendors = useCallback(async (apiKey: string, secretKey: string, dataPlan: 'free' | 'pro', errorLogger?: (message: string, type: 'info' | 'warning' | 'error') => void): Promise<void> => {
     try {
+      // Set error logger if provided
+      if (errorLogger) {
+        marketData.setErrorLogger(errorLogger);
+      }
+
       const alpacaVendor = createAlpacaVendor({
         apiKey,
-        secretKey
+        secretKey,
+        dataPlan
       });
       
       // Register with vendor factory
@@ -953,7 +959,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
         name: 'alpaca',
         priority: 1,
         enabled: true,
-        config: { apiKey, secretKey }
+        config: { apiKey, secretKey, dataPlan }
       });
       
       // Set vendors in market data

@@ -27,6 +27,7 @@ export default function MarketDataDemo() {
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [ticker, setTicker] = useState('AAPL');
+  const [dataPlan, setDataPlan] = useState<'free' | 'pro'>('free');
   const [timeframe, setTimeframe] = useState<'1D' | '1W'>('1D');
   const [expiry, setExpiry] = useState('');
   const [strike, setStrike] = useState('');
@@ -71,8 +72,10 @@ export default function MarketDataDemo() {
   useEffect(() => {
     const savedApiKey = localStorage.getItem('alpaca_api_key');
     const savedSecretKey = localStorage.getItem('alpaca_secret_key');
+    const savedPlan = (localStorage.getItem('alpaca_data_plan') as 'free' | 'pro') || 'free';
     if (savedApiKey) setApiKey(savedApiKey);
     if (savedSecretKey) setSecretKey(savedSecretKey);
+    setDataPlan(savedPlan);
     
     // If we have both credentials, set up vendors automatically
     if (savedApiKey && savedSecretKey) {
@@ -80,10 +83,11 @@ export default function MarketDataDemo() {
         try {
           const alpacaVendor = createAlpacaVendor({
             apiKey: savedApiKey,
-            secretKey: savedSecretKey
+            secretKey: savedSecretKey,
+            dataPlan
           });
           
-          await setupMarketDataVendors(savedApiKey, savedSecretKey);
+          await setupMarketDataVendors(savedApiKey, savedSecretKey, dataPlan);
           
           setVendorStatus({
             name: alpacaVendor.name,
@@ -100,7 +104,7 @@ export default function MarketDataDemo() {
       
       setupVendors();
     }
-  }, [addError, setupMarketDataVendors]);
+  }, [addError, setupMarketDataVendors, dataPlan]);
 
   // Test vendor connection
   const testConnection = useCallback(async () => {
@@ -113,7 +117,8 @@ export default function MarketDataDemo() {
     try {
       const alpacaVendor = createAlpacaVendor({
         apiKey,
-        secretKey
+        secretKey,
+        dataPlan
       });
 
       // Test with a simple request
@@ -132,9 +137,10 @@ export default function MarketDataDemo() {
         // Save credentials
         localStorage.setItem('alpaca_api_key', apiKey);
         localStorage.setItem('alpaca_secret_key', secretKey);
+        localStorage.setItem('alpaca_data_plan', dataPlan);
         
         // Set vendors in the market data instance
-        await setupMarketDataVendors(apiKey, secretKey);
+        await setupMarketDataVendors(apiKey, secretKey, dataPlan);
         addError('Vendors configured for market data!', 'info');
       } else {
         addError('Connection failed - vendor not healthy', 'error');
@@ -144,7 +150,7 @@ export default function MarketDataDemo() {
     } finally {
       setLoading(false);
     }
-  }, [apiKey, secretKey, addError, setupMarketDataVendors]);
+  }, [apiKey, secretKey, dataPlan, addError, setupMarketDataVendors]);
 
   // Fetch candles
   const fetchCandles = useCallback(async (forceRefresh = false) => {
@@ -303,7 +309,7 @@ export default function MarketDataDemo() {
       {/* API Configuration */}
         <div className="bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg p-6">
           <h2 className="text-xl font-semibold text-white mb-4">API Configuration</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-[#b3b3b3] mb-2">
                 Alpaca API Key
@@ -327,6 +333,19 @@ export default function MarketDataDemo() {
                 className="w-full px-3 py-2 bg-[#0f0f0f] border border-[#2d2d2d] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter secret key"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#b3b3b3] mb-2">
+                Alpaca Plan
+              </label>
+              <select
+                value={dataPlan}
+                onChange={(e) => setDataPlan(e.target.value as 'free' | 'pro')}
+                className="w-full px-3 py-2 bg-[#0f0f0f] border border-[#2d2d2d] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="free">Free (IEX, no recent SIP)</option>
+                <option value="pro">Pro (SIP, extended/recent)</option>
+              </select>
             </div>
           </div>
           <div className="mt-4 flex gap-2">

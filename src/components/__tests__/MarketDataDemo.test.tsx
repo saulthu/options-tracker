@@ -61,7 +61,7 @@ describe('MarketDataDemo', () => {
     expect(screen.getByPlaceholderText('Enter API key')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Enter secret key')).toBeInTheDocument();
     expect(screen.getByDisplayValue('AAPL')).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.getAllByRole('combobox').length).toBeGreaterThanOrEqual(1);
   });
 
   it('allows entering API credentials', () => {
@@ -89,7 +89,8 @@ describe('MarketDataDemo', () => {
   it('allows changing timeframe', () => {
     render(<MarketDataDemo />);
     
-    const timeframeSelect = screen.getByRole('combobox');
+    const selects = screen.getAllByRole('combobox');
+    const timeframeSelect = selects.find(sel => sel instanceof HTMLSelectElement && Array.from(sel.options).some(o => o.value === '1D')) || selects[0];
     fireEvent.change(timeframeSelect, { target: { value: '1W' } });
     
     expect(timeframeSelect).toHaveValue('1W');

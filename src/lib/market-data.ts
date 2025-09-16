@@ -34,8 +34,9 @@ export class MarketData {
   private config: Required<MarketDataConfig>;
   private vendors: MarketDataVendor[] = [];
   private preferredVendor?: string;
+  private errorLogger?: (message: string, type: 'info' | 'warning' | 'error') => void;
 
-  constructor(config: MarketDataConfig = {}) {
+  constructor(config: MarketDataConfig = {}, errorLogger?: (message: string, type: 'info' | 'warning' | 'error') => void) {
     this.config = {
       optionsRetentionDays: config.optionsRetentionDays ?? 7,
       candleFreshnessMinutes: config.candleFreshnessMinutes ?? {
@@ -52,6 +53,24 @@ export class MarketData {
       },
       returnStaleMarkers: config.returnStaleMarkers ?? false
     };
+    this.errorLogger = errorLogger;
+  }
+
+  /**
+   * Log debug information to the error logger if available
+   */
+  private log(message: string, type: 'info' | 'warning' | 'error' = 'info'): void {
+    if (this.errorLogger) {
+      this.errorLogger(message, type);
+    }
+    // No-op when no logger is set to avoid affecting timing/behavior
+  }
+
+  /**
+   * Set error logger for debug output
+   */
+  setErrorLogger(errorLogger: (message: string, type: 'info' | 'warning' | 'error') => void): void {
+    this.errorLogger = errorLogger;
   }
 
   /**
@@ -105,9 +124,9 @@ export class MarketData {
     // Check memory cache first
     if (!forceRefresh && this.candleCache[ticker]?.[timeframe]) {
       const cached = this.candleCache[ticker][timeframe];
-      if (this.isCandleDataFresh(cached.lastUpdated, timeframe)) {
+      if (cached.data.length > 0 && this.isCandleDataFresh(cached.lastUpdated, timeframe)) {
         return cached.data;
-      } else {
+      } else if (cached.data.length > 0) {
         // Data is stale, serve cached immediately and trigger background refresh
         this.triggerBackgroundRefresh(ticker, timeframe);
         
@@ -121,22 +140,40 @@ export class MarketData {
         }
         
         return cached.data;
+      } else {
+        // Empty cached data should not be used; proceed to DB/vendor
       }
     }
 
     // Try to load from database
     if (!forceRefresh) {
+      this.log(`[DEBUG] Checking database for ${ticker} ${timeframe}`);
       const dbData = await this.loadCandlesFromDB(ticker, timeframe);
-      if (dbData && this.isCandleDataFresh(dbData.lastUpdated, timeframe)) {
+      if (dbData && dbData.data.length > 0 && this.isCandleDataFresh(dbData.lastUpdated, timeframe)) {
+        this.log(`[DEBUG] Database cache is fresh, returning ${dbData.data.length} candles`, 'info');
         this.updateCandleCache(ticker, timeframe, dbData.data, dbData.lastUpdated);
         return dbData.data;
       }
+      this.log(`[DEBUG] Database cache not available or stale for ${ticker} ${timeframe}`, 'info');
     }
 
     // Fetch from vendor API
-    const vendorData = await this.fetchCandlesFromVendor(ticker, timeframe);
-    // Trim to ≤200 candles before caching and returning
-    const trimmedCandles = vendorData.candles.slice(-200);
+    let vendorData = await this.fetchCandlesFromVendor(ticker, timeframe);
+    let trimmedCandles = vendorData.candles.slice(-200);
+
+    // If we received zero candles and this wasn't a force refresh, retry once
+    if (!forceRefresh && trimmedCandles.length === 0) {
+      this.log(`[DEBUG] Vendor returned 0 candles for ${ticker} ${timeframe}. Retrying once...`, 'warning');
+      vendorData = await this.fetchCandlesFromVendor(ticker, timeframe);
+      trimmedCandles = vendorData.candles.slice(-200);
+    }
+
+    // Avoid caching/persisting empty results
+    if (trimmedCandles.length === 0) {
+      this.log(`[DEBUG] Still 0 candles for ${ticker} ${timeframe} after retry. Returning empty without caching.`, 'warning');
+      return trimmedCandles;
+    }
+
     this.updateCandleCache(ticker, timeframe, trimmedCandles, new Date().toISOString());
     this.queueWrite(ticker);
 
@@ -538,23 +575,36 @@ export class MarketData {
   }
 
   private isMarketHours(date: Date): boolean {
-    // Simple market hours check (9:30 AM - 4:00 PM ET, Monday-Friday)
-    // This is a simplified implementation - in production you'd want more sophisticated logic
-    
-    // Convert to ET (UTC-5 or UTC-4 depending on DST)
-    // For simplicity, we'll use UTC-5 (EST) - in production you'd want proper timezone handling
-    const etDate = new Date(date.getTime() - 5 * 60 * 60 * 1000);
-    
-    const day = etDate.getUTCDay();
-    const hour = etDate.getUTCHours();
-    const minute = etDate.getUTCMinutes();
-    const time = hour * 60 + minute;
+    // Market hours check (9:30 AM - 4:00 PM America/New_York, Monday-Friday)
+    // Use IANA timezone so DST is handled correctly regardless of user local timezone
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(date).reduce<Record<string, string>>((acc, p) => {
+        if (p.type !== 'literal') acc[p.type] = p.value;
+        return acc;
+      }, {});
 
-    if (day === 0 || day === 6) return false; // Weekend
-    if (time < 9 * 60 + 30) return false; // Before 9:30 AM ET
-    if (time >= 16 * 60) return false; // After 4:00 PM ET
+      const weekday = parts.weekday; // e.g., "Mon", "Tue"
+      if (weekday === 'Sat' || weekday === 'Sun') return false;
 
-    return true;
+      const hour = Number(parts.hour);
+      const minute = Number(parts.minute);
+      const minutesOfDay = hour * 60 + minute;
+
+      if (minutesOfDay < (9 * 60 + 30)) return false; // before 9:30
+      if (minutesOfDay >= (16 * 60)) return false; // at/after 16:00
+
+      return true;
+    } catch {
+      // Fallback: if formatter/timezone unsupported, default to conservative false
+      return false;
+    }
   }
 
   private updateCandleCache(ticker: Ticker, timeframe: Timeframe, data: Candle[], lastUpdated: string): void {
@@ -564,6 +614,13 @@ export class MarketData {
     
     // Trim to ≤200 candles before caching
     const trimmedData = data.slice(-200);
+    if (trimmedData.length === 0) {
+      // Do not overwrite non-empty cache with empty data
+      const existing = this.candleCache[ticker][timeframe];
+      if (existing && existing.data.length > 0) {
+        return;
+      }
+    }
     this.candleCache[ticker][timeframe] = {
       data: trimmedData,
       lastUpdated
@@ -695,12 +752,16 @@ export class MarketData {
 
   private async loadCandlesFromDB(ticker: Ticker, timeframe: Timeframe): Promise<{ data: Candle[]; lastUpdated: string } | null> {
     try {
+      this.log(`[DEBUG] loadCandlesFromDB called for ${ticker} ${timeframe}`);
+      
       // Get current user for RLS
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        console.warn(`Authentication error when loading candles for ${ticker}:`, authError);
+        this.log(`Authentication error when loading candles for ${ticker}: ${authError?.message || 'No user'}`, 'warning');
         return null;
       }
+
+      this.log(`[DEBUG] User authenticated, querying database for ${ticker} ${timeframe}`);
 
       const { data, error } = await supabase
         .from('tickers')
@@ -709,15 +770,28 @@ export class MarketData {
         .eq('user_id', user.id)
         .single();
 
-      if (error || !data?.market_data?.candles?.[timeframe]) return null;
+      this.log(`[DEBUG] Database query result for ${ticker}: error=${!!error}, hasData=${!!data}, hasMarketData=${!!data?.market_data}, hasCandles=${!!data?.market_data?.candles}, hasTimeframe=${!!data?.market_data?.candles?.[timeframe]}`);
+
+      if (error || !data?.market_data?.candles?.[timeframe]) {
+        this.log(`[DEBUG] No database data found for ${ticker} ${timeframe}`, 'info');
+        return null;
+      }
 
       const series = data.market_data.candles[timeframe];
-      return {
-        data: series.series || [],
+      const result = {
+        data: Array.isArray(series.series) ? series.series : [],
         lastUpdated: series.lastUpdated || ''
       };
+      
+      this.log(`[DEBUG] Database data loaded for ${ticker} ${timeframe}: ${result.data.length} candles, lastUpdated=${result.lastUpdated}`, 'info');
+      if (result.data.length === 0) {
+        this.log(`[DEBUG] Ignoring empty series from DB for ${ticker} ${timeframe}`, 'warning');
+        return null;
+      }
+      
+      return result;
     } catch (error) {
-      console.warn(`Failed to load candles from DB for ${ticker}:`, error);
+      this.log(`Failed to load candles from DB for ${ticker}: ${error instanceof Error ? error.message : 'Unknown error'}`, 'warning');
       return null;
     }
   }
