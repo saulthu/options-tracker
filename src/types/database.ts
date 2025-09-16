@@ -7,6 +7,8 @@ export interface Ticker {
   user_id: string
   name: string
   icon?: string // Path/URL to cached Google S2 ticker icon file
+  market_data?: Record<string, unknown> // JSONB market data blob
+  updated_at?: string
 }
 
 // New schema: User and Transaction tables

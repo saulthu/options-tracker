@@ -14,6 +14,8 @@ import {
 import { createTagManager, TagFilter as TagFilterType } from '@/lib/tag-manager';
 import { InstrumentKind } from '@/types/episodes';
 import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
+import { marketData } from '@/lib/market-data';
+import { Candle, OptionsEntry } from '@/types/market-data';
 import { 
   PortfolioResult,
   PositionEpisode,
@@ -160,6 +162,13 @@ interface PortfolioContextType {
   // Ticker management
   ensureTickersExist: (tickerNames: string[]) => Promise<{ [tickerName: string]: string }>; // Returns ticker name to ID mapping
   getTickerId: (tickerName: string) => Promise<string | null>;
+  
+  // Market data
+  primeMarketData: () => Promise<void>;
+  getMarketCandles: (ticker: string, timeframe: '1D' | '1W', forceRefresh?: boolean) => Promise<Candle[]>;
+  getMarketIndicator: (ticker: string, indicator: 'SMA' | 'EMA', params: { window: number }, timeframe: '1D' | '1W') => Promise<number[]>;
+  getMarketOption: (ticker: string, key: { expiry: string; strike: number }, forceRefresh?: boolean) => Promise<OptionsEntry | null>;
+  listMarketOptionKeys: (ticker: string) => Promise<{ expiry: string; strike: number }[]>;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -924,6 +933,89 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return user ? (user.name || user.email || 'Unknown User') : 'Unknown User';
   }, [userLookup]);
 
+  // Market data methods
+  const primeMarketData = useCallback(async (): Promise<void> => {
+    if (!portfolio) return;
+    
+    try {
+      // Get all unique ticker names from the portfolio
+      const tickerNames = Array.from(new Set(
+        portfolio.episodes
+          .filter(episode => episode.kindGroup !== 'CASH' && episode.episodeKey !== 'CASH')
+          .map(episode => {
+            // Extract ticker from episodeKey
+            // For SHARES: episodeKey is just the ticker
+            // For OPTIONS: episodeKey is "TICKER|CALL|STRIKE|EXPIRY" or "TICKER|PUT|STRIKE|EXPIRY"
+            if (episode.kindGroup === 'SHARES') {
+              return episode.episodeKey;
+            } else if (episode.kindGroup === 'OPTION') {
+              return episode.episodeKey.split('|')[0];
+            }
+            return null;
+          })
+          .filter((ticker): ticker is string => ticker !== null)
+      ));
+      
+      if (tickerNames.length > 0) {
+        await marketData.primeFromDB(tickerNames);
+      }
+    } catch (error) {
+      console.warn('Failed to prime market data:', error);
+    }
+  }, [portfolio]);
+
+  const getMarketCandles = useCallback(async (ticker: string, timeframe: '1D' | '1W', forceRefresh = false) => {
+    try {
+      return await marketData.getCandles(ticker, timeframe, { forceRefresh });
+    } catch (error) {
+      console.error(`Failed to get candles for ${ticker}:`, error);
+      return [];
+    }
+  }, []);
+
+  const getMarketIndicator = useCallback(async (
+    ticker: string, 
+    indicator: 'SMA' | 'EMA', 
+    params: { window: number }, 
+    timeframe: '1D' | '1W'
+  ) => {
+    try {
+      return await marketData.getIndicator(ticker, indicator, params, timeframe);
+    } catch (error) {
+      console.error(`Failed to get ${indicator} for ${ticker}:`, error);
+      return [];
+    }
+  }, []);
+
+  const getMarketOption = useCallback(async (
+    ticker: string, 
+    key: { expiry: string; strike: number }, 
+    forceRefresh = false
+  ) => {
+    try {
+      return await marketData.getOption(ticker, key, { forceRefresh });
+    } catch (error) {
+      console.error(`Failed to get option data for ${ticker}:`, error);
+      return null;
+    }
+  }, []);
+
+  const listMarketOptionKeys = useCallback(async (ticker: string) => {
+    try {
+      return await marketData.listOptionKeys(ticker);
+    } catch (error) {
+      console.error(`Failed to list option keys for ${ticker}:`, error);
+      return [];
+    }
+  }, []);
+
+  // Prime market data when portfolio changes
+  useEffect(() => {
+    if (portfolio) {
+      primeMarketData();
+    }
+  }, [portfolio, primeMarketData]);
+
   const value: PortfolioContextType = {
     transactions,
     accounts,
@@ -962,6 +1054,11 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     refreshAccounts,
     ensureTickersExist,
     getTickerId,
+    primeMarketData,
+    getMarketCandles,
+    getMarketIndicator,
+    getMarketOption,
+    listMarketOptionKeys,
   };
 
   return (

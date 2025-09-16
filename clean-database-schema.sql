@@ -39,6 +39,8 @@ CREATE TABLE public.tickers (
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   icon TEXT, -- path/URL to cached icon file
+  market_data JSONB, -- cached market data (candles, options, etc.)
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   -- Ensure ticker names are unique per user
   UNIQUE(user_id, name)
 );

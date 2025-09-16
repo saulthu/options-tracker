@@ -178,6 +178,7 @@ A well-implemented feature should:
 - **Consistency**: All page components follow the same patterns
 - **Type Safety**: Full TypeScript coverage with proper interfaces
 - **Database Design**: Single source of truth with derived in-memory views
+- **Market Data Module**: Clean, independent module for market data caching and API integration
 
 ### **📊 Architecture Score: 9.5/10** ⭐
 - ✅ **Shared Layout**: Perfect
@@ -336,6 +337,43 @@ The application now follows **industry best practices** for React/Next.js applic
 - Transaction rows with running balance display
 - Summary statistics cards at the top
 - Responsive design with proper spacing and typography
+
+### **Market Data Module Pattern** ⭐ **NEW**
+
+**Purpose**: Provide clean, independent market data caching and API integration for candles, options, and technical indicators.
+
+**Key Features**:
+- **Independent Module**: Self-contained TypeScript module (`src/lib/market-data.ts`) with no dependencies on UI components
+- **Multi-Layer Caching**: In-memory cache → database cache → vendor API fallback
+- **Per-Option Key Caching**: Options cached by `(expiry,strike)` key with automatic pruning of expired entries
+- **Technical Indicators**: On-demand calculation of SMA/EMA with proper window handling
+- **Freshness Management**: Market hours-aware freshness checking with configurable TTLs
+- **Single Queued Write**: Debounced database writes to prevent excessive DB chatter
+- **Type Safety**: Full TypeScript coverage with proper interfaces and error handling
+
+**Database Integration**:
+- **JSONB Storage**: Market data stored as JSONB blob in `tickers.market_data` column
+- **Schema Versioning**: Future-proof schema with version field for migrations
+- **Automatic Pruning**: Expired options automatically removed during serialization
+- **User-Specific**: All market data scoped to individual users for multi-tenancy
+
+**API Design**:
+- **Simple Interface**: Clean public API with `getCandles()`, `getIndicator()`, `getOption()`, `listOptionKeys()`
+- **Force Refresh**: Optional force refresh parameter for bypassing cache
+- **Error Handling**: Graceful degradation with comprehensive error logging
+- **Performance**: Memoized calculations and efficient data structures
+
+**Integration with PortfolioContext**:
+- **Automatic Priming**: Market data automatically loaded when portfolio changes
+- **Ticker Extraction**: Smart extraction of ticker names from portfolio episodes
+- **Context Methods**: Market data methods exposed through PortfolioContext for UI access
+- **No Direct Dependencies**: UI components use PortfolioContext, not direct market data access
+
+**Testing**:
+- **Comprehensive Test Suite**: Full test coverage for all functionality
+- **Mock Integration**: Proper mocking of Supabase and vendor APIs
+- **Edge Case Handling**: Tests for freshness logic, pruning, and error scenarios
+- **Performance Testing**: Validation of caching and trimming behavior
 
 ### **Database Query Pattern**
 

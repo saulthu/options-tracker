@@ -5,6 +5,7 @@ import { Plus, Grid3X3, Calendar, Activity, TrendingUp, Brain, Settings, User, L
 import Image from "next/image";
 import { ViewType } from "@/types/navigation";
 import { useTimeRange } from "@/contexts/TimeRangeContext";
+import QuickAddTransaction from '@/components/QuickAddTransaction';
 
 import TimeRangeSelector from "@/components/TimeRangeSelector";
 
@@ -76,6 +77,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   // DRY: Computed CSS classes to avoid repeated ternaries
   const sidebarWidthClass = isCollapsed ? 'sidebar-width-collapsed' : 'sidebar-width-expanded';
@@ -176,7 +178,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
                 hoveredButton={hoveredButton}
                 buttonKey={item.key}
                 isActive={item.isActive}
-                onClick={item.onClick}
+                onClick={item.key === 'quick-add' ? () => setShowQuickAdd(true) : item.onClick}
                 onMouseEnter={() => handleMouseEnter(item.key)}
                 onMouseLeave={handleMouseLeave}
               />
@@ -240,6 +242,9 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
           </div>
         </div>
       </div>
+
+      {/* Quick Add Modal */}
+      <QuickAddTransaction isOpen={showQuickAdd} onClose={() => setShowQuickAdd(false)} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
