@@ -11,6 +11,7 @@ import ReportPage from "@/components/ReportPage";
 import OptionsPage from "@/components/OptionsPage";
 import PositionsPage from "@/components/PositionsPage";
 import AccountPage from "@/components/AccountPage";
+import MarketDataDemo from "@/components/MarketDataDemo";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -68,6 +69,12 @@ export default function Home() {
           title: "Accounts",
           icon: Building2,
           description: "Manage your trading accounts."
+        };
+      case 'market-data-demo':
+        return {
+          title: "Market Data Demo",
+          icon: TrendingUp,
+          description: "Test the market data caching system with Alpaca integration."
         };
       case 'overview':
       default:
@@ -142,6 +149,8 @@ export default function Home() {
         return <ReportPage selectedRange={selectedRange} />;
       case 'data':
         return <AccountPage selectedRange={selectedRange} />;
+      case 'market-data-demo':
+        return <MarketDataDemo />;
       case 'overview':
       default:
         return <OverviewPage />;

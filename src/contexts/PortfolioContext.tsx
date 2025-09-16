@@ -15,7 +15,9 @@ import { createTagManager, TagFilter as TagFilterType } from '@/lib/tag-manager'
 import { InstrumentKind } from '@/types/episodes';
 import { CurrencyAmount, CurrencyCode, isValidCurrencyCode } from '@/lib/currency-amount';
 import { marketData } from '@/lib/market-data';
-import { Candle, OptionsEntry } from '@/types/market-data';
+import { createAlpacaVendor } from '@/lib/vendors/alpaca/AlpacaVendor';
+import { vendorFactory } from '@/lib/vendors/VendorFactory';
+import { Candle, OptionsEntry, StaleCandleData, CandleDataWithSource, CurrentPriceWithSource } from '@/types/market-data';
 import { 
   PortfolioResult,
   PositionEpisode,
@@ -165,9 +167,14 @@ interface PortfolioContextType {
   
   // Market data
   primeMarketData: () => Promise<void>;
-  getMarketCandles: (ticker: string, timeframe: '1D' | '1W', forceRefresh?: boolean) => Promise<Candle[]>;
+  setupMarketDataVendors: (apiKey: string, secretKey: string) => Promise<void>;
+  getMarketCandles: (ticker: string, timeframe: '1D' | '1W', forceRefresh?: boolean) => Promise<Candle[] | StaleCandleData>;
   getMarketIndicator: (ticker: string, indicator: 'SMA' | 'EMA', params: { window: number }, timeframe: '1D' | '1W') => Promise<number[]>;
   getMarketOption: (ticker: string, key: { expiry: string; strike: number }, forceRefresh?: boolean) => Promise<OptionsEntry | null>;
+  getMarketPrice: (ticker: string) => Promise<number>;
+  getMarketCandlesWithSource: (ticker: string, timeframe: '1D' | '1W', forceRefresh?: boolean) => Promise<CandleDataWithSource>;
+  getMarketPriceWithSource: (ticker: string) => Promise<CurrentPriceWithSource>;
+  clearMarketCache: (ticker: string) => Promise<void>;
   listMarketOptionKeys: (ticker: string) => Promise<{ expiry: string; strike: number }[]>;
 }
 
@@ -934,10 +941,42 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   }, [userLookup]);
 
   // Market data methods
+  const setupMarketDataVendors = useCallback(async (apiKey: string, secretKey: string): Promise<void> => {
+    try {
+      const alpacaVendor = createAlpacaVendor({
+        apiKey,
+        secretKey
+      });
+      
+      // Register with vendor factory
+      vendorFactory.registerVendor(alpacaVendor, {
+        name: 'alpaca',
+        priority: 1,
+        enabled: true,
+        config: { apiKey, secretKey }
+      });
+      
+      // Set vendors in market data
+      marketData.setVendors([alpacaVendor], 'alpaca');
+      
+      console.log('Market data vendors configured successfully');
+    } catch (error) {
+      console.error('Failed to setup market data vendors:', error);
+      throw error;
+    }
+  }, []);
+
   const primeMarketData = useCallback(async (): Promise<void> => {
     if (!portfolio) return;
     
     try {
+      // Only prime market data if vendors are already configured
+      // Vendors should be set up by the user through settings or demo page
+      if (vendorFactory.getAllVendors().length === 0) {
+        console.log('No vendors configured - skipping market data priming');
+        return;
+      }
+      
       // Get all unique ticker names from the portfolio
       const tickerNames = Array.from(new Set(
         portfolio.episodes
@@ -1000,6 +1039,42 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, []);
 
+  const getMarketPrice = useCallback(async (ticker: string) => {
+    try {
+      return await marketData.getCurrentPrice(ticker);
+    } catch (error) {
+      console.error(`Failed to get current price for ${ticker}:`, error);
+      throw error;
+    }
+  }, []);
+
+  const getMarketCandlesWithSource = useCallback(async (ticker: string, timeframe: '1D' | '1W', forceRefresh = false) => {
+    try {
+      return await marketData.getCandlesWithSource(ticker, timeframe, { forceRefresh });
+    } catch (error) {
+      console.error(`Failed to get candles with source for ${ticker}:`, error);
+      throw error;
+    }
+  }, []);
+
+  const getMarketPriceWithSource = useCallback(async (ticker: string) => {
+    try {
+      return await marketData.getCurrentPriceWithSource(ticker);
+    } catch (error) {
+      console.error(`Failed to get current price with source for ${ticker}:`, error);
+      throw error;
+    }
+  }, []);
+
+  const clearMarketCache = useCallback(async (ticker: string) => {
+    try {
+      await marketData.clearCache(ticker);
+    } catch (error) {
+      console.error(`Failed to clear market cache for ${ticker}:`, error);
+      throw error;
+    }
+  }, []);
+
   const listMarketOptionKeys = useCallback(async (ticker: string) => {
     try {
       return await marketData.listOptionKeys(ticker);
@@ -1009,7 +1084,7 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     }
   }, []);
 
-  // Prime market data when portfolio changes
+  // Initialize Alpaca client and prime market data when portfolio changes
   useEffect(() => {
     if (portfolio) {
       primeMarketData();
@@ -1055,9 +1130,14 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     ensureTickersExist,
     getTickerId,
     primeMarketData,
+    setupMarketDataVendors,
     getMarketCandles,
     getMarketIndicator,
     getMarketOption,
+    getMarketPrice,
+    getMarketCandlesWithSource,
+    getMarketPriceWithSource,
+    clearMarketCache,
     listMarketOptionKeys,
   };
 

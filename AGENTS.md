@@ -340,16 +340,32 @@ The application now follows **industry best practices** for React/Next.js applic
 
 ### **Market Data Module Pattern** ⭐ **NEW**
 
-**Purpose**: Provide clean, independent market data caching and API integration for candles, options, and technical indicators.
+**Purpose**: Provide clean, independent market data caching and API integration with extensible vendor architecture for candles, options, and technical indicators.
+
+**Vendor Setup Requirements**: 
+- **NO Environment Variables**: Vendors are NOT automatically configured from environment variables
+- **User-Controlled Setup**: Vendors must be configured by the user through UI or programmatically
+- **PortfolioContext Method**: Use `setupMarketDataVendors(apiKey, secretKey)` for proper setup
+- **Demo Page Integration**: Demo page automatically configures vendors when testing connection
 
 **Key Features**:
 - **Independent Module**: Self-contained TypeScript module (`src/lib/market-data.ts`) with no dependencies on UI components
+- **Extensible Vendor Architecture**: Pluggable vendor system with `MarketDataVendor` interface and `VendorFactory`
 - **Multi-Layer Caching**: In-memory cache → database cache → vendor API fallback
+- **Current Price Caching**: Real-time price caching with configurable freshness rules and source tracking
 - **Per-Option Key Caching**: Options cached by `(expiry,strike)` key with automatic pruning of expired entries
 - **Technical Indicators**: On-demand calculation of SMA/EMA with proper window handling
 - **Freshness Management**: Market hours-aware freshness checking with configurable TTLs
+- **Background Refresh**: Serves stale data immediately while refreshing in background
 - **Single Queued Write**: Debounced database writes to prevent excessive DB chatter
 - **Type Safety**: Full TypeScript coverage with proper interfaces and error handling
+
+**Vendor Architecture**:
+- **MarketDataVendor Interface**: Extensible interface with capabilities and rate limit hooks
+- **VendorFactory**: Manages vendor registration, selection, and health monitoring
+- **Priority-Based Selection**: Automatic vendor selection with fallback support
+- **Health Monitoring**: Real-time vendor health status and error tracking
+- **AlpacaVendor**: Full-featured Alpaca Markets implementation with capabilities
 
 **Database Integration**:
 - **JSONB Storage**: Market data stored as JSONB blob in `tickers.market_data` column
@@ -369,11 +385,17 @@ The application now follows **industry best practices** for React/Next.js applic
 - **Context Methods**: Market data methods exposed through PortfolioContext for UI access
 - **No Direct Dependencies**: UI components use PortfolioContext, not direct market data access
 
+**Demo Page**:
+- **Interactive Testing**: Full-featured demo page (`/market-data-demo`) for testing all functionality
+- **API Credentials**: Secure credential management with localStorage persistence
+- **Real-time Status**: Live error logging, cache status, and vendor health monitoring
+- **Data Visualization**: Display of candles, indicators, options, and cache contents
+
 **Testing**:
-- **Comprehensive Test Suite**: Full test coverage for all functionality
+- **Comprehensive Test Suite**: Full test coverage for all functionality including vendor system
 - **Mock Integration**: Proper mocking of Supabase and vendor APIs
-- **Edge Case Handling**: Tests for freshness logic, pruning, and error scenarios
-- **Performance Testing**: Validation of caching and trimming behavior
+- **Edge Case Handling**: Tests for freshness logic, pruning, error scenarios, and vendor selection
+- **Performance Testing**: Validation of caching, trimming behavior, and vendor health checks
 
 ### **Database Query Pattern**
 

@@ -108,10 +108,11 @@ describe('MarketData', () => {
 
       jest.spyOn(marketData as unknown as { fetchCandlesFromVendor: jest.Mock }, 'fetchCandlesFromVendor').mockResolvedValue(mockVendorResponse);
 
-      await marketData.getCandles(mockTicker, mockTimeframe);
+      const result = await marketData.getCandles(mockTicker, mockTimeframe);
 
-      // Should fetch from vendor due to stale cache
-      expect(marketData['fetchCandlesFromVendor']).toHaveBeenCalledWith(mockTicker, mockTimeframe);
+      // Should return stale data immediately (not fetch from vendor)
+      expect(result).toEqual(mockCandles);
+      // Background refresh should be triggered (we can't easily test this without waiting)
     });
   });
 

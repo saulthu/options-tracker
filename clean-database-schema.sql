@@ -131,26 +131,17 @@ CREATE INDEX idx_users_email ON public.users(email);
 CREATE INDEX idx_accounts_user_id ON public.accounts(user_id);
 CREATE INDEX idx_tickers_user_id ON public.tickers(user_id);
 CREATE INDEX idx_tickers_name ON public.tickers(name);
+-- Add composite index for market data queries (user_id + name)
+CREATE INDEX idx_tickers_user_name ON public.tickers(user_id, name);
+-- Add GIN index for JSONB market_data column for efficient queries
+CREATE INDEX idx_tickers_market_data ON public.tickers USING GIN (market_data);
 CREATE INDEX idx_transactions_user_id ON public.transactions(user_id);
 CREATE INDEX idx_transactions_account_id ON public.transactions(account_id);
 CREATE INDEX idx_transactions_ticker_id ON public.transactions(ticker_id);
 CREATE INDEX idx_transactions_timestamp ON public.transactions(timestamp);
 CREATE INDEX idx_transactions_instrument_kind ON public.transactions(instrument_kind);
 
--- Create triggers for updated_at timestamps
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON public.transactions
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Note: No database triggers - updated_at is managed by application code
 
 -- Grant permissions to authenticated users
 GRANT ALL ON public.users TO authenticated;

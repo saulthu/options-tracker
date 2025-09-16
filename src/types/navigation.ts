@@ -1,4 +1,4 @@
-export type ViewType = 'overview' | 'weekly-report' | 'settings' | 'shares' | 'transactions' | 'options' | 'data';
+export type ViewType = 'overview' | 'weekly-report' | 'settings' | 'shares' | 'transactions' | 'options' | 'data' | 'market-data-demo';
 
 export type PositionFilterType = 'overlap' | 'openedDuring' | 'closedDuring';
 

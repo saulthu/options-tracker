@@ -3,6 +3,7 @@
 // Based on market_data_plan.md specification
 
 import { supabase } from './supabase';
+import { MarketDataVendor } from './vendors/base/MarketDataVendor';
 import {
   Ticker,
   Timeframe,
@@ -15,15 +16,24 @@ import {
   IndicatorType,
   CandleCache,
   OptionsCache,
+  CurrentPriceCache,
+  CurrentPrice,
+  CandleDataWithSource,
+  CurrentPriceWithSource,
   MarketDataError,
-  VendorCandleData
+  VendorCandleData,
+  StaleCandleData
 } from '@/types/market-data';
 
 export class MarketData {
   private candleCache: CandleCache = {};
   private optionsCache: OptionsCache = {};
+  private currentPriceCache: CurrentPriceCache = {};
   private writeQueue: Set<string> = new Set(); // Track queued writes by ticker
+  private refreshQueue: Set<string> = new Set(); // Track background refreshes by ticker
   private config: Required<MarketDataConfig>;
+  private vendors: MarketDataVendor[] = [];
+  private preferredVendor?: string;
 
   constructor(config: MarketDataConfig = {}) {
     this.config = {
@@ -35,8 +45,48 @@ export class MarketData {
       optionsFreshnessMinutes: config.optionsFreshnessMinutes ?? {
         marketHours: 5,
         afterHours: 60
-      }
+      },
+      currentPriceFreshnessMinutes: config.currentPriceFreshnessMinutes ?? {
+        marketHours: 1,
+        afterHours: 30
+      },
+      returnStaleMarkers: config.returnStaleMarkers ?? false
     };
+  }
+
+  /**
+   * Set vendors for market data fetching
+   */
+  setVendors(vendors: MarketDataVendor[], preferredVendor?: string): void {
+    this.vendors = vendors;
+    this.preferredVendor = preferredVendor;
+  }
+
+  /**
+   * Get the best available vendor for a request
+   */
+  private getVendor(): MarketDataVendor | null {
+    if (this.vendors.length === 0) {
+      return null;
+    }
+
+    // If preferred vendor is specified, try to use it
+    if (this.preferredVendor) {
+      const preferred = this.vendors.find(v => v.name === this.preferredVendor);
+      if (preferred && preferred.isHealthy()) {
+        return preferred;
+      }
+    }
+
+    // Find the first healthy vendor
+    for (const vendor of this.vendors) {
+      if (vendor.isHealthy()) {
+        return vendor;
+      }
+    }
+
+    // If no healthy vendors, return the first one (will handle errors gracefully)
+    return this.vendors[0] || null;
   }
 
   // Public API Methods
@@ -49,13 +99,27 @@ export class MarketData {
     ticker: Ticker,
     timeframe: Timeframe,
     opts: { forceRefresh?: boolean } = {}
-  ): Promise<Candle[]> {
+  ): Promise<Candle[] | StaleCandleData> {
     const { forceRefresh = false } = opts;
 
     // Check memory cache first
     if (!forceRefresh && this.candleCache[ticker]?.[timeframe]) {
       const cached = this.candleCache[ticker][timeframe];
       if (this.isCandleDataFresh(cached.lastUpdated, timeframe)) {
+        return cached.data;
+      } else {
+        // Data is stale, serve cached immediately and trigger background refresh
+        this.triggerBackgroundRefresh(ticker, timeframe);
+        
+        if (this.config.returnStaleMarkers) {
+          return {
+            type: 'stale' as const,
+            data: cached.data,
+            lastUpdated: cached.lastUpdated,
+            staleReason: 'Data is stale, background refresh triggered'
+          };
+        }
+        
         return cached.data;
       }
     }
@@ -80,6 +144,74 @@ export class MarketData {
   }
 
   /**
+   * Get candles with data source information
+   * Returns data along with source tracking for debugging
+   */
+  async getCandlesWithSource(
+    ticker: Ticker,
+    timeframe: Timeframe,
+    opts: { forceRefresh?: boolean } = {}
+  ): Promise<CandleDataWithSource> {
+    const { forceRefresh = false } = opts;
+    const timestamp = new Date().toISOString();
+
+    console.log(`[DEBUG] getCandlesWithSource called for ${ticker} ${timeframe}, forceRefresh: ${forceRefresh}`);
+
+    // Check memory cache first
+    if (!forceRefresh && this.candleCache[ticker]?.[timeframe]) {
+      const cached = this.candleCache[ticker][timeframe];
+      console.log(`[DEBUG] Found memory cache for ${ticker} ${timeframe}, fresh: ${this.isCandleDataFresh(cached.lastUpdated, timeframe)}`);
+      if (this.isCandleDataFresh(cached.lastUpdated, timeframe)) {
+        return {
+          data: cached.data,
+          source: {
+            source: 'memory',
+            timestamp: cached.lastUpdated,
+            cached: true
+          }
+        };
+      }
+    }
+
+    // Try to load from database
+    if (!forceRefresh) {
+      console.log(`[DEBUG] Checking database for ${ticker} ${timeframe}`);
+      const dbData = await this.loadCandlesFromDB(ticker, timeframe);
+      console.log(`[DEBUG] Database data for ${ticker} ${timeframe}:`, dbData ? `found ${dbData.data.length} candles` : 'null');
+      if (dbData && this.isCandleDataFresh(dbData.lastUpdated, timeframe)) {
+        console.log(`[DEBUG] Using database data for ${ticker} ${timeframe}`);
+        this.updateCandleCache(ticker, timeframe, dbData.data, dbData.lastUpdated);
+        return {
+          data: dbData.data,
+          source: {
+            source: 'database',
+            timestamp: dbData.lastUpdated,
+            cached: true
+          }
+        };
+      }
+    }
+
+    // Fetch from vendor API
+    console.log(`[DEBUG] Fetching from vendor API for ${ticker} ${timeframe}`);
+    const vendorData = await this.fetchCandlesFromVendor(ticker, timeframe);
+    console.log(`[DEBUG] Vendor returned ${vendorData.candles.length} candles for ${ticker} ${timeframe}`);
+    // Trim to ≤200 candles before caching and returning
+    const trimmedCandles = vendorData.candles.slice(-200);
+    this.updateCandleCache(ticker, timeframe, trimmedCandles, timestamp);
+    this.queueWrite(ticker);
+
+    return {
+      data: trimmedCandles,
+      source: {
+        source: 'vendor',
+        timestamp,
+        cached: false
+      }
+    };
+  }
+
+  /**
    * Get technical indicator values
    * Computes from getCandles data
    */
@@ -89,7 +221,8 @@ export class MarketData {
     params: IndicatorParams,
     timeframe: Timeframe
   ): Promise<number[]> {
-    const candles = await this.getCandles(ticker, timeframe);
+    const result = await this.getCandles(ticker, timeframe);
+    const candles = Array.isArray(result) ? result : result.data;
     return this.calculateIndicator(candles, indicator, params);
   }
 
@@ -109,6 +242,10 @@ export class MarketData {
     if (!forceRefresh && this.optionsCache[ticker]?.has(cacheKey)) {
       const cached = this.optionsCache[ticker].get(cacheKey)!;
       if (this.isOptionsDataFresh(cached.asOf)) {
+        return cached;
+      } else {
+        // Data is stale, serve cached immediately and trigger background refresh
+        this.triggerBackgroundRefresh(ticker, '1D'); // Use 1D as default for options refresh
         return cached;
       }
     }
@@ -156,15 +293,174 @@ export class MarketData {
   }
 
   /**
+   * Get current price for a ticker
+   */
+  async getCurrentPrice(ticker: Ticker): Promise<number> {
+    // Check cache first
+    const cached = this.currentPriceCache[ticker];
+    if (cached && this.isCurrentPriceFresh(cached)) {
+      return cached.price;
+    }
+
+    // If stale but available, serve stale data and refresh in background
+    if (cached) {
+      this.triggerBackgroundRefresh(ticker, 'currentPrice');
+      return cached.price;
+    }
+
+    // No cache, fetch from vendor
+    const vendor = this.getVendor();
+    if (!vendor) {
+      throw new Error('No vendors available. Please call setVendors() first.');
+    }
+
+    try {
+      const price = await vendor.getCurrentPrice(ticker);
+      
+      // Cache the result
+      this.currentPriceCache[ticker] = {
+        price,
+        lastUpdated: new Date().toISOString(),
+        source: 'last' // We don't know the source from the vendor interface
+      };
+
+      // Queue write to database
+      this.queueWrite(ticker);
+
+      return price;
+    } catch (error) {
+      console.error(`Failed to fetch current price for ${ticker}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear all caches for a specific ticker
+   * Removes data from memory cache and database
+   */
+  async clearCache(ticker: Ticker): Promise<void> {
+    // Clear memory cache
+    if (this.candleCache[ticker]) {
+      delete this.candleCache[ticker];
+    }
+    if (this.optionsCache[ticker]) {
+      delete this.optionsCache[ticker];
+    }
+    if (this.currentPriceCache[ticker]) {
+      delete this.currentPriceCache[ticker];
+    }
+
+    // Clear database cache
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.warn(`Authentication error when clearing cache for ${ticker}:`, authError);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('tickers')
+        .update({ 
+          market_data: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('name', ticker)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.warn(`Failed to clear database cache for ${ticker}:`, error);
+      } else {
+        console.log(`Successfully cleared database cache for ${ticker}`);
+      }
+    } catch (error) {
+      console.warn(`Error clearing database cache for ${ticker}:`, error);
+    }
+  }
+
+  /**
+   * Get current price with data source information
+   * Returns price along with source tracking for debugging
+   */
+  async getCurrentPriceWithSource(ticker: Ticker): Promise<CurrentPriceWithSource> {
+    const timestamp = new Date().toISOString();
+
+    // Check cache first
+    const cached = this.currentPriceCache[ticker];
+    if (cached && this.isCurrentPriceFresh(cached)) {
+      return {
+        data: cached.price,
+        source: {
+          source: 'memory',
+          timestamp: cached.lastUpdated,
+          cached: true
+        }
+      };
+    }
+
+    // If stale but available, serve stale data and refresh in background
+    if (cached) {
+      this.triggerBackgroundRefresh(ticker, 'currentPrice');
+      return {
+        data: cached.price,
+        source: {
+          source: 'memory',
+          timestamp: cached.lastUpdated,
+          cached: true
+        }
+      };
+    }
+
+    // No cache, fetch from vendor
+    const vendor = this.getVendor();
+    if (!vendor) {
+      throw new Error('No vendors available. Please call setVendors() first.');
+    }
+
+    try {
+      const price = await vendor.getCurrentPrice(ticker);
+      
+      // Cache the result
+      this.currentPriceCache[ticker] = {
+        price,
+        lastUpdated: timestamp,
+        source: 'last' // We don't know the source from the vendor interface
+      };
+
+      // Queue write to database
+      this.queueWrite(ticker);
+
+      return {
+        data: price,
+        source: {
+          source: 'vendor',
+          timestamp,
+          cached: false
+        }
+      };
+    } catch (error) {
+      console.error(`Failed to fetch current price for ${ticker}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Prime memory cache from database for initial page load
    */
   async primeFromDB(tickers: Ticker[]): Promise<void> {
     const promises = tickers.map(async (ticker) => {
       try {
+        // Get current user for RLS
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          console.warn(`Authentication error when priming market data for ${ticker}:`, authError);
+          return;
+        }
+
         const { data, error } = await supabase
           .from('tickers')
           .select('market_data')
           .eq('name', ticker)
+          .eq('user_id', user.id)
           .single();
 
         if (error || !data?.market_data) return;
@@ -180,6 +476,28 @@ export class MarketData {
   }
 
   // Private Helper Methods
+
+  private triggerBackgroundRefresh(ticker: Ticker, timeframe: Timeframe | 'currentPrice'): void {
+    const refreshKey = `${ticker}:${timeframe}`;
+    if (this.refreshQueue.has(refreshKey)) return; // Already refreshing
+
+    this.refreshQueue.add(refreshKey);
+    
+    // Trigger background refresh
+    setTimeout(async () => {
+      try {
+        if (timeframe === 'currentPrice') {
+          await this.getCurrentPrice(ticker);
+        } else {
+          await this.getCandles(ticker, timeframe as Timeframe, { forceRefresh: true });
+        }
+      } catch (error) {
+        console.warn(`Background refresh failed for ${ticker} ${timeframe}:`, error);
+      } finally {
+        this.refreshQueue.delete(refreshKey);
+      }
+    }, 100); // Small delay to avoid blocking
+  }
 
   private isCandleDataFresh(lastUpdated: string, timeframe: Timeframe): boolean {
     const now = new Date();
@@ -202,6 +520,19 @@ export class MarketData {
     const maxAge = isMarketHours 
       ? this.config.optionsFreshnessMinutes.marketHours 
       : this.config.optionsFreshnessMinutes.afterHours;
+
+    return diffMinutes <= maxAge;
+  }
+
+  private isCurrentPriceFresh(currentPrice: CurrentPrice): boolean {
+    const now = new Date();
+    const updated = new Date(currentPrice.lastUpdated);
+    const diffMinutes = (now.getTime() - updated.getTime()) / (1000 * 60);
+
+    const isMarketHours = this.isMarketHours(now);
+    const maxAge = isMarketHours 
+      ? this.config.currentPriceFreshnessMinutes.marketHours 
+      : this.config.currentPriceFreshnessMinutes.afterHours;
 
     return diffMinutes <= maxAge;
   }
@@ -264,13 +595,21 @@ export class MarketData {
     try {
       const blob = this.serializeToBlob(ticker);
       
+      // Get current user for RLS
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error(`Authentication error when persisting market data for ${ticker}:`, authError);
+        return;
+      }
+      
       const { error } = await supabase
         .from('tickers')
         .update({ 
           market_data: blob,
           updated_at: new Date().toISOString()
         })
-        .eq('name', ticker);
+        .eq('name', ticker)
+        .eq('user_id', user.id);
 
       if (error) {
         console.error(`Failed to persist market data for ${ticker}:`, error);
@@ -313,11 +652,15 @@ export class MarketData {
       }
     }
 
+    // Serialize current price
+    const currentPrice = this.currentPriceCache[ticker];
+
     return {
       schemaVersion: 1,
       asOf: now,
       candles,
-      options
+      options,
+      currentPrice
     };
   }
 
@@ -343,14 +686,27 @@ export class MarketData {
         this.optionsCache[ticker].set(cacheKey, entry);
       }
     }
+
+    // Hydrate current price cache
+    if (blob.currentPrice) {
+      this.currentPriceCache[ticker] = blob.currentPrice;
+    }
   }
 
   private async loadCandlesFromDB(ticker: Ticker, timeframe: Timeframe): Promise<{ data: Candle[]; lastUpdated: string } | null> {
     try {
+      // Get current user for RLS
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.warn(`Authentication error when loading candles for ${ticker}:`, authError);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('tickers')
         .select('market_data')
         .eq('name', ticker)
+        .eq('user_id', user.id)
         .single();
 
       if (error || !data?.market_data?.candles?.[timeframe]) return null;
@@ -368,10 +724,18 @@ export class MarketData {
 
   private async loadOptionsFromDB(ticker: Ticker, key?: OptionKey): Promise<OptionsEntry | null> {
     try {
+      // Get current user for RLS
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.warn(`Authentication error when loading options for ${ticker}:`, authError);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('tickers')
         .select('market_data')
         .eq('name', ticker)
+        .eq('user_id', user.id)
         .single();
 
       if (error || !data?.market_data?.options?.entries) return null;
@@ -394,26 +758,44 @@ export class MarketData {
   }
 
   private async fetchCandlesFromVendor(ticker: Ticker, timeframe: Timeframe): Promise<VendorCandleData> {
-    // Placeholder implementation - in production this would call a real vendor API
-    // For now, return empty data to avoid errors
-    console.warn(`Vendor API not implemented for candles: ${ticker} ${timeframe}`);
-    return {
-      symbol: ticker,
-      timeframe,
-      candles: []
-    };
+    const vendor = this.getVendor();
+    if (!vendor) {
+      console.warn(`No vendors available. Please call setVendors() first.`);
+      return { symbol: ticker, timeframe, candles: [] };
+    }
+    
+    try {
+      const candles = await vendor.fetchCandles(ticker, timeframe);
+      return { symbol: ticker, timeframe, candles };
+    } catch (error) {
+      console.error(`Failed to fetch candles from ${vendor.name} for ${ticker} ${timeframe}:`, error);
+      return { symbol: ticker, timeframe, candles: [] };
+    }
   }
 
   private async fetchOptionsFromVendor(ticker: Ticker, key: OptionKey): Promise<OptionsEntry> {
-    // Placeholder implementation - in production this would call a real vendor API
-    // For now, return empty data to avoid errors
-    console.warn(`Vendor API not implemented for options: ${ticker} ${key.expiry}@${key.strike}`);
-    return {
-      asOf: new Date().toISOString(),
-      expiry: key.expiry,
-      strike: key.strike,
-      spot: 0
-    };
+    const vendor = this.getVendor();
+    if (!vendor) {
+      console.warn(`No vendors available. Please call setVendors() first.`);
+      return {
+        asOf: new Date().toISOString(),
+        expiry: key.expiry,
+        strike: key.strike,
+        spot: 0
+      };
+    }
+
+    try {
+      return await vendor.fetchOption(ticker, key);
+    } catch (error) {
+      console.error(`Failed to fetch option from ${vendor.name} for ${ticker} ${key.expiry}@${key.strike}:`, error);
+      return {
+        asOf: new Date().toISOString(),
+        expiry: key.expiry,
+        strike: key.strike,
+        spot: 0
+      };
+    }
   }
 
   private calculateIndicator(candles: Candle[], indicator: IndicatorType, params: IndicatorParams): number[] {

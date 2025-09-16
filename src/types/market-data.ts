@@ -50,6 +50,12 @@ export interface OptionsData {
   entries: Record<string, OptionsEntry>; // keyed by "expiry@strike"
 }
 
+export interface CurrentPrice {
+  price: number;
+  lastUpdated: string; // ISO timestamp
+  source: 'ask' | 'bid' | 'last'; // which price field was used
+}
+
 export interface MarketDataBlob {
   schemaVersion: number;
   asOf: string; // ISO timestamp
@@ -57,6 +63,7 @@ export interface MarketDataBlob {
     [K in Timeframe]: CandleSeries;
   };
   options: OptionsData;
+  currentPrice?: CurrentPrice;
 }
 
 export interface MarketDataConfig {
@@ -69,6 +76,11 @@ export interface MarketDataConfig {
     marketHours: number;
     afterHours: number;
   };
+  currentPriceFreshnessMinutes?: {
+    marketHours: number;
+    afterHours: number;
+  };
+  returnStaleMarkers?: boolean; // default false - return stale data markers instead of stale data
 }
 
 export interface IndicatorParams {
@@ -89,6 +101,26 @@ export interface CandleCache {
 
 export interface OptionsCache {
   [ticker: string]: Map<string, OptionsEntry>; // keyed by "expiry@strike"
+}
+
+export interface CurrentPriceCache {
+  [ticker: string]: CurrentPrice;
+}
+
+export interface DataSource {
+  source: 'memory' | 'database' | 'vendor';
+  timestamp: string;
+  cached?: boolean;
+}
+
+export interface CandleDataWithSource {
+  data: Candle[];
+  source: DataSource;
+}
+
+export interface CurrentPriceWithSource {
+  data: number;
+  source: DataSource;
 }
 
 // Vendor API interfaces (placeholder for future implementation)
@@ -116,4 +148,19 @@ export class StaleDataError extends MarketDataError {
     super(message, 'STALE_DATA');
     this.name = 'StaleDataError';
   }
+}
+
+// Stale data marker types
+export interface StaleCandleData {
+  type: 'stale';
+  data: Candle[];
+  lastUpdated: string;
+  staleReason: string;
+}
+
+export interface StaleOptionsData {
+  type: 'stale';
+  data: OptionsEntry;
+  lastUpdated: string;
+  staleReason: string;
 }
