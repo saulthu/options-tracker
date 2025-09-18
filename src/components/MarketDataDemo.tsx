@@ -552,15 +552,41 @@ export default function MarketDataDemo() {
                 <div>Strike: {options.strike}</div>
                 <div>Spot: {options.spot}</div>
                 {options.call && (
-                  <div>
-                    Call: Bid {options.call.bid} Ask {options.call.ask}
+                  <div className="space-y-1">
+                    <div className="text-white font-medium">Call</div>
+                    <div>Bid: {options.call.bid}</div>
+                    <div>Ask: {options.call.ask}</div>
+                    {options.call.last !== undefined && <div>Last: {options.call.last}</div>}
+                    {options.call.iv !== undefined && <div>IV: {options.call.iv}</div>}
+                    {options.call.delta !== undefined && <div>Delta: {options.call.delta}</div>}
+                    {options.call.gamma !== undefined && <div>Gamma: {options.call.gamma}</div>}
+                    {options.call.theta !== undefined && <div>Theta: {options.call.theta}</div>}
+                    {options.call.vega !== undefined && <div>Vega: {options.call.vega}</div>}
+                    {options.call.openInterest !== undefined && <div>Open Interest: {options.call.openInterest}</div>}
+                    {options.call.volume !== undefined && <div>Volume: {options.call.volume}</div>}
                   </div>
                 )}
                 {options.put && (
-                  <div>
-                    Put: Bid {options.put.bid} Ask {options.put.ask}
+                  <div className="space-y-1">
+                    <div className="text-white font-medium">Put</div>
+                    <div>Bid: {options.put.bid}</div>
+                    <div>Ask: {options.put.ask}</div>
+                    {options.put.last !== undefined && <div>Last: {options.put.last}</div>}
+                    {options.put.iv !== undefined && <div>IV: {options.put.iv}</div>}
+                    {options.put.delta !== undefined && <div>Delta: {options.put.delta}</div>}
+                    {options.put.gamma !== undefined && <div>Gamma: {options.put.gamma}</div>}
+                    {options.put.theta !== undefined && <div>Theta: {options.put.theta}</div>}
+                    {options.put.vega !== undefined && <div>Vega: {options.put.vega}</div>}
+                    {options.put.openInterest !== undefined && <div>Open Interest: {options.put.openInterest}</div>}
+                    {options.put.volume !== undefined && <div>Volume: {options.put.volume}</div>}
                   </div>
                 )}
+                <div className="pt-2">
+                  <div className="text-white font-medium mb-1">Raw</div>
+                  <pre className="bg-[#0f0f0f] p-2 rounded overflow-x-auto whitespace-pre-wrap break-words">
+                    {JSON.stringify(options, null, 2)}
+                  </pre>
+                </div>
               </div>
             ) : (
               <p className="text-[#b3b3b3]">No option data</p>

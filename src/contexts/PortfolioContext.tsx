@@ -410,6 +410,14 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
   }, [authLoading, user, authError, fetchTransactions]);
 
   // Helper functions
+  const waitForAuthReady = useCallback(async () => {
+    if (!authLoading) return;
+    // Wait until authLoading is false to avoid DB misses that force vendor
+    while (true) {
+      if (!authLoading) return;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }, [authLoading]);
   const getEpisodes = useCallback((accountId?: string): PositionEpisode[] => {
     if (!portfolio) return [];
     if (accountId) {
@@ -1011,12 +1019,13 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const getMarketCandles = useCallback(async (ticker: string, timeframe: '1D' | '1W', forceRefresh = false) => {
     try {
+      await waitForAuthReady();
       return await marketData.getCandles(ticker, timeframe, { forceRefresh });
     } catch (error) {
       console.error(`Failed to get candles for ${ticker}:`, error);
       return [];
     }
-  }, []);
+  }, [waitForAuthReady]);
 
   const getMarketIndicator = useCallback(async (
     ticker: string, 
@@ -1025,12 +1034,13 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     timeframe: '1D' | '1W'
   ) => {
     try {
+      await waitForAuthReady();
       return await marketData.getIndicator(ticker, indicator, params, timeframe);
     } catch (error) {
       console.error(`Failed to get ${indicator} for ${ticker}:`, error);
       return [];
     }
-  }, []);
+  }, [waitForAuthReady]);
 
   const getMarketOption = useCallback(async (
     ticker: string, 
@@ -1038,39 +1048,43 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     forceRefresh = false
   ) => {
     try {
+      await waitForAuthReady();
       return await marketData.getOption(ticker, key, { forceRefresh });
     } catch (error) {
       console.error(`Failed to get option data for ${ticker}:`, error);
       return null;
     }
-  }, []);
+  }, [waitForAuthReady]);
 
   const getMarketPrice = useCallback(async (ticker: string) => {
     try {
+      await waitForAuthReady();
       return await marketData.getCurrentPrice(ticker);
     } catch (error) {
       console.error(`Failed to get current price for ${ticker}:`, error);
       throw error;
     }
-  }, []);
+  }, [waitForAuthReady]);
 
   const getMarketCandlesWithSource = useCallback(async (ticker: string, timeframe: '1D' | '1W', forceRefresh = false) => {
     try {
+      await waitForAuthReady();
       return await marketData.getCandlesWithSource(ticker, timeframe, { forceRefresh });
     } catch (error) {
       console.error(`Failed to get candles with source for ${ticker}:`, error);
       throw error;
     }
-  }, []);
+  }, [waitForAuthReady]);
 
   const getMarketPriceWithSource = useCallback(async (ticker: string) => {
     try {
+      await waitForAuthReady();
       return await marketData.getCurrentPriceWithSource(ticker);
     } catch (error) {
       console.error(`Failed to get current price with source for ${ticker}:`, error);
       throw error;
     }
-  }, []);
+  }, [waitForAuthReady]);
 
   const clearMarketCache = useCallback(async (ticker: string) => {
     try {
@@ -1083,12 +1097,13 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
 
   const listMarketOptionKeys = useCallback(async (ticker: string) => {
     try {
+      await waitForAuthReady();
       return await marketData.listOptionKeys(ticker);
     } catch (error) {
       console.error(`Failed to list option keys for ${ticker}:`, error);
       return [];
     }
-  }, []);
+  }, [waitForAuthReady]);
 
   // Initialize Alpaca client and prime market data when portfolio changes
   useEffect(() => {

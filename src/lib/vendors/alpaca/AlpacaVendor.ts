@@ -272,9 +272,11 @@ export class AlpacaVendor implements MarketDataVendor {
             return last.c;
           }
         } catch (e) {
-          // Fallback to quote API below if candles fail
-          console.warn(`[AlpacaVendor] Free plan fallback to quotes for ${ticker}:`, e);
+          // For free plan, do NOT return pre/after-hours quotes; signal upstream to use DB or retry later
+          throw new Error(`Free plan: unable to fetch last close for ${ticker}`);
         }
+        // If we reached here without returning, no valid close found
+        throw new Error(`Free plan: no daily candles for ${ticker}`);
       }
 
       // Use the correct Alpaca API endpoint for latest quotes

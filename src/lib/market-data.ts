@@ -31,6 +31,7 @@ export class MarketData {
   private currentPriceCache: CurrentPriceCache = {};
   private writeQueue: Set<string> = new Set(); // Track queued writes by ticker
   private refreshQueue: Set<string> = new Set(); // Track background refreshes by ticker
+  private primedTickers: Set<string> = new Set(); // Track which tickers have been hydrated from DB at least once
   private config: Required<MarketDataConfig>;
   private vendors: MarketDataVendor[] = [];
   private preferredVendor?: string;
@@ -121,6 +122,9 @@ export class MarketData {
   ): Promise<Candle[] | StaleCandleData> {
     const { forceRefresh = false } = opts;
 
+    // Ensure DB blob has been loaded at least once for this ticker
+    await this.ensurePrimed(ticker);
+
     // Check memory cache first
     if (!forceRefresh && this.candleCache[ticker]?.[timeframe]) {
       const cached = this.candleCache[ticker][timeframe];
@@ -149,12 +153,28 @@ export class MarketData {
     if (!forceRefresh) {
       this.log(`[DEBUG] Checking database for ${ticker} ${timeframe}`);
       const dbData = await this.loadCandlesFromDB(ticker, timeframe);
-      if (dbData && dbData.data.length > 0 && this.isCandleDataFresh(dbData.lastUpdated, timeframe)) {
-        this.log(`[DEBUG] Database cache is fresh, returning ${dbData.data.length} candles`, 'info');
-        this.updateCandleCache(ticker, timeframe, dbData.data, dbData.lastUpdated);
-        return dbData.data;
+      if (dbData && dbData.data.length > 0) {
+        if (this.isCandleDataFresh(dbData.lastUpdated, timeframe)) {
+          this.log(`[DEBUG] Database cache is fresh, returning ${dbData.data.length} candles`, 'info');
+          this.updateCandleCache(ticker, timeframe, dbData.data, dbData.lastUpdated);
+          return dbData.data;
+        } else {
+          this.log(`[DEBUG] Database cache is stale for ${ticker} ${timeframe}, serving stale and refreshing in background`, 'info');
+          // Serve stale DB data and kick off background refresh
+          this.updateCandleCache(ticker, timeframe, dbData.data, dbData.lastUpdated);
+          this.triggerBackgroundRefresh(ticker, timeframe);
+          if (this.config.returnStaleMarkers) {
+            return {
+              type: 'stale' as const,
+              data: dbData.data,
+              lastUpdated: dbData.lastUpdated,
+              staleReason: 'DB data is stale, background refresh triggered'
+            };
+          }
+          return dbData.data;
+        }
       }
-      this.log(`[DEBUG] Database cache not available or stale for ${ticker} ${timeframe}`, 'info');
+      this.log(`[DEBUG] Database cache not available for ${ticker} ${timeframe}`, 'info');
     }
 
     // Fetch from vendor API
@@ -193,6 +213,9 @@ export class MarketData {
     const timestamp = new Date().toISOString();
 
     console.log(`[DEBUG] getCandlesWithSource called for ${ticker} ${timeframe}, forceRefresh: ${forceRefresh}`);
+
+    // Ensure DB blob has been loaded at least once for this ticker
+    await this.ensurePrimed(ticker);
 
     // Check memory cache first
     if (!forceRefresh && this.candleCache[ticker]?.[timeframe]) {
@@ -275,6 +298,9 @@ export class MarketData {
     const { forceRefresh = false } = opts;
     const cacheKey = `${key.expiry}@${key.strike}`;
 
+    // Ensure DB blob has been loaded at least once for this ticker
+    await this.ensurePrimed(ticker);
+
     // Check memory cache first
     if (!forceRefresh && this.optionsCache[ticker]?.has(cacheKey)) {
       const cached = this.optionsCache[ticker].get(cacheKey)!;
@@ -309,10 +335,8 @@ export class MarketData {
    * Returns keys after pruning expired entries
    */
   async listOptionKeys(ticker: Ticker): Promise<OptionKey[]> {
-    // Ensure we have data loaded
-    if (!this.optionsCache[ticker]) {
-      await this.loadOptionsFromDB(ticker);
-    }
+    // Ensure DB blob has been loaded at least once for this ticker
+    await this.ensurePrimed(ticker);
 
     const keys: OptionKey[] = [];
     const now = new Date();
@@ -333,6 +357,8 @@ export class MarketData {
    * Get current price for a ticker
    */
   async getCurrentPrice(ticker: Ticker): Promise<number> {
+    // Ensure DB blob has been loaded at least once for this ticker
+    await this.ensurePrimed(ticker);
     // Check cache first
     const cached = this.currentPriceCache[ticker];
     if (cached && this.isCurrentPriceFresh(cached)) {
@@ -343,6 +369,18 @@ export class MarketData {
     if (cached) {
       this.triggerBackgroundRefresh(ticker, 'currentPrice');
       return cached.price;
+    }
+
+    // Try to load current price from database if not in memory yet
+    const dbPrice = await this.loadCurrentPriceFromDB(ticker);
+    if (dbPrice) {
+      // Cache DB value
+      this.currentPriceCache[ticker] = dbPrice;
+      // If stale, serve and refresh in background; if fresh, just serve
+      if (!this.isCurrentPriceFresh(dbPrice)) {
+        this.triggerBackgroundRefresh(ticker, 'currentPrice');
+      }
+      return dbPrice.price;
     }
 
     // No cache, fetch from vendor
@@ -421,6 +459,9 @@ export class MarketData {
   async getCurrentPriceWithSource(ticker: Ticker): Promise<CurrentPriceWithSource> {
     const timestamp = new Date().toISOString();
 
+    // Ensure DB blob has been loaded at least once for this ticker
+    await this.ensurePrimed(ticker);
+
     // Check cache first
     const cached = this.currentPriceCache[ticker];
     if (cached && this.isCurrentPriceFresh(cached)) {
@@ -442,6 +483,24 @@ export class MarketData {
         source: {
           source: 'memory',
           timestamp: cached.lastUpdated,
+          cached: true
+        }
+      };
+    }
+
+    // Try to load from database if memory has nothing
+    const dbPrice = await this.loadCurrentPriceFromDB(ticker);
+    if (dbPrice) {
+      this.currentPriceCache[ticker] = dbPrice;
+      const fresh = this.isCurrentPriceFresh(dbPrice);
+      if (!fresh) {
+        this.triggerBackgroundRefresh(ticker, 'currentPrice');
+      }
+      return {
+        data: dbPrice.price,
+        source: {
+          source: 'database',
+          timestamp: dbPrice.lastUpdated,
           cached: true
         }
       };
@@ -486,24 +545,11 @@ export class MarketData {
   async primeFromDB(tickers: Ticker[]): Promise<void> {
     const promises = tickers.map(async (ticker) => {
       try {
-        // Get current user for RLS
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-          console.warn(`Authentication error when priming market data for ${ticker}:`, authError);
-          return;
+        const blob = await this.loadBlobFromDB(ticker);
+        if (blob) {
+          this.hydrateFromBlob(ticker, blob);
+          this.primedTickers.add(ticker);
         }
-
-        const { data, error } = await supabase
-          .from('tickers')
-          .select('market_data')
-          .eq('name', ticker)
-          .eq('user_id', user.id)
-          .single();
-
-        if (error || !data?.market_data) return;
-
-        const blob: MarketDataBlob = data.market_data;
-        this.hydrateFromBlob(ticker, blob);
       } catch (error) {
         console.warn(`Failed to prime market data for ${ticker}:`, error);
       }
@@ -755,9 +801,14 @@ export class MarketData {
       this.log(`[DEBUG] loadCandlesFromDB called for ${ticker} ${timeframe}`);
       
       // Get current user for RLS
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      let { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        this.log(`Authentication error when loading candles for ${ticker}: ${authError?.message || 'No user'}`, 'warning');
+        // Auth may not be ready immediately after page load; retry briefly once
+        await new Promise(resolve => setTimeout(resolve, 200));
+        ({ data: { user }, error: authError } = await supabase.auth.getUser());
+      }
+      if (authError || !user) {
+        this.log(`Authentication not ready when loading candles for ${ticker} - skipping DB cache on this attempt`, 'warning');
         return null;
       }
 
@@ -827,6 +878,68 @@ export class MarketData {
       }
     } catch (error) {
       console.warn(`Failed to load options from DB for ${ticker}:`, error);
+      return null;
+    }
+  }
+
+  private async ensurePrimed(ticker: Ticker): Promise<void> {
+    if (this.primedTickers.has(ticker)) return;
+    const blob = await this.loadBlobFromDB(ticker);
+    if (blob) {
+      this.hydrateFromBlob(ticker, blob);
+    }
+    this.primedTickers.add(ticker);
+  }
+
+  private async loadBlobFromDB(ticker: Ticker): Promise<MarketDataBlob | null> {
+    try {
+      // Get current user for RLS
+      let { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        // Small retry to avoid race on page load
+        await new Promise(resolve => setTimeout(resolve, 200));
+        ({ data: { user }, error: authError } = await supabase.auth.getUser());
+      }
+      if (authError || !user) {
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('tickers')
+        .select('market_data')
+        .eq('name', ticker)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error || !data?.market_data) return null;
+      return data.market_data as MarketDataBlob;
+    } catch {
+      return null;
+    }
+  }
+
+  private async loadCurrentPriceFromDB(ticker: Ticker): Promise<CurrentPrice | null> {
+    try {
+      // Get current user for RLS
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('tickers')
+        .select('market_data')
+        .eq('name', ticker)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error || !data?.market_data?.currentPrice) return null;
+
+      const currentPrice = data.market_data.currentPrice as CurrentPrice;
+      if (!currentPrice || typeof currentPrice.price !== 'number') return null;
+
+      return currentPrice;
+    } catch {
       return null;
     }
   }
