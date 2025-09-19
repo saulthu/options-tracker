@@ -29,126 +29,16 @@ interface QuoteCacheMetadata {
 }
 
 // Configuration
-const CACHE_TTL_SECONDS = 60; // 1 minute TTL
+const CACHE_TTL_SECONDS = 300; // 5 minutes TTL
 const POLYGON_API_KEY = process.env.POLYGON_API_KEY;
 
-// Helper function to fetch quote from Polygon.io using aggregates
+// Helper function to fetch quote from Polygon.io
 async function fetchQuoteFromPolygon(symbol: string): Promise<StockQuote | null> {
   if (!POLYGON_API_KEY) {
     throw new Error("POLYGON_API_KEY not configured");
   }
 
-  // Get current time and previous day for comparison
-  const now = new Date();
-  const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-  // First, try to get today's data (includes pre-market/after-hours)
-  const todayUrl = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/minute/${today}/${today}?adjusted=true&apikey=${POLYGON_API_KEY}`;
-  
-  console.log(`[DEBUG] Fetching quote for ${symbol}: ${todayUrl}`);
-  
-  try {
-    const response = await fetch(todayUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Polygon API error for ${symbol}:`, {
-        status: response.status,
-        statusText: response.statusText,
-        url: todayUrl,
-        errorBody: errorText
-      });
-      
-      // Handle specific error cases
-      if (response.status === 403) {
-        throw new Error(`Polygon API access forbidden. Check API key permissions and rate limits. Status: ${response.status}`);
-      } else if (response.status === 401) {
-        throw new Error(`Polygon API unauthorized. Check API key validity. Status: ${response.status}`);
-      } else if (response.status === 429) {
-        throw new Error(`Polygon API rate limit exceeded. Status: ${response.status}`);
-      } else {
-        throw new Error(`Polygon API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
-      }
-    }
-
-    const data = await response.json();
-    
-    if (!data.results || data.results.length === 0) {
-      // No data for today, try yesterday's data
-      const yesterdayData = await fetchYesterdayData(symbol, yesterday);
-      if (!yesterdayData) {
-        return null;
-      }
-      
-      // Return yesterday's data as the quote
-      return {
-        symbol: symbol.toUpperCase(),
-        price: yesterdayData.previousClose,
-        change: 0,
-        changePercent: 0,
-        volume: 0,
-        high: yesterdayData.previousClose,
-        low: yesterdayData.previousClose,
-        open: yesterdayData.previousClose,
-        previousClose: yesterdayData.previousClose,
-        timestamp: Date.now(),
-        source: 'fresh'
-      };
-    }
-
-    // Get the most recent minute bar from today
-    const latestBar = data.results[data.results.length - 1];
-    
-    // Get yesterday's close for comparison
-    const yesterdayData = await fetchYesterdayData(symbol, yesterday);
-    const previousClose = yesterdayData?.previousClose || latestBar.o;
-
-    const price = latestBar.c; // close price (most recent)
-    const change = price - previousClose;
-    const changePercent = (change / previousClose) * 100;
-
-    return {
-      symbol: symbol.toUpperCase(),
-      price,
-      change,
-      changePercent,
-      volume: latestBar.v,
-      high: latestBar.h,
-      low: latestBar.l,
-      open: latestBar.o,
-      previousClose,
-      timestamp: latestBar.t,
-      source: 'fresh'
-    };
-  } catch (error) {
-    console.error(`Failed to fetch quote for ${symbol} with aggregates endpoint:`, error);
-    
-    // Fallback to the original prev endpoint
-    console.log(`[DEBUG] Trying fallback prev endpoint for ${symbol}`);
-    try {
-      return await fetchQuoteFromPolygonPrev(symbol);
-    } catch (fallbackError) {
-      console.error(`Fallback also failed for ${symbol}:`, fallbackError);
-      throw error; // Throw the original error
-    }
-  }
-}
-
-// Fallback function using the original prev endpoint
-async function fetchQuoteFromPolygonPrev(symbol: string): Promise<StockQuote | null> {
-  if (!POLYGON_API_KEY) {
-    throw new Error("POLYGON_API_KEY not configured");
-  }
-
   const url = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/prev?adjusted=true&apikey=${POLYGON_API_KEY}`;
-  
-  console.log(`[DEBUG] Using prev endpoint fallback for ${symbol}: ${url}`);
   
   try {
     const response = await fetch(url, {
@@ -159,14 +49,7 @@ async function fetchQuoteFromPolygonPrev(symbol: string): Promise<StockQuote | n
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Polygon prev API error for ${symbol}:`, {
-        status: response.status,
-        statusText: response.statusText,
-        url: url,
-        errorBody: errorText
-      });
-      throw new Error(`Polygon prev API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+      throw new Error(`Polygon API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -195,43 +78,8 @@ async function fetchQuoteFromPolygonPrev(symbol: string): Promise<StockQuote | n
       source: 'fresh'
     };
   } catch (error) {
-    console.error(`Failed to fetch quote from prev endpoint for ${symbol}:`, error);
+    console.error(`Failed to fetch quote for ${symbol}:`, error);
     throw error;
-  }
-}
-
-// Helper function to fetch yesterday's closing data
-async function fetchYesterdayData(symbol: string, yesterday: string): Promise<{ previousClose: number } | null> {
-  try {
-    const url = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/day/${yesterday}/${yesterday}?adjusted=true&apikey=${POLYGON_API_KEY}`;
-    
-    console.log(`[DEBUG] Fetching yesterday's data for ${symbol}: ${url}`);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      console.warn(`Failed to fetch yesterday's data for ${symbol}: ${response.status} ${response.statusText}`);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    if (!data.results || data.results.length === 0) {
-      return null;
-    }
-
-    const result = data.results[0];
-    return {
-      previousClose: result.c // yesterday's close
-    };
-  } catch (error) {
-    console.error(`Failed to fetch yesterday's data for ${symbol}:`, error);
-    return null;
   }
 }
 
