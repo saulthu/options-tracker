@@ -46,6 +46,8 @@ async function fetchQuoteFromPolygon(symbol: string): Promise<StockQuote | null>
   // First, try to get today's data (includes pre-market/after-hours)
   const todayUrl = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/minute/${today}/${today}?adjusted=true&apikey=${POLYGON_API_KEY}`;
   
+  console.log(`[DEBUG] Fetching quote for ${symbol}: ${todayUrl}`);
+  
   try {
     const response = await fetch(todayUrl, {
       method: 'GET',
@@ -55,7 +57,24 @@ async function fetchQuoteFromPolygon(symbol: string): Promise<StockQuote | null>
     });
 
     if (!response.ok) {
-      throw new Error(`Polygon API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`Polygon API error for ${symbol}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: todayUrl,
+        errorBody: errorText
+      });
+      
+      // Handle specific error cases
+      if (response.status === 403) {
+        throw new Error(`Polygon API access forbidden. Check API key permissions and rate limits. Status: ${response.status}`);
+      } else if (response.status === 401) {
+        throw new Error(`Polygon API unauthorized. Check API key validity. Status: ${response.status}`);
+      } else if (response.status === 429) {
+        throw new Error(`Polygon API rate limit exceeded. Status: ${response.status}`);
+      } else {
+        throw new Error(`Polygon API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+      }
     }
 
     const data = await response.json();
@@ -108,7 +127,75 @@ async function fetchQuoteFromPolygon(symbol: string): Promise<StockQuote | null>
       source: 'fresh'
     };
   } catch (error) {
-    console.error(`Failed to fetch quote for ${symbol}:`, error);
+    console.error(`Failed to fetch quote for ${symbol} with aggregates endpoint:`, error);
+    
+    // Fallback to the original prev endpoint
+    console.log(`[DEBUG] Trying fallback prev endpoint for ${symbol}`);
+    try {
+      return await fetchQuoteFromPolygonPrev(symbol);
+    } catch (fallbackError) {
+      console.error(`Fallback also failed for ${symbol}:`, fallbackError);
+      throw error; // Throw the original error
+    }
+  }
+}
+
+// Fallback function using the original prev endpoint
+async function fetchQuoteFromPolygonPrev(symbol: string): Promise<StockQuote | null> {
+  if (!POLYGON_API_KEY) {
+    throw new Error("POLYGON_API_KEY not configured");
+  }
+
+  const url = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/prev?adjusted=true&apikey=${POLYGON_API_KEY}`;
+  
+  console.log(`[DEBUG] Using prev endpoint fallback for ${symbol}: ${url}`);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Polygon prev API error for ${symbol}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: url,
+        errorBody: errorText
+      });
+      throw new Error(`Polygon prev API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.results || data.results.length === 0) {
+      return null;
+    }
+
+    const result = data.results[0];
+    const price = result.c; // close price
+    const previousClose = result.o; // open price (previous close)
+    const change = price - previousClose;
+    const changePercent = (change / previousClose) * 100;
+
+    return {
+      symbol: symbol.toUpperCase(),
+      price,
+      change,
+      changePercent,
+      volume: result.v,
+      high: result.h,
+      low: result.l,
+      open: result.o,
+      previousClose,
+      timestamp: result.t,
+      source: 'fresh'
+    };
+  } catch (error) {
+    console.error(`Failed to fetch quote from prev endpoint for ${symbol}:`, error);
     throw error;
   }
 }
@@ -118,6 +205,8 @@ async function fetchYesterdayData(symbol: string, yesterday: string): Promise<{ 
   try {
     const url = `https://api.polygon.io/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/day/${yesterday}/${yesterday}?adjusted=true&apikey=${POLYGON_API_KEY}`;
     
+    console.log(`[DEBUG] Fetching yesterday's data for ${symbol}: ${url}`);
+    
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -126,6 +215,7 @@ async function fetchYesterdayData(symbol: string, yesterday: string): Promise<{ 
     });
 
     if (!response.ok) {
+      console.warn(`Failed to fetch yesterday's data for ${symbol}: ${response.status} ${response.statusText}`);
       return null;
     }
 
