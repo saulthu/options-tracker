@@ -130,10 +130,10 @@ async function cacheQuote(symbol: string, quote: StockQuote): Promise<void> {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ symbol: string }> }) {
   try {
-    const url = new URL(request.url);
-    const symbol = url.searchParams.get('symbol');
+    const resolvedParams = await params;
+    const symbol = resolvedParams.symbol;
     
     if (!symbol) {
       return NextResponse.json(
@@ -214,10 +214,10 @@ export async function GET(request: NextRequest) {
 }
 
 // Optional: Add a method to clear quote cache
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ symbol: string }> }) {
   try {
-    const url = new URL(request.url);
-    const symbol = url.searchParams.get('symbol');
+    const resolvedParams = await params;
+    const symbol = resolvedParams.symbol;
     
     if (!symbol) {
       return NextResponse.json(
