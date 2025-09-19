@@ -183,7 +183,13 @@ async function fetchQuoteFromPolygon(symbol: string): Promise<StockQuote | null>
     
     // Strategy 1: If markets are closed OR free account, use open-close API
     if (!marketStatus.isOpen || !isPaidAccount) {
-      quote = await fetchQuoteFromOpenClose(symbol, marketStatus);
+      try {
+        quote = await fetchQuoteFromOpenClose(symbol, marketStatus);
+      } catch (openCloseError) {
+        console.warn(`Open-close API failed for ${symbol}, falling back to aggs API:`, openCloseError);
+        // Fallback to aggs API if open-close fails
+        quote = await fetchQuoteFromLiveData(symbol);
+      }
     }
     // Strategy 2: If markets are open AND paid account, use live data
     else if (marketStatus.isOpen && isPaidAccount) {
@@ -199,7 +205,24 @@ async function fetchQuoteFromPolygon(symbol: string): Promise<StockQuote | null>
 
 // Helper function to fetch quote from open-close API (supports preMarket/afterHours)
 async function fetchQuoteFromOpenClose(symbol: string, marketStatus: MarketStatus): Promise<StockQuote | null> {
-  const url = `https://api.polygon.io/v1/open-close/${symbol.toUpperCase()}/today?adjusted=true&apikey=${POLYGON_API_KEY}`;
+  // Get today's date in YYYY-MM-DD format (EST/EDT)
+  const today = new Date();
+  const est = new Date(today.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  let dateStr = est.toISOString().split('T')[0];
+  
+  // If it's a weekend or holiday, try the previous business day
+  const dayOfWeek = est.getDay();
+  if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+    const daysToSubtract = dayOfWeek === 0 ? 2 : 1; // Sunday: go back to Friday, Saturday: go back to Friday
+    const prevBusinessDay = new Date(est);
+    prevBusinessDay.setDate(est.getDate() - daysToSubtract);
+    dateStr = prevBusinessDay.toISOString().split('T')[0];
+  }
+  
+  const url = `https://api.polygon.io/v1/open-close/${symbol.toUpperCase()}/${dateStr}?adjusted=true&apikey=${POLYGON_API_KEY}`;
+  
+  console.log(`[DEBUG] Fetching open-close data for ${symbol} on ${dateStr}`);
+  console.log(`[DEBUG] Market status:`, marketStatus);
   
   const response = await fetch(url, {
     method: 'GET',
@@ -209,7 +232,37 @@ async function fetchQuoteFromOpenClose(symbol: string, marketStatus: MarketStatu
   });
 
   if (!response.ok) {
-    throw new Error(`Polygon open-close API error: ${response.status} ${response.statusText}`);
+    // If today's data is not available, try the previous business day
+    if (response.status === 400 || response.status === 404) {
+      console.log(`[DEBUG] Today's data not available, trying previous business day...`);
+      
+      const prevBusinessDay = new Date(est);
+      prevBusinessDay.setDate(est.getDate() - 1);
+      const prevDateStr = prevBusinessDay.toISOString().split('T')[0];
+      
+      const prevUrl = `https://api.polygon.io/v1/open-close/${symbol.toUpperCase()}/${prevDateStr}?adjusted=true&apikey=${POLYGON_API_KEY}`;
+      console.log(`[DEBUG] Trying previous day: ${prevDateStr}`);
+      
+      const prevResponse = await fetch(prevUrl);
+      if (prevResponse.ok) {
+        const prevData: PolygonOpenCloseResponse = await prevResponse.json();
+        if (prevData.status === 'OK') {
+          console.log(`[DEBUG] Using previous day's data: ${prevDateStr}`);
+          return processOpenCloseData(prevData, symbol, marketStatus);
+        }
+      }
+    }
+    
+    // Get more detailed error information
+    let errorDetail = '';
+    try {
+      const errorData = await response.json();
+      errorDetail = errorData.message || errorData.error || '';
+    } catch {
+      // If we can't parse the error response, use the status text
+      errorDetail = response.statusText;
+    }
+    throw new Error(`Polygon open-close API error: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
   }
 
   const data: PolygonOpenCloseResponse = await response.json();
@@ -218,6 +271,11 @@ async function fetchQuoteFromOpenClose(symbol: string, marketStatus: MarketStatu
     return null;
   }
 
+  return processOpenCloseData(data, symbol, marketStatus);
+}
+
+// Helper function to process open-close API data
+function processOpenCloseData(data: PolygonOpenCloseResponse, symbol: string, marketStatus: MarketStatus): StockQuote {
   // Determine the best price based on priority: preMarket > afterHours > close
   let price = data.close;
   let marketStatusType: 'preMarket' | 'regular' | 'afterHours' | 'closed' = 'closed';
