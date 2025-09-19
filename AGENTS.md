@@ -622,6 +622,70 @@ Common authentication issues and their solutions:
 - **Performance**: Efficient filtering with proper memoization
 - **Maintainable**: Centralized filtering logic in business layer
 
+### **Icon Cache System Pattern** ⭐ **NEW**
+
+**Purpose**: Provide fast, reliable access to ticker icons using Vercel services, Polygon.io API, and Google Favicon service with comprehensive caching and fallback strategies.
+
+**Architecture**:
+- **Primary Source**: Polygon.io Ticker Overview API for high-quality branding icons
+- **Fallback Source**: Google Favicon service for company website icons  
+- **Caching**: Vercel Blob storage for binary data + Vercel KV for metadata
+- **Performance**: Long-term browser/CDN caching with versioned URLs
+
+**Key Components**:
+- **API Routes**: `/api/icon/[symbol]`, `/api/icon/stats`, `/api/icon/clear`
+- **React Components**: `TickerIcon`, `TickerIconGrid` for easy UI integration
+- **Utility Functions**: `getTickerIconUrl()`, `preloadTickerIcons()`, cache management
+- **Type Safety**: Comprehensive TypeScript interfaces for all cache operations
+
+**Caching Strategy**:
+1. **KV Metadata Check**: Fast lookup for cache status and expiration
+2. **Blob Storage**: CDN-backed binary storage with versioned keys
+3. **Fallback Logic**: Serve stale data when upstream APIs fail
+4. **Browser Caching**: Immutable cache headers for optimal performance
+
+**Error Handling**:
+- **Network Errors**: Graceful fallback to stale cache with warning headers
+- **Invalid Images**: Validation and rejection of bad data
+- **Missing APIs**: Clear error messages for configuration issues
+- **Rate Limiting**: Proper handling of API limits
+
+**Performance Features**:
+- **Lazy Loading**: Icons load only when needed
+- **Preloading**: Batch preload for better UX
+- **Size Validation**: Prevent oversized icons (1MB max, 50 bytes min)
+- **Format Support**: PNG, JPEG, SVG, WebP, GIF with proper validation
+
+**Usage Examples**:
+```tsx
+// Basic usage
+<TickerIcon symbol="AAPL" size={48} />
+
+// Grid display
+<TickerIconGrid symbols={['AAPL', 'MSFT', 'GOOGL']} iconSize={32} columns={4} />
+
+// Utility functions
+const iconUrl = getTickerIconUrl('AAPL');
+await preloadTickerIcons(['AAPL', 'MSFT', 'GOOGL']);
+```
+
+**Environment Variables**:
+```env
+POLYGON_API_KEY=your_polygon_io_api_key
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+KV_URL=your_vercel_kv_url
+KV_REST_API_URL=your_vercel_kv_rest_api_url
+KV_REST_API_TOKEN=your_vercel_kv_rest_api_token
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+**Benefits**:
+- **Fast Performance**: CDN-backed caching with long-term browser cache
+- **Reliability**: Multiple fallback sources ensure high availability
+- **Cost Effective**: Reasonable TTL (7 days) balances freshness vs. cost
+- **Developer Friendly**: Simple API with comprehensive error handling
+- **Type Safe**: Full TypeScript coverage with proper interfaces
+
 ### **Database Implementation Update Pattern**
 1. **Update `src/lib/portfolio-calculator.ts`** with new business logic requirements
 2. **Update `clean-database-schema.sql`** to match the episode-based system

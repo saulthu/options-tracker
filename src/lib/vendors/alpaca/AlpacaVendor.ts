@@ -271,7 +271,7 @@ export class AlpacaVendor implements MarketDataVendor {
             this.clearError();
             return last.c;
           }
-        } catch (e) {
+        } catch {
           // For free plan, do NOT return pre/after-hours quotes; signal upstream to use DB or retry later
           throw new Error(`Free plan: unable to fetch last close for ${ticker}`);
         }
