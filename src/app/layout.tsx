@@ -5,7 +5,7 @@ import { PortfolioProvider } from "@/contexts/PortfolioContext";
 import { TimeRangeProvider } from "@/contexts/TimeRangeContext";
 
 export const metadata: Metadata = {
-  title: "Options Tracker",
+  title: "Good Theta",
   description: "Track your options positions and performance",
 };
 
