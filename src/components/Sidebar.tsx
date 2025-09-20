@@ -162,7 +162,7 @@ export default function Sidebar({ children, onViewChange, currentView, onLogout,
         <div className="border-b border-[#2d2d2d] py-4 px-2">
           <div className="flex items-center">
             <div className="w-12 h-12 flex items-center justify-center cursor-pointer" onClick={toggleSidebar}>
-              <Image src="/td.avif" alt="TD Logo" width={48} height={48} className="object-contain rounded-full" />
+              <Image src="/gt-256.png" alt="GT Logo" width={48} height={48} className="object-contain" />
             </div>
           </div>
         </div>

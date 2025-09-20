@@ -41,13 +41,13 @@ export default function LoginForm() {
         <CardHeader>
           <div className="flex flex-col items-center space-y-4">
             <Image 
-              src="/td.avif" 
-              alt="TD Logo" 
+              src="/gt-256.png" 
+              alt="GT Logo" 
               width={48} 
               height={48} 
-              className="object-contain rounded-full" 
+              className="object-contain" 
             />
-            <CardTitle className="text-2xl text-center">Options Tracker</CardTitle>
+            <CardTitle className="text-2xl text-center">Good Theta Tracker</CardTitle>
             <CardDescription className="text-center text-[#b3b3b3]">
               {isSignUp ? 'Create your account' : 'Sign in to your account'}
             </CardDescription>
