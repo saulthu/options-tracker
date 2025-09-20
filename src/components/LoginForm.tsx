@@ -42,6 +42,7 @@ export default function LoginForm() {
               alt="GT Logo" 
               width={48} 
               height={48} 
+              quality={85}
               className="object-contain" 
             />
             <CardTitle className="text-2xl text-center">Good Theta</CardTitle>
