@@ -47,7 +47,7 @@ export default function LoginForm() {
               height={48} 
               className="object-contain" 
             />
-            <CardTitle className="text-2xl text-center">Good Theta Tracker</CardTitle>
+            <CardTitle className="text-2xl text-center">Good Theta</CardTitle>
             <CardDescription className="text-center text-[#b3b3b3]">
               {isSignUp ? 'Create your account' : 'Sign in to your account'}
             </CardDescription>
