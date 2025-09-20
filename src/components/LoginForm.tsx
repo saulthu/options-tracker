@@ -4,16 +4,15 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeButton } from '@/components/ui/theme-button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn, UserPlus, RefreshCw } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,9 +20,7 @@ export default function LoginForm() {
     setError(null);
 
     try {
-      const { error } = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password);
+      const { error } = await signIn(email, password);
 
       if (error) {
         setError(error.message);
@@ -49,8 +46,13 @@ export default function LoginForm() {
             />
             <CardTitle className="text-2xl text-center">Good Theta</CardTitle>
             <CardDescription className="text-center text-[#b3b3b3]">
-              {isSignUp ? 'Create your account' : 'Sign in to your account'}
+              Sign in to your account
             </CardDescription>
+            <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3 mt-2">
+              <p className="text-yellow-400 text-sm text-center">
+                🚧 Sign-up is currently disabled while in development
+              </p>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -102,23 +104,13 @@ export default function LoginForm() {
 
             <ThemeButton
               type="submit"
-              icon={isSignUp ? UserPlus : LogIn}
+              icon={LogIn}
               disabled={loading}
               className="w-full"
             >
-              {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+              {loading ? 'Loading...' : 'Sign In'}
             </ThemeButton>
 
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-[#b3b3b3] hover:text-white flex items-center justify-center mx-auto space-x-2"
-              >
-                <RefreshCw size={16} />
-                <span>{isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}</span>
-              </button>
-            </div>
           </form>
         </CardContent>
       </Card>
